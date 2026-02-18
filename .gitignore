@@ -1,0 +1,36 @@
+# Speckit and development artifacts
+.speckit/
+.claude/
+.cursor/
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Dependency directories
+node_modules/
+vendor/
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# OS files
+Thumbs.db

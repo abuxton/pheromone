@@ -1,0 +1,90 @@
+# Speckit Configuration for Pheromone Repository
+# This file configures the Speckit ADR (Architectural Decision Records) framework
+
+# Project metadata
+project:
+  name: pheromone
+  description: Digital Twin Platform implementing 1:Many model for OS-level and workload-level twins
+  version: 0.1.0
+
+# Directory structure for specifications and ADRs
+paths:
+  specs: ./specs
+  adrs: ./adrs
+  docs: ./docs
+
+# Speckit workflow configuration
+workflow:
+  # Enable specification-driven development workflow
+  enabled: true
+  
+  # Phases of the Speckit workflow
+  phases:
+    - constitution  # Project principles and guidelines
+    - specify       # Feature specifications
+    - clarify       # Refine specifications through Q&A
+    - plan          # Implementation planning
+    - tasks         # Task breakdown
+    - checklist     # Quality validation
+    - analyze       # Cross-artifact consistency
+    - implement     # Execute implementation
+
+# ADR-specific configuration
+adr:
+  # Directory for architectural decision records
+  directory: ./adrs
+  
+  # Template for new ADRs
+  template: ./adrs/templates/adr-template.md
+  
+  # Naming convention for ADR files
+  naming_convention: "adr-{number:03d}-{title-slug}.md"
+  
+  # Status values allowed for ADRs
+  statuses:
+    - Proposed
+    - Accepted
+    - Deprecated
+    - Superseded
+    - Rejected
+
+# Documentation configuration
+documentation:
+  # Automatically generate documentation from specs
+  auto_generate: true
+  
+  # Output format for generated docs
+  format: markdown
+  
+  # Include ADRs in generated documentation
+  include_adrs: true
+
+# Quality and validation settings
+validation:
+  # Require all ADRs to follow the template
+  enforce_template: true
+  
+  # Require status field in ADRs
+  require_status: true
+  
+  # Require context and decision sections
+  require_sections:
+    - Context
+    - Decision
+    - Consequences
+
+# Integration settings
+integration:
+  # GitHub integration for linking ADRs to issues/PRs
+  github:
+    enabled: true
+    link_issues: true
+    link_prs: true
+
+# Principles for the pheromone project
+principles:
+  - Modularity and flexibility in design
+  - Lightweight and high-performance implementations
+  - Clear separation of concerns (OS-level vs workload-level twins)
+  - Technology-agnostic where possible
+  - Strong focus on documentation and decision tracking
