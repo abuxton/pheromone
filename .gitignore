@@ -3,6 +3,9 @@
 .claude/
 .cursor/
 
+# Allow root Makefile (our build file)
+!Makefile
+
 # Temporary files
 *.tmp
 *.swp
