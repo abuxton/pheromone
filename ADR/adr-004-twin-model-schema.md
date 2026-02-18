@@ -58,7 +58,7 @@ spec:
     - label: "env=production"
     - label: "tier=web"
     - hostname_pattern: "web-*.prod.internal"
-  
+
   twins:
     # OS-Level Twin
     - name: os-config
@@ -72,7 +72,7 @@ spec:
           nginx: "1.24.0"
           openssh-server: "8.2p1"
           chrony: "4.3"
-    
+
     # Workload-Level Twin
     - name: nginx-service
       type: workload
@@ -211,5 +211,5 @@ Each model file is independently versionable in Git; teams can review changes vi
 
 ---
 
-**Decision Date**: 2026-02-18  
+**Decision Date**: 2026-02-18
 **Status Update**: Proposed (pending sample model review for usability)

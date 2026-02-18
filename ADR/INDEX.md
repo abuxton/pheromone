@@ -41,7 +41,7 @@
 - **ADR-003**: gRPC bidirectional streaming patterns (affects agent implementation complexity)
 - **ADR-004**: YAML schema and multi-environment support (affects operator usability)
 
-### Should Review (Implementation Strategy)  
+### Should Review (Implementation Strategy)
 - **ADR-005**: NATS for MVP; Kafka upgrade path (affects telemetry architecture)
 - **ADR-006**: Scaffold-based agent development (affects time-to-first-custom-agent)
 

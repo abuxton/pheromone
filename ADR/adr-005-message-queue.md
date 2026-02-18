@@ -32,7 +32,7 @@ Pheromone agents emit high-volume structured metrics and logs (FR-010, FR-011, S
 
 ## Decision
 
-**Phase 1 MVP: NATS (lightweight, single binary)**  
+**Phase 1 MVP: NATS (lightweight, single binary)**
 **Phase 2 Scale-Out: Kafka (high-throughput, distributed)**
 
 ### Rationale for Phase 1: NATS
@@ -176,5 +176,5 @@ When scaling beyond 1 server (Phase 2 ADR-TBD):
 
 ---
 
-**Decision Date**: 2026-02-18  
+**Decision Date**: 2026-02-18
 **Status Update**: Proposed (pending load test spike with Go NATS client)

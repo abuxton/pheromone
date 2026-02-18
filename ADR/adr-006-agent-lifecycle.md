@@ -96,7 +96,7 @@ type AgentFramework struct {
 func (f *AgentFramework) Run(agent Agent) {
     twins, _ := agent.Initialize()
     f.register(twins)
-    
+
     for {
         select {
         case <-f.ticker.C:
@@ -127,11 +127,11 @@ class Agent(ABC):
     @abstractmethod
     def initialize(self) -> tuple[list[Twin], None]:
         pass
-    
+
     @abstractmethod
     def collect_metrics(self) -> list[Metric]:
         pass
-    
+
     @abstractmethod
     def enforce_config(self, cfg: Config) -> bool:
         pass
@@ -141,11 +141,11 @@ class AgentFramework:
     def __init__(self, server_address: str):
         self.stub = TelemetryStreamStub(server_address)
         self.logger = logging.getLogger("pheromone-agent")
-    
+
     def run(self, agent: Agent):
         twins, _ = agent.initialize()
         self.register(twins)
-        
+
         while True:
             metrics = agent.collect_metrics()
             self.stream_metrics(metrics)
@@ -234,7 +234,7 @@ Server respects version constraints (doesn't push config to agents that don't su
       assert.NoError(t, err)
       assert.Equal(t, 5, len(metrics))  // CPU, memory, connections, requests/sec, latency
   }
-  
+
   // Configuration enforcement test
   func TestAgentEnforceConfig(t *testing.T) {
       config := &Config{Version: "1.0.0", ...}
@@ -258,5 +258,5 @@ None (completes core engine framework decisions).
 
 ---
 
-**Decision Date**: 2026-02-18  
+**Decision Date**: 2026-02-18
 **Status Update**: Proposed (pending scaffold implementation review)

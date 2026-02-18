@@ -1,7 +1,7 @@
 # Pheromone Development Status: Phase 1 Planning Complete
 
-**Date**: 2026-02-18  
-**Feature Branch**: `feature/ADR-001-digital-twin-platform`  
+**Date**: 2026-02-18
+**Feature Branch**: `feature/ADR-001-digital-twin-platform`
 **Specification Status**: ✅ **READY FOR PLANNING**
 
 ---
@@ -255,7 +255,7 @@ Five follow-up ADRs created from specification requirements:
 
 ---
 
-**Last Updated**: 2026-02-18  
-**Owner**: Pheromone Core Team  
+**Last Updated**: 2026-02-18
+**Owner**: Pheromone Core Team
 **Next Review Date**: Post-ADR-Acceptance
 

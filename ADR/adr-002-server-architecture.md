@@ -88,5 +88,5 @@ The management server will maintain twin and configuration state in-memory for p
 
 ---
 
-**Decision Date**: 2026-02-18  
+**Decision Date**: 2026-02-18
 **Status Update**: Proposed (pending tech spike validation on etcd sync latency)
