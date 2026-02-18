@@ -119,6 +119,8 @@ See [adrs/README.md](adrs/README.md) for more information on creating and managi
 - [ADR Index](adrs/README.md) - All architectural decision records
 - [Specs Guide](specs/README.md) - How to use Speckit for feature development
 - [Speckit Configuration](speckit.yml) - Complete Speckit setup
+- [Speckit Quick Reference](docs/SPECKIT-QUICKREF.md) - Quick reference guide for Speckit commands
+- [Example Feature](specs/example-001-health-monitoring/README.md) - Complete example of Speckit + ADR integration
 
 ## Contributing
 
