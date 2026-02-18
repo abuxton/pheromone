@@ -1,3 +1,39 @@
+# Speckit and development artifacts
+.speckit/
+.claude/
+.cursor/
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Dependency directories
+node_modules/
+vendor/
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# OS files
+Thumbs.db
 # Created by https://www.toptal.com/developers/gitignore/api/archives,cmake,git,go,jekyll,macos,osx,rust,vagrant,venv,xcode,zsh
 # Edit at https://www.toptal.com/developers/gitignore?templates=archives,cmake,git,go,jekyll,macos,osx,rust,vagrant,venv,xcode,zsh
 
@@ -108,7 +144,8 @@ vendor/
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*
