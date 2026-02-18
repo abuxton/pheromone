@@ -72,8 +72,9 @@ func (h *HybridStore) Get(ctx context.Context, id string) (*twin.Twin, error) {
 		return nil, err
 	}
 
-	// Populate cache
-	h.memory.Set(t)
+	// Populate cache (ignore error as read succeeded from etcd)
+	// Memory population failure doesn't affect the read operation
+	_ = h.memory.Set(t)
 	return t, nil
 }
 

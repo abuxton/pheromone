@@ -3,6 +3,7 @@ package store
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/abuxton/pheromone/internal/twin"
@@ -17,8 +18,8 @@ var (
 type MemoryStore struct {
 	mu          sync.RWMutex
 	twins       map[string]*twin.Twin
-	cacheHits   int64
-	cacheMisses int64
+	cacheHits   atomic.Int64
+	cacheMisses atomic.Int64
 }
 
 // NewMemoryStore creates a new in-memory store
@@ -45,11 +46,11 @@ func (m *MemoryStore) Get(id string) (*twin.Twin, error) {
 
 	t, exists := m.twins[id]
 	if !exists {
-		m.cacheMisses++
+		m.cacheMisses.Add(1)
 		return nil, ErrTwinNotFound
 	}
 
-	m.cacheHits++
+	m.cacheHits.Add(1)
 	return t, nil
 }
 
@@ -87,21 +88,18 @@ func (m *MemoryStore) Count() int {
 
 // CacheHitRatio returns the cache hit ratio
 func (m *MemoryStore) CacheHitRatio() float64 {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	hits := m.cacheHits.Load()
+	misses := m.cacheMisses.Load()
 
-	total := m.cacheHits + m.cacheMisses
+	total := hits + misses
 	if total == 0 {
 		return 0.0
 	}
-	return float64(m.cacheHits) / float64(total)
+	return float64(hits) / float64(total)
 }
 
 // ResetStats resets cache statistics
 func (m *MemoryStore) ResetStats() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.cacheHits = 0
-	m.cacheMisses = 0
+	m.cacheHits.Store(0)
+	m.cacheMisses.Store(0)
 }
