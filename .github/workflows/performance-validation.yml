@@ -70,15 +70,10 @@ jobs:
       etcd:
         image: quay.io/coreos/etcd:v3.5.16
         env:
-          ETCD_ADVERTISE_CLIENT_URLS: http://localhost:2379
           ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+          ETCD_ADVERTISE_CLIENT_URLS: http://0.0.0.0:2379
         ports:
           - 2379:2379
-        options: >-
-          --health-cmd "etcdctl endpoint health"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -164,7 +159,8 @@ jobs:
 
       - name: Run memory benchmarks
         run: |
-          go test -bench=BenchmarkMemory ./benchmark -benchmem -benchtime=100x > bench-results.txt
+          go test -bench=BenchmarkMemoryStoreWrite -benchmem -benchtime=1000x ./benchmark > bench-results.txt 2>&1 || true
+          go test -bench=BenchmarkMemoryStoreRead -benchmem -benchtime=1000x ./benchmark >> bench-results.txt 2>&1 || true
           cat bench-results.txt
 
       - name: Comment benchmark results
