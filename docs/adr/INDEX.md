@@ -121,7 +121,7 @@ Before ADR Acceptance, run these validation spikes:
 - **Status**: `.specify/memory/PHASE1-STATUS.md`
 - **Quality Checklist**: `.specify/memory/checklists/spec-001-quality.md`
 - **Constitution**: `.specify/memory/constitution.md` (v2.0.0)
-- **ADR Framework**: `ADR/README.md`
+- **ADR Framework**: `docs/adr/README.md`
 
 ---
 

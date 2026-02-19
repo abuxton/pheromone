@@ -134,7 +134,7 @@ A DevOps team manages multiple environments (dev, staging, prod) and needs twin 
 - **FR-024**: CI/CD MUST run smoke test suite on every PR; failures are BLOCKING
 
 **ADR & Decision Traceability** (from Constitution Principle II):
-- **FR-025**: Every architectural decision MUST be documented in `./ADR/adr-NNN-*.md` files using Michael Nygard template
+- **FR-025**: Every architectural decision MUST be documented in `./docs/adr/adr-NNN-*.md` files using Michael Nygard template
 - **FR-026**: Feature branches MUST reference ADR number (e.g., `feature/ADR-001-platform`); PRs MUST link to ADR
 - **FR-027**: System architecture diagrams MUST trace back to ADRs explaining design rationale
 

@@ -26,7 +26,7 @@ Architecture MUST support modular separation of concerns, enabling independent d
 ### II. ADR-Driven Decision Contracts & Observability
 **Architecture Decision Records (ADRs) are non-negotiable decision contracts** that guide all significant architectural work:
 
-- Every architecturally-significant decision MUST be captured in an ADR before implementation begins (see ./ADR/ directory)
+- Every architecturally-significant decision MUST be captured in an ADR before implementation begins (see ./docs/adr/ directory)
 - ADR file naming: present-tense imperative verb, lowercase, dashes, markdown (e.g., `choose-database.md`, `implement-grpc-streams.md`)
 - ADRs MUST include: Status (Proposed/Accepted/Superseded), Context, Decision, Consequences, follow-up ADRs
 - ADRs are LIVING DOCUMENTS; updates MUST include date stamps and rationale (do not delete old text)
@@ -61,7 +61,7 @@ Development workflow MUST be driven by Git, GitHub CLI, and ADRs with integrated
 
 **ADR Filing (Decision → Implementation)**:
 - Significant decisions MUST be formalized as ADRs BEFORE feature branch creation
-- ADR created in `./ADR/` directory with Nygard template (simple, status-driven)
+- ADR created in `./docs/adr/` directory with Nygard template (simple, status-driven)
 - ADR committed to `develop` branch as proposal; team reviews for acceptance
 - Feature branch MUST reference ADR in branch name and PR description (e.g., `feature/ADR-015-grpc-streams`)
 - Commit squash message MUST include: `ADR-XXX: descriptive change` format
@@ -100,7 +100,7 @@ The Pheromone development process MUST follow a decision-first workflow integrat
 
 ### Phase 1: Decision (ADR → Plan)
 1. **Identify Requirement**: Business need or architectural problem surfaces
-2. **Create ADR**: Document decision context, alternatives, and proposed choice in `./ADR/adr-NNN-descriptive-name.md`
+2. **Create ADR**: Document decision context, alternatives, and proposed choice in `./docs/adr/adr-NNN-descriptive-name.md`
    - Use Michael Nygard template (see `.specify/templates/adr-template.md` for Pheromone-specific variant)
    - Include: Status=Proposed, Context, Decision, Consequences, follow-up ADRs
 3. **ADR Review**: Team reviews; minimum 2 approvals before Status=Accepted
@@ -142,7 +142,7 @@ The Pheromone development process MUST follow a decision-first workflow integrat
 1. Feature branch created from `develop` linked to accepted ADR (branch name: `feature/ADR-NNN-description`)
 2. Developer implements feature with full pre-commit hook execution locally
 3. PR submitted with:
-   - ADR reference (link to `./ADR/adr-NNN-*.md`)
+   - ADR reference (link to `./docs/adr/adr-NNN-*.md`)
    - Spec reference (link to `.specify/memory/spec-NNN.md` if generated)
    - Test coverage report showing ≥70% coverage on new code
    - Summary of how implementation aligns with ADR decision and consequences
@@ -265,7 +265,7 @@ This constitution supersedes all informal practices, Slack discussions, and prio
 
 ### Dependent Artifacts Requiring Sync
 After constitutional amendments, these files MUST be reviewed for consistency:
-- `./ADR/README.md`: Reference document on ADR filing procedures (already complete; maintainer for ADR standards)
+- `./docs/adr/README.md`: Reference document on ADR filing procedures (already complete; maintainer for ADR standards)
 - `.specify/templates/adr-template.md`: Pheromone-specific ADR template with decision/consequence guidance (CREATE if missing)
 - `.specify/templates/plan-template.md`: Verify planning guidance includes ADR reference section
 - `.specify/templates/spec-template.md`: Verify spec template references corresponding ADR and decision rationale
