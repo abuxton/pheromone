@@ -21,6 +21,32 @@ The repository is in the early development stage, with ongoing work on:
 1. Setting up an Architectural Decision Record (ADR) framework.
 2. Exploring suitable tools, languages (e.g., Go and Rust), and protocols for implementation.
 3. Building foundational components for agents and server communication.
+4. Performance validation of hybrid in-memory + etcd architecture (ADR-002).
+
+## Recent Developments
+
+### ADR-002 Performance Validation (Tech Spike)
+
+A comprehensive performance validation infrastructure has been implemented to validate the hybrid in-memory + etcd persistence architecture:
+
+- ✅ **Cache Hit Ratio**: Validated >80% for twin state queries (achieved 85%)
+- ⏳ **etcd Write Latency**: Tests ready (target: P99 <100ms)
+- ⏳ **Server Recovery**: Tests ready (target: <5 seconds)
+- ✅ **Data Consistency**: Rollback logic verified for write failures
+
+**Quick Start**:
+```bash
+# Run offline validation tests
+make validate-offline
+
+# Start etcd and run full validation
+make validate
+
+# Clean up
+make etcd-clean
+```
+
+See [`ADR/adr-002-performance-validation.md`](ADR/adr-002-performance-validation.md) for complete results and [`benchmark/README.md`](benchmark/README.md) for detailed testing instructions.
 
 ## Inspiration
 This project is named after the pheromone-based communication used by the Aliens from Ridley Scott's franchise. The design embodies principles of decentralized communication, observability, and adaptability.
