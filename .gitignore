@@ -1,7 +1,7 @@
 # Speckit and development artifacts
 .speckit/
-.claude/
-.cursor/
+# .claude/
+# .cursor/
 
 # Allow root Makefile (our build file)
 !Makefile
