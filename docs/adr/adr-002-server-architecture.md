@@ -80,9 +80,21 @@ The management server will maintain twin and configuration state in-memory for p
 - **ADR-004**: Twin model schema (format for storing in both in-memory + etcd)
 - **ADR-005**: Message queue selection (telemetry path separate from control plane state)
 
+## Update — 2026-02-20
+
+The server architecture must additionally support **agentic AI agents** (ADR-007). The following capabilities MUST be added to the hybrid server design:
+
+1. **Agent Capability Registry**: Extend in-memory twin state to include per-agent capability records (AI model, skill versions, `ai_reasoning_enabled` flag). Persisted to etcd under `/pheromone/agents/{agent_id}/capabilities`.
+2. **Action Proposal Queue**: In-memory queue for `ProposeAction` RPC calls from agents; backed by etcd for durability. Supports human-in-the-loop approval workflows.
+3. **AI Telemetry Path**: `TelemetryStream` ingestion extended to accept AI decision trace payloads alongside metrics/logs. Decision traces stored in PostgreSQL audit log (Phase 2) or exported via NATS.
+4. **Skill-Aware Config Push**: Server checks agent's `skills` capability list before pushing a twin configuration; avoids pushing unsupported skill versions.
+
+These additions do not change the hybrid in-memory + etcd state management choice; they extend the state schema and gRPC service contracts (ADR-003 updated accordingly).
+
 ## References
 
 - Spec-001, FR-002, FR-013, SC-002, SC-006
+- ADR-007 (Agentic AI Agent Model — server capability extensions)
 - Constitution Principle I (Layered architecture), Principle III (Protocol foundation)
 - Related: etcd API 3.5 (range, watch, transaction operations)
 

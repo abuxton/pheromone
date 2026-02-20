@@ -4,7 +4,7 @@ This document defines the governing principles and development guidelines for th
 
 ## Project Vision
 
-Build a modular, high-performance digital twin platform that enables a 1:Many model for managing operating system and workload configurations through lightweight agents and efficient protocols.
+Build a modular, high-performance digital twin platform that enables a 1:Many model for managing operating system and workload configurations through **agentic AI-capable agents** and efficient protocols. Each agent runs an autonomous AI reasoning loop on its managed instance and uses digital twin management as a core skill—reading, updating, and applying its twin model to the system under management.
 
 ## Core Principles
 
@@ -14,13 +14,15 @@ Build a modular, high-performance digital twin platform that enables a 1:Many mo
 - **Workload-Level Twins**: Manage applications and services separately
 - **Clear Interfaces**: Well-defined boundaries between components
 - **Plugin Architecture**: Support extensibility through plugins
+- **Skill-Based Agent Design**: Agent capabilities (digital twin, metrics, config enforcement) are discrete *skills* invoked by the agent's AI reasoning loop; new capabilities added as skills without changing the agent lifecycle
 
 ### 2. Performance and Efficiency
 
-- **Lightweight Agents**: Minimize resource footprint on managed systems
+- **Agentic AI Agents**: Each managed instance runs an AI-capable agent; the agent's AI reasoning loop is the primary driver of twin model enforcement
+- **Lightweight Skill Footprint**: Individual skills (digital twin, metrics, config enforcement) minimize resource overhead
 - **Efficient Protocols**: Use gRPC for high-performance communication
 - **Scalability**: Design for managing thousands of agents
-- **Resource Awareness**: Monitor and optimize resource usage
+- **Resource Awareness**: Monitor and optimize resource usage; support graceful degradation to rule-based operation for resource-constrained instances
 
 ### 3. Technology Choices
 
@@ -162,5 +164,5 @@ This constitution can be amended through:
 
 ---
 
-**Last Updated**: 2026-02-18  
-**Version**: 1.0.0
+**Last Updated**: 2026-02-20
+**Version**: 1.1.0

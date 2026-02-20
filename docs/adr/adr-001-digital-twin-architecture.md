@@ -15,12 +15,19 @@ The architectural decisions for the system are outlined as follows:
   - **Rust**: Memory-safe, high-performance, and provides excellent low-level control for agent development.
 - **Decision**: Go is preferred for prototyping due to its faster learning curve and library ecosystem.
 
-### 2. Open-Source Agent Frameworks
-- **Candidates**: 
+### 2. Agent Model — Agentic AI-Capable Agents
+- **Clarification**: Agents in Pheromone are **agentic AI-capable agents**, not simple metric daemons. Each agent
+  runs an autonomous AI reasoning loop on the managed instance. Digital twin management is a core **skill** of
+  the agent—the agent reads, updates, and applies its twin model to the system under management. See ADR-007 for
+  the full agentic AI agent model.
+- **Candidates**:
   - **Telegraf**: Plugin-driven agent for collecting and reporting metrics.
   - **Fluent Bit**: Lightweight log processor and forwarder.
-  - **Custom Implementation**: Build lightweight agents using Go or Rust for tighter control and modularity.
-- **Decision**: Start with a custom agent in Go for flexibility and optimization.
+  - **Custom Agentic Implementation**: Build AI-capable agents using Go or Rust with a skill-based architecture.
+- **Decision**: Build a custom agentic AI agent in Go. The agent hosts an AI reasoning loop and exposes digital
+  twin management, metrics collection, and config enforcement as discrete skills. Rule-based reasoning is used
+  for MVP (Phase 1); an LLM-backed or local model reasoning engine is plugged in behind the same interface in
+  Phase 2 (ADR-008).
 
 ### 3. Protocols
 - **Candidates**:
@@ -39,12 +46,20 @@ The architectural decisions for the system are outlined as follows:
 ### 5. Server
 - **Languages**: Go or Rust to match agent development.
 - **Frameworks**: Leverage existing frameworks such as gRPC servers, or lightweight REST APIs for configuration push/pull.
+- **Agentic AI Support**: The server MUST maintain an agent capability registry, an action proposal/approval queue,
+  and an AI telemetry ingestion path to support agentic AI agents (see ADR-007).
 
 ## Consequences
 - **Pros**:
   - Modular design for OS/workload twins improves scalability.
   - Use of Go enables fast prototyping and efficient performance.
   - gRPC provides high-performance bi-directional communication.
+  - Agentic AI agents enable autonomous, intent-driven management without tight command-response coupling.
 - **Cons**:
-  - Custom implementation for agents increases initial development time.
+  - Custom implementation for agentic AI agents increases initial development time.
   - Adoption of multiple tools/frameworks might increase the complexity of maintenance.
+  - AI reasoning loop adds resource overhead on managed instances; graceful degradation required for resource-constrained nodes.
+
+## Update — 2026-02-20
+Clarified that agents are **agentic AI-capable agents** (see ADR-007). Digital twin management is a *skill*
+of the agent's reasoning loop. Server design must support capability advertisement and action proposal flows.

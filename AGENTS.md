@@ -2,9 +2,11 @@
 
 ## Project Overview
 
-Pheromone is a digital twin platform implementing a 1:Many model for managing operating system and workload configurations through lightweight agents and efficient protocols. It is inspired by pheromone-based communication used by the Aliens from Ridley Scott's franchise—decentralised, observable, and adaptive.
+Pheromone is a digital twin platform implementing a 1:Many model for managing operating system and workload configurations through **agentic AI-capable agents** and efficient protocols. It is inspired by pheromone-based communication used by the Aliens from Ridley Scott's franchise—decentralised, observable, and adaptive.
 
-This project follows the **Pheromone Constitution v2.0.0** (`.specify/memory/constitution.md`). All development MUST align with its five core principles.
+**Agents are agentic AI-capable agents**: each agent runs an autonomous AI reasoning loop on its managed instance and uses digital twin management as a core *skill* — reading, updating, and applying its twin model to the system under management (see ADR-007).
+
+This project follows the **Pheromone Constitution v2.1.0** (`.specify/memory/constitution.md`). All development MUST align with its five core principles.
 
 ## Core Principles (from Constitution v2.0.0)
 
@@ -13,6 +15,7 @@ Every component MUST align with the 1:Many digital twin model:
 - **OS-Level Twins**: OS configurations, infrastructure metrics, resource allocation
 - **Workload-Level Twins**: Application services and dependencies
 - **Management Layer**: Real-time orchestration across both twin levels
+- **Agentic AI Agents**: Each managed instance runs an AI-capable agent with a reasoning loop; digital twin management is a discrete agent *skill* (ADR-007)
 
 ### II. ADR-Driven Decision Contracts & Observability
 - Every architecturally-significant decision MUST be captured in an ADR **before** implementation begins

@@ -136,11 +136,90 @@ message MetricsResponse {
 - **ADR-004**: Twin model schema (defines structure of Twin message used in TwinControl)
 - **ADR-005**: Telemetry export (how metrics from TelemetryStream are exported to Prometheus/NATS)
 
+## Update — 2026-02-20
+
+ADR-007 (Agentic AI Agent Model) requires extensions to the gRPC service contracts to support agentic AI agents:
+
+### AgentRegistry Service — Capability Advertisement
+
+`RegisterRequest` MUST be extended to include `AgentCapabilities`:
+
+```proto
+message AgentCapabilities {
+  bool   ai_reasoning_enabled   = 1;  // true for agentic AI agents
+  string ai_model_id            = 2;  // e.g., "rule-engine-v1", "llm-local-mistral"
+  repeated string skills        = 3;  // e.g., ["digital-twin", "metrics", "config-enforce"]
+  string skill_contract_version = 4;  // version of skill interface (semver)
+}
+
+message RegisterRequest {
+  string agent_id              = 1;
+  string agent_type            = 2;
+  string hostname              = 3;
+  repeated string twin_ids     = 4;
+  map<string, string> metadata = 5;
+  AgentCapabilities capabilities = 6;  // NEW: agentic AI capabilities
+}
+```
+
+### TwinControl Service — Action Proposal
+
+Agents MUST be able to propose actions to the server (human-in-the-loop gate, ADR-007):
+
+```proto
+service TwinControl {
+  rpc SyncTwinState(stream TwinSyncRequest) returns (stream TwinSyncResponse);
+  rpc ProposeAction(ActionProposal) returns (ActionDecision);  // NEW
+}
+
+message ActionProposal {
+  string agent_id   = 1;
+  string twin_id    = 2;
+  string skill_name = 3;   // e.g., "config-enforce"
+  string rationale  = 4;   // AI reasoning summary (natural language)
+  bytes  action_payload = 5;  // serialised action parameters
+}
+
+message ActionDecision {
+  bool   approved        = 1;
+  string decision_by     = 2;  // "auto-approve", "operator-id", "policy-engine"
+  string rejection_reason = 3;
+}
+```
+
+### TelemetryStream Service — AI Decision Traces
+
+`MetricsRequest` MUST be extended to carry AI decision traces alongside metrics/logs:
+
+```proto
+message AIDecisionTrace {
+  string trace_id             = 1;
+  int64  timestamp_unix_ms    = 2;
+  int32  observations_count   = 3;
+  bool   drift_detected       = 4;
+  int32  actions_planned      = 5;
+  int32  actions_executed     = 6;
+  int32  actions_proposed     = 7;
+  repeated string twin_updates = 8;
+}
+
+message MetricsRequest {
+  string agent_id              = 1;
+  string trace_id              = 2;
+  repeated Metric metrics      = 3;
+  repeated LogEntry logs       = 4;
+  repeated AIDecisionTrace ai_traces = 5;  // NEW: agentic AI decision traces
+}
+```
+
+These extensions are additive (backward-compatible within `pheromone.v1`). Old non-AI agents omit the new fields and continue to operate normally.
+
 ## References
 
 - gRPC Protocol Buffer Specification v3: https://developers.google.com/protocol-buffers/docs/proto3
 - gRPC Best Practices: https://grpc.io/docs/guides/performance-best-practices/
 - Spec-001, FR-005, FR-006, FR-007, SC-002
+- ADR-007 (Agentic AI Agent Model — gRPC contract extensions)
 - Constitution Principle III (Protocol foundation)
 
 ---

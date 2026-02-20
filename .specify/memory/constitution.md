@@ -21,6 +21,12 @@ Every component MUST align with the 1:Many digital twin model comprising three a
 - **Workload-Level Twins**: Manage application services and their dependencies
 - **Management Layer**: Orchestrate real-time insights and adjustments across both twin levels
 
+**Agentic AI Agents**: Agents in Pheromone are **agentic AI-capable agents** — autonomous processes running on
+each managed instance. Each agent hosts an AI reasoning loop and uses digital twin management as a core *skill*:
+the agent reads, updates, and applies its twin model to the system under management (see ADR-007). Digital twin
+interaction MUST be exposed as a discrete skill, enabling the agent's reasoning loop to invoke it alongside
+other skills (metrics collection, config enforcement).
+
 Architecture MUST support modular separation of concerns, enabling independent development and testing of each layer. Scalability and observability MUST be achieved through hierarchical digital twin mapping.
 
 ### II. ADR-Driven Decision Contracts & Observability
@@ -34,8 +40,8 @@ Architecture MUST support modular separation of concerns, enabling independent d
 
 All agents MUST implement autonomous metric reporting and enforcement with full observability:
 - Real-time bidirectional communication between agents and management layer is MANDATORY
-- All agent implementations MUST include structured logging and telemetry collection
-- Observability instrumentation is NOT optional—all components MUST emit metrics for monitoring and debugging
+- All agent implementations MUST include structured logging, telemetry collection, and AI decision traces
+- Observability instrumentation is NOT optional—all components MUST emit metrics, logs, and AI reasoning traces for monitoring and debugging
 - Rationale: ADRs create shared understanding of "why"; observability ensures "what" and "why" remain synchronized at runtime
 
 ### III. Language-Agnostic Protocol Foundation
@@ -275,5 +281,5 @@ After constitutional amendments, these files MUST be reviewed for consistency:
 
 ---
 
-**Version**: 2.0.0 | **Ratified**: 2026-02-18 | **Last Amended**: 2026-02-18
+**Version**: 2.1.0 | **Ratified**: 2026-02-18 | **Last Amended**: 2026-02-20
 
