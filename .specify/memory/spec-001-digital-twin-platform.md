@@ -138,6 +138,13 @@ A DevOps team manages multiple environments (dev, staging, prod) and needs twin 
 - **FR-026**: Feature branches MUST reference ADR number (e.g., `feature/ADR-001-platform`); PRs MUST link to ADR
 - **FR-027**: System architecture diagrams MUST trace back to ADRs explaining design rationale
 
+**Agentic AI Agent Model** (from ADR-007):
+- **FR-028**: Each Pheromone agent MUST host an AI reasoning loop (rule-based for MVP; LLM-backed for Phase 2)
+- **FR-029**: Digital twin management MUST be exposed as a discrete skill (`ReadTwin`, `UpdateTwin`, `ApplyModel`, `DiffModel`) invokable by the agent's reasoning loop
+- **FR-030**: Agents MUST advertise their capabilities (AI model, skill names, skill contract version) on registration via `AgentCapabilities` gRPC message
+- **FR-031**: Agents MUST be able to propose uncertain actions to the server via `ProposeAction` RPC; server MUST provide approval/rejection response
+- **FR-032**: Agent framework MUST emit AI decision traces (structured JSON) per reasoning cycle to the TelemetryStream
+
 ---
 
 ### Key Entities
@@ -158,9 +165,9 @@ A DevOps team manages multiple environments (dev, staging, prod) and needs twin 
 - Attributes: model_id, name, selectors (matching criteria), desired_config (YAML/JSON), version, created_at, last_deployed_at
 - Relationships: "targets" matching twins; "has-versions" (history)
 
-**Agent**: Autonomous process running on a node, manages local twins and reports to server
-- Attributes: agent_id, agent_type (native/custom), os_twins (list), workload_twins (list), last_heartbeat_time, connection_status
-- Relationships: "manages" twins; "connects-to" management server; "emits" metrics/logs
+**Agent**: Agentic AI-capable autonomous process running on a managed instance; hosts an AI reasoning loop; digital twin management is a core skill
+- Attributes: agent_id, agent_type (native/custom), ai_reasoning_enabled (bool), ai_model_id, skills (list of skill names), os_twins (list), workload_twins (list), last_heartbeat_time, connection_status
+- Relationships: "manages" twins via Digital Twin Skill; "connects-to" management server; "emits" metrics/logs/AI decision traces; "proposes-actions-to" management server
 
 ---
 
@@ -441,11 +448,14 @@ Custom Agent Deployment:
 
 Before feature implementation begins, the following ADRs MUST be created and accepted:
 
-1. **ADR-002**: Choose between in-memory server + etcd persistence vs. pure etcd-backed server (Phase 1 architecture)
-2. **ADR-003**: Define gRPC service contracts (protobuf schemas) for agent ↔ server communication
-3. **ADR-004**: Define twin model schema (YAML format for OS/Workload twin definitions)
-4. **ADR-005**: Choose message queue (NATS vs. Kafka) and metrics export format
-5. **ADR-006**: Define agent lifecycle interface (hooks for custom agent implementations)
+1. **ADR-007**: Agentic AI agent model — digital twin as agent skill (✅ Accepted — establishes canonical agent model)
+2. **ADR-002**: Choose between in-memory server + etcd persistence vs. pure etcd-backed server (Phase 1 architecture)
+3. **ADR-003**: Define gRPC service contracts (protobuf schemas) for agent ↔ server communication, including capability advertisement and ProposeAction
+4. **ADR-004**: Define twin model schema (YAML format for OS/Workload twin definitions)
+5. **ADR-005**: Choose message queue (NATS vs. Kafka) and metrics export format
+6. **ADR-006**: Define agent lifecycle interface (hooks for custom agentic AI agent implementations)
+7. **ADR-008** (future): AI model selection — local vs. remote reasoning engine
+8. **ADR-009** (future): Action approval workflow and human-in-the-loop gate design
 
 These ADRs will feed into the Phase 2 specification phase and implementation tasks.
 

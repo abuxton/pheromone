@@ -11,17 +11,19 @@
 | **003** | gRPC Service Contracts | ⏳ Proposed | Phase 1 (MVP) | Three services (Registry/Control/Telemetry) | spec-001 FR-005,006,007 |
 | **004** | Twin Model Schema Format | ⏳ Proposed | Phase 1 (MVP) | YAML + JSON Schema validation | spec-001 FR-001,003 |
 | **005** | Message Queue Selection | ⏳ Proposed | Phase 1 (MVP) | NATS (MVP) → Kafka (Phase 2) | spec-001 FR-010,011,SC-008 |
-| **006** | Agent Lifecycle Interface | ⏳ Proposed | Phase 1 (MVP) | Language-agnostic scaffold (Go/Python/Rust) | spec-001 FR-020,SC-009 |
+| **006** | Agent Lifecycle Interface | ⏳ Proposed | Phase 1 (MVP) | Agentic AI agent scaffold (Go/Python/Rust) | spec-001 FR-020,SC-009 |
+| **007** | Agentic AI Agent Model | ✅ Accepted | Phase 0 (Foundation) | Digital twin as agent skill; AI reasoning loop | ADR-001,003,006 |
 
 ---
 
 ## ADR Decision Map
 
-### Layer 1: Core Architecture (ADR-001 - Foundation)
+### Layer 1: Core Architecture (ADR-001, 007 - Foundation)
 - ✅ Choose Go + Rust as implementation languages
-- ✅ Choose custom agent framework (not Telegraf/Fluent Bit)
+- ✅ Choose custom agentic AI agent framework (not Telegraf/Fluent Bit)
 - ✅ Choose gRPC as primary protocol
 - ✅ Choose etcd/Consul for state management
+- ✅ Establish agentic AI agent model; digital twin as agent skill (ADR-007)
 
 ### Layer 2: Control Plane (ADR-002, 003, 004)
 - ⏳ ADR-002: How to structure server state (in-mem + etcd)
@@ -37,9 +39,9 @@
 ## Key Decisions to Ratify
 
 ### Must Review (Architectural Impact)
-- **ADR-002**: In-memory + etcd hybrid performance characteristics (affects latency targets)
-- **ADR-003**: gRPC bidirectional streaming patterns (affects agent implementation complexity)
-- **ADR-004**: YAML schema and multi-environment support (affects operator usability)
+- **ADR-002**: In-memory + etcd hybrid performance characteristics (affects latency targets; extended for AI capability registry)
+- **ADR-003**: gRPC bidirectional streaming patterns (affects agent implementation complexity; extended for capability advertisement and ProposeAction)
+- **ADR-007**: Agentic AI agent model (affects all agent implementations and server design)
 
 ### Should Review (Implementation Strategy)
 - **ADR-005**: NATS for MVP; Kafka upgrade path (affects telemetry architecture)
@@ -59,10 +61,16 @@ ADR-001 (Foundation)
    ├─→ ADR-005 (Message Queue)
    │    └─→ ADR-006 (Agent Lifecycle)
    │
-   └─→ ADR-004 (Twin Schema) [indirect]
+   ├─→ ADR-004 (Twin Schema) [indirect]
+   │
+   └─→ ADR-007 (Agentic AI Agent Model)
+        ├─→ ADR-006 (Agent Lifecycle — updated)
+        ├─→ ADR-002 (Server — AI capability registry)
+        ├─→ ADR-003 (gRPC — capability advertisement)
+        └─→ ADR-008 (AI Model Selection) [future]
 ```
 
-**Critical Path**: ADR-001 → ADR-002 → ADR-003 → ADR-006 (affects implementation order)
+**Critical Path**: ADR-001 → ADR-007 → ADR-002 → ADR-003 → ADR-006 (affects implementation order)
 
 ---
 
@@ -76,8 +84,9 @@ Before ADR Acceptance, run these validation spikes:
 | ADR-003 | gRPC bidirectional stream prototype | Test 1000 agents streaming simultaneously | 12 hours |
 | ADR-005 | NATS load test 100K msgs/sec | Measure latency, memory overhead, JetStream persistence | 8 hours |
 | ADR-006 | Go agent scaffold + custom agent | Time end-to-end: scaffold → implement → test | 6 hours |
+| ADR-007 | Agentic AI loop resource usage | Measure memory/CPU overhead of reasoning loop on typical instance | 6 hours |
 
-**Total Spike Effort**: ~34 hours (can run in parallel)
+**Total Spike Effort**: ~40 hours (can run in parallel)
 
 ---
 

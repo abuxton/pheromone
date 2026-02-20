@@ -3,6 +3,8 @@
 ## Introduction
 The discussion focuses on implementing a 1:Many model for digital twins, which includes OS-level twins and workload-level twins. This approach allows for a more comprehensive mapping of server topology and workloads, enabling better resource management and performance optimization.
 
+**Agents in Pheromone are agentic AI-capable agents** (see [ADR-007](docs/adr/adr-007-agentic-ai-agent-model.md)). Each agent runs an autonomous AI reasoning loop on the instance it manages. Digital twin management is a core *skill* of the agent: the agent reads, updates, and applies its twin model to the system under management, embodying the pheromone metaphor of decentralised, intent-driven communication.
+
 ## Key Architectural Layers
 1. **Infrastructure Layer**  
    This layer represents the physical hardware and the foundational software elements that manage resources.
@@ -17,7 +19,7 @@ The discussion focuses on implementing a 1:Many model for digital twins, which i
    Integrates insights from both layers to make real-time adjustments based on performance metrics and resource availability.
 
 ## Agent Mapping
-Agent mapping involves connecting both OS-level and workload-level twins to create an interactive ecosystem. Each twin can autonomously report metrics, adjust operations based on workloads, and respond to real-time changes in the environment. This mapping enhances visibility across the entire topology, allowing for streamlined operations and responses.
+Agent mapping involves connecting both OS-level and workload-level twins to create an interactive ecosystem. Each agent is an **agentic AI-capable agent**: it hosts an AI reasoning loop that autonomously observes, plans, and acts. The digital twin is a *skill* the reasoning loop invokes—agents read the twin model to understand desired state, compute the gap against actual state, and apply the model to the system under management without explicit command-response cycles. This mapping enhances visibility across the entire topology, allowing for streamlined, autonomous operations and responses.
 
 ## Challenges
 - **Scalability:** Managing a large number of twins can complicate monitoring and orchestration.

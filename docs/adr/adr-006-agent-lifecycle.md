@@ -1,27 +1,38 @@
-# ADR 006: Agent Lifecycle Interface - Custom Agent Framework
+# ADR 006: Agent Lifecycle Interface - Agentic AI Agent Framework
 
 ## Status
 Proposed
 
 ## Context
 
-Pheromone must enable developers to write custom agents (Python, Go, Rust) that integrate with the platform without deep framework knowledge (User Story 4, FR-020). The lifecycle interface defines what hooks agents must implement and what guarantees the framework provides.
+Pheromone agents are **agentic AI-capable agents** (see ADR-007) — autonomous processes running on each managed
+instance. They must enable developers to write custom agents (Python, Go, Rust) that integrate with the platform
+without deep framework knowledge (User Story 4, FR-020). The lifecycle interface defines what hooks agents must
+implement, what the framework provides, and how the agent's AI reasoning loop interacts with its skills—
+particularly the **Digital Twin Skill** for reading, updating, and applying the twin model to the system under
+management.
 
 **Requirements**:
 - **Minimal Dependencies**: Custom agents should work with standard libraries (no forced frameworks)
 - **Language-Agnostic**: Interface contracts defined via gRPC (ADR-003); any language can implement
-- **Automatic Registration**: Agent framework handles gRPC setup; developer writes business logic only
-- **Built-in Observability**: Structured logs and metrics exported automatically (Principle II)
+- **Automatic Registration**: Agent framework handles gRPC setup and capability advertisement; developer writes business logic only
+- **Built-in Observability**: Structured logs, metrics, and AI decision traces exported automatically (Principle II)
 - **Clear Error Handling**: Graceful degradation on configuration mismatches or transient failures
+- **Agentic AI Loop**: Framework provides a reasoning loop harness; developer provides skill implementations and optionally a custom reasoner
 
 **Options Considered**:
 - Full framework (like Telegraf plugins): Too opinionated; loses flexibility
 - Minimal interface (pure gRPC): Requires developer to handle connection, retry, serialization logic
 - Scaffolding + templating: Balanced approach; provides structure without rigidity
+- **Agentic skill framework (selected)**: Extends scaffolding model with an explicit AI reasoning loop and skill interface; digital twin is a first-class skill
 
 ## Decision
 
-**Define Agent Lifecycle Hooks + Provide Language-Specific Scaffolding**
+**Define Agentic AI Agent Lifecycle Hooks + Provide Language-Specific Scaffolding**
+
+The agent lifecycle is structured around an AI reasoning loop with discrete skills. The **Digital Twin Skill**
+is the canonical way agents interact with their twin model—it is not a passive data sink but an active
+capability the reasoning loop invokes.
 
 ### Agent Lifecycle Hooks (Pseudo-Code)
 
@@ -30,19 +41,32 @@ Pheromone must enable developers to write custom agents (Python, Go, Rust) that 
 │ 1. Initialize()                             │
 │    - Load config                            │
 │    - Set up local resources (files, db)     │
+│    - Instantiate Skills (DigitalTwin,       │
+│      MetricsCollector, ConfigEnforcer, ...) │
 │    - Return: OS/Workload Twin objects       │
 └──────────────┬──────────────────────────────┘
                ↓
 ┌──────────────────────────────────────────────┐
 │ 2. Connect(server_address, agent_id)        │
 │    - Establish gRPC connection to server    │
+│    - Advertise capabilities & AI skills     │
 │    - Register twin objects                  │
 │    - Start heartbeat loop (FR-006)          │
 │    - Return: gRPC client connection         │
 └──────────────┬───────────────────────────────┘
                ↓
 ┌──────────────────────────────────────────────┐
-│ 3. CollectMetrics() [Continuous Loop]       │
+│ 3. ReasoningLoop() [Continuous]             │
+│    - Observe: CollectMetrics() +            │
+│      DigitalTwinSkill.ReadTwin()            │
+│    - Plan: compute drift & decide actions   │
+│    - Act: invoke Skills (enforce, update)   │
+│    - Reflect: update twin, emit traces      │
+│    - ProposeAction() for uncertain cases    │
+└──────────────┬───────────────────────────────┘
+               ↓
+┌──────────────────────────────────────────────┐
+│ 4. CollectMetrics() [within Reasoning Loop] │
 │    - Poll local system (CPU, memory, etc.)  │
 │    - Format as gRPC Metric messages         │
 │    - Stream to server via TelemetryStream   │
@@ -50,23 +74,25 @@ Pheromone must enable developers to write custom agents (Python, Go, Rust) that 
 └──────────────┬───────────────────────────────┘
                ↓
 ┌──────────────────────────────────────────────┐
-│ 4. EnforceConfig(desired_config) [Async]    │
+│ 5. EnforceConfig(desired_config) [Async]    │
 │    - Apply configuration from server        │
 │    - Validate against actual state          │
 │    - Report enforcement status back         │
+│    - Called by reasoning loop via Skill     │
 │    - Return: success/partial/failed         │
 └──────────────┬───────────────────────────────┘
                ↓
 ┌──────────────────────────────────────────────┐
-│ 5. HandleConfigUpdate(new_model_version)    │
+│ 6. HandleConfigUpdate(new_model_version)    │
 │    - Called when server pushes new twin     │
-│    - May trigger EnforceConfig()            │
+│    - DigitalTwinSkill.UpdateTwin() invoked  │
+│    - May trigger re-planning in loop        │
 │    - Handle backward compatibility          │
 └──────────────┬───────────────────────────────┘
                ↓
 ┌──────────────────────────────────────────────┐
-│ 6. Shutdown() [On SIGTERM/disconnect]       │
-│    - Flush pending logs/metrics             │
+│ 7. Shutdown() [On SIGTERM/disconnect]       │
+│    - Flush pending logs/metrics/AI traces   │
 │    - Clean up local resources               │
 │    - Close gRPC connection gracefully       │
 │    - Return: success or error               │
@@ -78,31 +104,46 @@ Pheromone must enable developers to write custom agents (Python, Go, Rust) that 
 #### Go Agent Template
 
 ```go
-// agent.go - User implements these methods
+// skills.go - Digital Twin Skill interface
+type DigitalTwinSkill interface {
+    ReadTwin(ctx context.Context, twinID string) (*TwinModel, error)
+    UpdateTwin(ctx context.Context, twinID string, delta *TwinDelta) error
+    ApplyModel(ctx context.Context, model *TwinModel) (*ApplyResult, error)
+    DiffModel(desired, actual *TwinModel) (*DriftReport, error)
+}
+
+// agent.go - User implements these methods (business logic only)
 type Agent interface {
     Initialize() ([]Twin, error)
     CollectMetrics(ctx context.Context) ([]Metric, error)
     EnforceConfig(cfg Config) error
     Shutdown() error
+    // Optional: override default rule-based reasoner
+    Reason(ctx context.Context, obs Observations, skills AgentSkills) ([]Action, error)
 }
 
-// framework.go - Framework provides this
+// framework.go - Framework provides this (AI loop + skill wiring)
 type AgentFramework struct {
-    client  grpc.TelemetryStreamClient
-    ticker  *time.Ticker
-    logger  *logrus.Logger
+    client    grpc.TelemetryStreamClient
+    twinSkill DigitalTwinSkill
+    ticker    *time.Ticker
+    logger    *logrus.Logger
 }
 
 func (f *AgentFramework) Run(agent Agent) {
     twins, _ := agent.Initialize()
-    f.register(twins)
+    f.register(twins, f.capabilities())  // advertises AI skills to server
 
     for {
         select {
         case <-f.ticker.C:
-            metrics, _ := agent.CollectMetrics(ctx)
-            f.publish(metrics)
+            obs := f.observe(agent)                   // collect + read twins
+            actions, _ := agent.Reason(ctx, obs, f.skills)
+            for _, action := range actions {
+                f.executeAction(agent, action)        // invoke skill, emit trace
+            }
         case config := <-f.configChan:
+            f.twinSkill.UpdateTwin(ctx, config.TwinID, config.Delta)
             agent.EnforceConfig(config)
         case <-f.shutdownChan:
             agent.Shutdown()
@@ -111,7 +152,7 @@ func (f *AgentFramework) Run(agent Agent) {
     }
 }
 
-// User code: 50 lines
+// User code: ~50 lines (implements business logic; framework handles AI loop)
 func main() {
     agent := &MyAgent{...}
     framework := NewAgentFramework("http://server:5050")
@@ -122,36 +163,54 @@ func main() {
 #### Python Agent Template
 
 ```python
+# skills.py - Digital Twin Skill interface
+class DigitalTwinSkill(ABC):
+    @abstractmethod
+    def read_twin(self, twin_id: str) -> TwinModel: ...
+
+    @abstractmethod
+    def update_twin(self, twin_id: str, delta: TwinDelta) -> None: ...
+
+    @abstractmethod
+    def apply_model(self, model: TwinModel) -> ApplyResult: ...
+
+    @abstractmethod
+    def diff_model(self, desired: TwinModel, actual: TwinModel) -> DriftReport: ...
+
 # agent.py - User implements these methods
 class Agent(ABC):
     @abstractmethod
-    def initialize(self) -> tuple[list[Twin], None]:
-        pass
+    def initialize(self) -> tuple[list[Twin], None]: ...
 
     @abstractmethod
-    def collect_metrics(self) -> list[Metric]:
-        pass
+    def collect_metrics(self) -> list[Metric]: ...
 
     @abstractmethod
-    def enforce_config(self, cfg: Config) -> bool:
-        pass
+    def enforce_config(self, cfg: Config) -> bool: ...
 
-# framework.py - Framework provides this
+    # Optional: override default rule-based reasoner
+    def reason(self, observations: Observations, skills: AgentSkills) -> list[Action]:
+        return skills.twin.diff_model(observations.desired, observations.actual).to_actions()
+
+# framework.py - Framework provides this (AI loop + skill wiring)
 class AgentFramework:
     def __init__(self, server_address: str):
         self.stub = TelemetryStreamStub(server_address)
+        self.twin_skill = DigitalTwinSkillImpl(self.stub)
         self.logger = logging.getLogger("pheromone-agent")
 
     def run(self, agent: Agent):
         twins, _ = agent.initialize()
-        self.register(twins)
+        self.register(twins, self.capabilities())   # advertise AI skills
 
         while True:
-            metrics = agent.collect_metrics()
-            self.stream_metrics(metrics)
-            sleep(5)  # collection interval
+            obs = self._observe(agent)              # collect + read twins
+            actions = agent.reason(obs, self.skills)
+            for action in actions:
+                self._execute_action(agent, action)  # invoke skill, emit trace
+            sleep(5)
 
-# User code: 30 lines
+# User code: ~30 lines
 if __name__ == "__main__":
     agent = MyAgent()
     framework = AgentFramework("http://server:5050")
@@ -181,7 +240,26 @@ All agent implementations MUST emit:
   pheromone_agent_connection_errors_total{agent_id="agent-1"} 3
   ```
 
+- **AI Decision Traces** (structured JSON per reasoning cycle)
+  ```json
+  {
+    "timestamp": "2026-02-20T10:00:00Z",
+    "trace_id": "xyz-789",
+    "agent_id": "agent-1",
+    "component": "reasoning-loop",
+    "level": "info",
+    "message": "reasoning cycle complete",
+    "observations_count": 15,
+    "drift_detected": true,
+    "actions_planned": 2,
+    "actions_executed": 2,
+    "actions_proposed_to_server": 0,
+    "twin_updates": ["os-twin-host-1"]
+  }
+  ```
+
 Framework handles metrics aggregation and export (agents just call `AddMetric()`).
+AI decision traces are auto-emitted by the framework reasoning loop harness.
 
 ### Configuration Schema Evolution
 
@@ -207,20 +285,22 @@ Server respects version constraints (doesn't push config to agents that don't su
 ### Positive
 - **Developer Experience**: Scaffold generates 80% of boilerplate code; developers write 50-100 lines for new agent
 - **Consistency**: All agents follow same lifecycle (regardless of language)
-- **Observability**: Structured logs/metrics automatic (no developer work)
+- **Observability**: Structured logs, metrics, and AI decision traces automatic (no developer work)
 - **Type Safety**: Framework handles gRPC serialization/deserialization (developer works with Go/Python native types)
-- **Testability**: Agents can be unit-tested without server (mock Twin/Config objects)
+- **Testability**: Agents can be unit-tested without server (mock Twin/Config/Skill objects)
+- **Agentic AI Ready**: Skill interface enables plug-in of AI reasoning engines (LLM, rules, hybrid) without changing lifecycle hooks
 
 ### Negative
-- **Framework Complexity**: Core team must maintain Go, Python, Rust scaffold versions
+- **Framework Complexity**: Core team must maintain Go, Python, Rust scaffold versions plus DigitalTwinSkill implementations
 - **Language Support**: Only actively maintained languages get scaffold (not JavaScript, PHP, etc.)
 - **Debugging**: Framework abstraction makes troubleshooting harder if logic buried in framework
 - **Performance**: Abstraction layers have overhead (acceptable for <10K agents; may need optimization for Phase 2)
+- **AI Reasoning Overhead**: Agents hosting AI reasoning loops require more resources than pure daemons; edge devices may need rule-based fallback
 
 ### Implementation Effort
-- **Go Scaffold**: ~200 lines (core framework + examples)
-- **Python Scaffold**: ~250 lines (gRPC client boilerplate more verbose)
-- **Rust Scaffold**: ~300 lines (Type system more verbose but safer)
+- **Go Scaffold**: ~300 lines (core framework + AI loop harness + DigitalTwinSkill + examples)
+- **Python Scaffold**: ~350 lines (gRPC client boilerplate more verbose; skill interfaces)
+- **Rust Scaffold**: ~400 lines (type system more verbose; safer AI trait boundaries)
 - **Documentation + Examples**: 1 full example per language (nginx service, PostgreSQL service)
 
 ## Testing Strategy
@@ -241,18 +321,41 @@ Server respects version constraints (doesn't push config to agents that don't su
       err := agent.EnforceConfig(config)
       assert.NoError(t, err)
   }
+
+  // Digital Twin Skill test
+  func TestDigitalTwinSkillDiff(t *testing.T) {
+      skill := NewDigitalTwinSkill(mockTwinStore)
+      desired := &TwinModel{Packages: []string{"nginx=1.24"}}
+      actual  := &TwinModel{Packages: []string{"nginx=1.20"}}
+      drift   := skill.DiffModel(desired, actual)
+      assert.Len(t, drift.PackageDrift, 1)
+      assert.Equal(t, "nginx", drift.PackageDrift[0].Name)
+  }
+
+  // Reasoning loop test (mock reasoner)
+  func TestAgentReasoningLoop(t *testing.T) {
+      framework := NewAgentFramework(mockServer, mockReasoner)
+      agent := &NginxAgent{}
+      // Run one tick; verify actions planned and skills invoked
+      actions := framework.RunOneTick(ctx, agent)
+      assert.NotEmpty(t, actions)
+  }
   ```
 
-- **Integration Test**: Full agent lifecycle with mock server (test register → collect → enforce → shutdown)
+- **Integration Test**: Full agent lifecycle with mock server (test register → reason → collect → enforce → shutdown)
+- **AI Decision Trace Test**: Verify trace emitted per reasoning cycle with correct structure
 
 ## Follow-Up ADRs
 
-None (completes core engine framework decisions).
+- **ADR-007**: Agentic AI Agent Model (establishes the agent-as-AI-capable-agent canonical model; digital twin as skill) — **Accepted**
+- **ADR-008** (Proposed): AI model selection and local vs. remote reasoning engine trade-offs
+- **ADR-009** (Proposed): Action approval workflow and human-in-the-loop gate design
 
 ## References
 
 - Spec-001, FR-020, User Story 4, SC-009
 - Constitution Principle IV (Smoke tests), Principle II (Observability)
+- ADR-007 (Agentic AI Agent Model — this ADR's context)
 - gRPC Go/Python/Rust Client Libraries
 - Similar frameworks (Telegraf plugin system, Fluent Bit plugins)
 
@@ -260,3 +363,4 @@ None (completes core engine framework decisions).
 
 **Decision Date**: 2026-02-18
 **Status Update**: Proposed (pending scaffold implementation review)
+**Updated**: 2026-02-20 — Revised to reflect agentic AI agent model (ADR-007); Digital Twin Skill added to lifecycle

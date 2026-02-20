@@ -3,17 +3,20 @@
 ## Overview
 Pheromone is a platform inspired by the pheromone-based communication system of the Alien species in Ridley Scott's franchise. The project explores the use of digital twins in a scalable 1:Many model to facilitate communication, observability, and alignment across nodes in a distributed system. It aims to leverage modular and hierarchical digital twins to manage server configurations and workloads effectively.
 
+**Agents in Pheromone are agentic AI-capable agents** — autonomous processes running on each managed instance that use an AI reasoning loop to observe, plan, and act on their environment. Digital twin management is a core *skill* of each agent: the agent reads, updates, and applies its twin model to the system under management (see [ADR-007](docs/adr/adr-007-agentic-ai-agent-model.md)).
+
 ## Key Features
+- **Agentic AI Agents**: Each managed instance runs an autonomous AI-capable agent with an AI reasoning loop. Digital twin management is a first-class skill—agents read, update, and apply their twin model without waiting for explicit command-response cycles.
 - **Digital Twin Management**: Implement a 1:Many model where a single digital twin is used to manage and synchronize multiple matching nodes or workloads.
 - **Layered Architecture**: Split twins into OS-level twins and workload-level twins for managing distinct layers of node topology.
-- **Agent-Based Communication**: Employ lightweight agents for monitoring and enforcement of states based on digital twin models.
+- **Intent-Driven Communication**: Agents interpret the twin desired state as *intent* and reason autonomously about how to achieve it, consistent with the pheromone metaphor.
 - **Protocol Agnostic**: Design for flexibility, supporting protocols like gRPC, Kafka, and others for agent-to-server communication.
-- **Scalability and Observability**: Provide real-time insights across distributed systems using telemetry and logging frameworks.
+- **Scalability and Observability**: Provide real-time insights across distributed systems using telemetry, AI decision traces, and logging frameworks.
 
 ## Goals
-1. Develop a modular and scalable system for managing servers and workloads using digital twins.
+1. Develop a modular and scalable system for managing servers and workloads using digital twins driven by agentic AI agents on each instance.
 2. Leverage open standards and frameworks to enable platform-agnostic implementation.
-3. Explore cutting-edge technologies, including lightweight protocols, distributed key-value stores, and advanced configuration management solutions.
+3. Explore cutting-edge technologies, including AI reasoning frameworks, lightweight protocols, distributed key-value stores, and advanced configuration management solutions.
 4. Enable efficient tracking and management of architectural decisions through tools like Speckit.
 
 ## Current Status
