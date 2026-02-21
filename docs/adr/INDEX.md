@@ -15,6 +15,7 @@
 | **007** | Agentic AI Agent Model | ✅ Accepted | Phase 0 (Foundation) | Digital twin as agent skill; AI reasoning loop | ADR-001,003,006 |
 | **008** | AI Model Selection — Local vs. Remote Reasoning Engine | ⏳ Proposed | Phase 2 (AI Reasoning) | Ollama (local), llamafile (edge), remote API; OS recommendations | ADR-007,006,003 |
 | **009** | OpenClaw Evaluation — Central Server and Agent Role Assessment | ⏳ Proposed | Phase 2 (AI Reasoning) | OpenClaw as server/agent candidate; extends ADR-008 | ADR-008,007,003 |
+| **010** | Evaluate Signal Protocol (signalapp) for Server↔Agent Communication | ⏳ Proposed | Phase 1 (Security Review) | Signal Protocol not suitable; gRPC+mTLS confirmed; AGPL/Go/throughput constraints | ADR-001,003,005 |
 
 ---
 
@@ -29,10 +30,11 @@
 - ⏳ Choose AI reasoning engine: Ollama (local), llamafile (edge), remote API (ADR-008)
 - ⏳ Evaluate OpenClaw as server/agent candidate — not adopted as core infra (ADR-009)
 
-### Layer 2: Control Plane (ADR-002, 003, 004)
+### Layer 2: Control Plane (ADR-002, 003, 004, 010)
 - ⏳ ADR-002: How to structure server state (in-mem + etcd)
 - ⏳ ADR-003: How agents communicate with server (gRPC contracts)
 - ⏳ ADR-004: How operators define twin models (YAML schema)
+- ⏳ ADR-010: Signal Protocol (signalapp) evaluated; gRPC+mTLS confirmed as server↔agent security
 
 ### Layer 3: Telemetry & Extensibility (ADR-005, 006)
 - ⏳ ADR-005: How metrics flow to observability tools (NATS/Kafka)
@@ -46,8 +48,10 @@
 - **ADR-002**: In-memory + etcd hybrid performance characteristics (affects latency targets; extended for AI capability registry)
 - **ADR-003**: gRPC bidirectional streaming patterns (affects agent implementation complexity; extended for capability advertisement and ProposeAction)
 - **ADR-007**: Agentic AI agent model (affects all agent implementations and server design)
-- **ADR-008**: AI model selection (Ollama/llamafile/remote); OS recommendations
+- **ADR-008**: AI model selection (Ollama/llamafile/remote); OS recommendations (Ubuntu 24.04 LTS, Talos Linux)
 - **ADR-009**: OpenClaw evaluation (confirms ADR-008 Ollama decision; no core architecture change)
+- **ADR-010**: Signal Protocol (signalapp) evaluation — NOT adopted; gRPC+mTLS confirmed as server↔agent security layer
+
 
 ### Should Review (Implementation Strategy)
 - **ADR-005**: NATS for MVP; Kafka upgrade path (affects telemetry architecture)
