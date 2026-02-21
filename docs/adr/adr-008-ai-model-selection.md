@@ -364,10 +364,50 @@ func TestOllamaReasonerFallsBackOnError(t *testing.T) {
 
 ---
 
+## Update — 2026-02-21
+
+### OpenClaw Evaluation (Extension of ADR-008)
+
+Following a review request, **OpenClaw** (<https://github.com/openclaw/openclaw>) was evaluated
+as a candidate for both the central server role and the agent role in Pheromone. The full
+evaluation is captured in **ADR-009** (OpenClaw Evaluation — Central Server and Agent Role
+Assessment).
+
+**Summary of findings (ADR-009)**:
+
+- OpenClaw is a **personal AI assistant gateway** written in TypeScript/Node.js, not an LLM.
+  It routes prompts to external providers (Anthropic Claude, OpenAI GPT) and is NOT itself an
+  AI reasoning engine.
+- **Communication channel**: The only headless-accessible channel is the HTTP REST gateway API,
+  which is unsuitable for Pheromone's high-frequency, bidirectional gRPC fleet management
+  (ADR-003). No OpenClaw channel is viable for non-UI agent-to-agent infrastructure.
+- **LLM**: OpenClaw is not an LLM. Using it as an intermediary adds an unnecessary routing hop
+  (Agent → OpenClaw → Ollama/Anthropic) with no benefit over ADR-008's direct Ollama approach.
+- **Server/agent dual role**: OpenClaw cannot serve as Pheromone's server (no gRPC, no twin
+  management, 1:1 personal assistant model vs. 1:Many fleet management) nor as a Pheromone
+  agent (Node.js runtime, no twin skill, no gRPC capability advertisement).
+- **Partial use**: OpenClaw may serve as an optional operator-facing conversational UI layer
+  (Slack/Discord/Teams → OpenClaw → Pheromone API) in a future phase, outside core platform scope.
+
+The ADR-008 decision (Ollama as Tier 1 local inference, llamafile as edge fallback, tiered
+reasoning architecture) is **confirmed unchanged**.
+
+**Framework selection table addition**:
+
+| Framework | Decision | Rationale |
+|---|---|---|
+| OpenClaw | ❌ **Not selected** (core infra) | TypeScript/Node.js; personal assistant 1:1 model; no gRPC; remote API dependency; not suitable as server or agent |
+| OpenClaw | ⚠️ **Optional** (operator UX) | Conversational operator interface over Slack/Discord/Teams — out of core platform scope |
+
+See **ADR-009** for the complete evaluation.
+
+---
+
 ## Follow-Up ADRs
 
-- **ADR-009** (Proposed): Action approval workflow and human-in-the-loop gate design
-- **ADR-010** (Proposed): Ollama model lifecycle management (pull, update, rollback) across managed fleet
+- **ADR-009** (Proposed): OpenClaw evaluation — central server and agent role assessment (extension of this ADR)
+- **ADR-010** (Proposed): Action approval workflow and human-in-the-loop gate design
+- **ADR-011** (Proposed): Ollama model lifecycle management (pull, update, rollback) across managed fleet
 
 ---
 

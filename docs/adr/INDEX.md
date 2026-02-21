@@ -14,6 +14,7 @@
 | **006** | Agent Lifecycle Interface | ⏳ Proposed | Phase 1 (MVP) | Agentic AI agent scaffold (Go/Python/Rust) | spec-001 FR-020,SC-009 |
 | **007** | Agentic AI Agent Model | ✅ Accepted | Phase 0 (Foundation) | Digital twin as agent skill; AI reasoning loop | ADR-001,003,006 |
 | **008** | AI Model Selection — Local vs. Remote Reasoning Engine | ⏳ Proposed | Phase 2 (AI Reasoning) | Ollama (local), llamafile (edge), remote API; OS recommendations | ADR-007,006,003 |
+| **009** | OpenClaw Evaluation — Central Server and Agent Role Assessment | ⏳ Proposed | Phase 2 (AI Reasoning) | OpenClaw as server/agent candidate; extends ADR-008 | ADR-008,007,003 |
 | **010** | Evaluate Signal Protocol (signalapp) for Server↔Agent Communication | ⏳ Proposed | Phase 1 (Security Review) | Signal Protocol not suitable; gRPC+mTLS confirmed; AGPL/Go/throughput constraints | ADR-001,003,005 |
 
 ---
@@ -27,6 +28,7 @@
 - ✅ Choose etcd/Consul for state management
 - ✅ Establish agentic AI agent model; digital twin as agent skill (ADR-007)
 - ⏳ Choose AI reasoning engine: Ollama (local), llamafile (edge), remote API (ADR-008)
+- ⏳ Evaluate OpenClaw as server/agent candidate — not adopted as core infra (ADR-009)
 
 ### Layer 2: Control Plane (ADR-002, 003, 004, 010)
 - ⏳ ADR-002: How to structure server state (in-mem + etcd)
@@ -47,7 +49,9 @@
 - **ADR-003**: gRPC bidirectional streaming patterns (affects agent implementation complexity; extended for capability advertisement and ProposeAction)
 - **ADR-007**: Agentic AI agent model (affects all agent implementations and server design)
 - **ADR-008**: AI model selection (Ollama/llamafile/remote); OS recommendations (Ubuntu 24.04 LTS, Talos Linux)
+- **ADR-009**: OpenClaw evaluation (confirms ADR-008 Ollama decision; no core architecture change)
 - **ADR-010**: Signal Protocol (signalapp) evaluation — NOT adopted; gRPC+mTLS confirmed as server↔agent security layer
+
 
 ### Should Review (Implementation Strategy)
 - **ADR-005**: NATS for MVP; Kafka upgrade path (affects telemetry architecture)
@@ -74,10 +78,8 @@ ADR-001 (Foundation)
         ├─→ ADR-002 (Server — AI capability registry)
         ├─→ ADR-003 (gRPC — capability advertisement)
         ├─→ ADR-008 (AI Model Selection — Ollama/llamafile/remote) [proposed]
-        └─→ ADR-009 (Action Approval Workflow) [future]
-
-ADR-001 (Foundation) + ADR-003 (gRPC Contracts)
-   └─→ ADR-010 (Signal Protocol Evaluation — NOT adopted; mTLS on gRPC confirmed)
+        │    └─→ ADR-009 (OpenClaw Evaluation — confirms ADR-008) [proposed]
+        └─→ ADR-010 (Action Approval Workflow) [future]
 ```
 
 **Critical Path**: ADR-001 → ADR-007 → ADR-002 → ADR-003 → ADR-006 (affects implementation order)
@@ -96,8 +98,9 @@ Before ADR Acceptance, run these validation spikes:
 | ADR-006 | Go agent scaffold + custom agent | Time end-to-end: scaffold → implement → test | 6 hours |
 | ADR-007 | Agentic AI loop resource usage | Measure memory/CPU overhead of reasoning loop on typical instance | 6 hours |
 | ADR-008 | Ollama + phi3.5:mini resource benchmark | Measure RAM/CPU on 8 GB instance; test fallback to rule-based reasoner | 6 hours |
+| ADR-009 | OpenClaw HTTP API integration spike (optional) | Prototype operator-interface bridge (OpenClaw → Pheromone API); assess Slack/Discord channel feasibility for operator UX only | 4 hours |
 
-**Total Spike Effort**: ~46 hours (can run in parallel)
+**Total Spike Effort**: ~50 hours (can run in parallel)
 
 ---
 
@@ -145,5 +148,5 @@ Before ADR Acceptance, run these validation spikes:
 
 ---
 
-**Status**: ✅ **ADRs 002-007 PROPOSED/ACCEPTED — ADR-008 PROPOSED — ADR-010 PROPOSED (Signal Protocol review complete) - READY FOR TEAM REVIEW**
+**Status**: ✅ **ADRs 002-007 PROPOSED/ACCEPTED — ADR-008/009 PROPOSED - READY FOR TEAM REVIEW**
 
