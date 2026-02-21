@@ -1,6 +1,6 @@
 # Pheromone ADR Index & Decision Status
 
-**Updated**: 2026-02-20
+**Updated**: 2026-02-21
 
 ## Decision Timeline & Status
 
@@ -14,6 +14,7 @@
 | **006** | Agent Lifecycle Interface | ⏳ Proposed | Phase 1 (MVP) | Agentic AI agent scaffold (Go/Python/Rust) | spec-001 FR-020,SC-009 |
 | **007** | Agentic AI Agent Model | ✅ Accepted | Phase 0 (Foundation) | Digital twin as agent skill; AI reasoning loop | ADR-001,003,006 |
 | **008** | AI Model Selection — Local vs. Remote Reasoning Engine | ⏳ Proposed | Phase 2 (AI Reasoning) | Ollama (local), llamafile (edge), remote API; OS recommendations | ADR-007,006,003 |
+| **010** | Evaluate Signal Protocol (signalapp) for Server↔Agent Communication | ⏳ Proposed | Phase 1 (Security Review) | Signal Protocol not suitable; gRPC+mTLS confirmed; AGPL/Go/throughput constraints | ADR-001,003,005 |
 
 ---
 
@@ -27,10 +28,11 @@
 - ✅ Establish agentic AI agent model; digital twin as agent skill (ADR-007)
 - ⏳ Choose AI reasoning engine: Ollama (local), llamafile (edge), remote API (ADR-008)
 
-### Layer 2: Control Plane (ADR-002, 003, 004)
+### Layer 2: Control Plane (ADR-002, 003, 004, 010)
 - ⏳ ADR-002: How to structure server state (in-mem + etcd)
 - ⏳ ADR-003: How agents communicate with server (gRPC contracts)
 - ⏳ ADR-004: How operators define twin models (YAML schema)
+- ⏳ ADR-010: Signal Protocol (signalapp) evaluated; gRPC+mTLS confirmed as server↔agent security
 
 ### Layer 3: Telemetry & Extensibility (ADR-005, 006)
 - ⏳ ADR-005: How metrics flow to observability tools (NATS/Kafka)
@@ -45,6 +47,7 @@
 - **ADR-003**: gRPC bidirectional streaming patterns (affects agent implementation complexity; extended for capability advertisement and ProposeAction)
 - **ADR-007**: Agentic AI agent model (affects all agent implementations and server design)
 - **ADR-008**: AI model selection (Ollama/llamafile/remote); OS recommendations (Ubuntu 24.04 LTS, Talos Linux)
+- **ADR-010**: Signal Protocol (signalapp) evaluation — NOT adopted; gRPC+mTLS confirmed as server↔agent security layer
 
 ### Should Review (Implementation Strategy)
 - **ADR-005**: NATS for MVP; Kafka upgrade path (affects telemetry architecture)
@@ -72,6 +75,9 @@ ADR-001 (Foundation)
         ├─→ ADR-003 (gRPC — capability advertisement)
         ├─→ ADR-008 (AI Model Selection — Ollama/llamafile/remote) [proposed]
         └─→ ADR-009 (Action Approval Workflow) [future]
+
+ADR-001 (Foundation) + ADR-003 (gRPC Contracts)
+   └─→ ADR-010 (Signal Protocol Evaluation — NOT adopted; mTLS on gRPC confirmed)
 ```
 
 **Critical Path**: ADR-001 → ADR-007 → ADR-002 → ADR-003 → ADR-006 (affects implementation order)
@@ -139,5 +145,5 @@ Before ADR Acceptance, run these validation spikes:
 
 ---
 
-**Status**: ✅ **ADRs 002-007 PROPOSED/ACCEPTED — ADR-008 PROPOSED - READY FOR TEAM REVIEW**
+**Status**: ✅ **ADRs 002-007 PROPOSED/ACCEPTED — ADR-008 PROPOSED — ADR-010 PROPOSED (Signal Protocol review complete) - READY FOR TEAM REVIEW**
 
