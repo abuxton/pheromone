@@ -1,5 +1,13 @@
 version: '3.8'
 
+# Port assignments (ADR-011):
+#   4426 - gRPC Control Plane (AgentRegistry + TwinControl)
+#   4427 - gRPC Telemetry Plane (TelemetryStream)
+#   443  - HTTPS REST API (Phase 2)
+#   80   - HTTP REST API (redirect to 443 in production)
+#   2379 - etcd client
+#   2380 - etcd peer
+
 services:
   etcd:
     image: quay.io/coreos/etcd:v3.5.16

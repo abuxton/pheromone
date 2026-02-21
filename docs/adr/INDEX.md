@@ -16,6 +16,7 @@
 | **008** | AI Model Selection — Local vs. Remote Reasoning Engine | ⏳ Proposed | Phase 2 (AI Reasoning) | Ollama (local), llamafile (edge), remote API; OS recommendations | ADR-007,006,003 |
 | **009** | OpenClaw Evaluation — Central Server and Agent Role Assessment | ⏳ Proposed | Phase 2 (AI Reasoning) | OpenClaw as server/agent candidate; extends ADR-008 | ADR-008,007,003 |
 | **010** | Evaluate Signal Protocol (signalapp) for Server↔Agent Communication | ⏳ Proposed | Phase 1 (Security Review) | Signal Protocol not suitable; gRPC+mTLS confirmed; AGPL/Go/throughput constraints | ADR-001,003,005 |
+| **011** | Port Assignment for Pheromone Communication | ✅ Accepted | Phase 1 (MVP) | gRPC control plane 4426, telemetry 4427; HTTP/HTTPS 80/443 for REST API | ADR-001,003,010 |
 
 ---
 
@@ -51,6 +52,7 @@
 - **ADR-008**: AI model selection (Ollama/llamafile/remote); OS recommendations (Ubuntu 24.04 LTS, Talos Linux)
 - **ADR-009**: OpenClaw evaluation (confirms ADR-008 Ollama decision; no core architecture change)
 - **ADR-010**: Signal Protocol (signalapp) evaluation — NOT adopted; gRPC+mTLS confirmed as server↔agent security layer
+- **ADR-011**: Port assignment — 4426 (gRPC control), 4427 (gRPC telemetry), 443/80 (HTTP/HTTPS REST API)
 
 
 ### Should Review (Implementation Strategy)
@@ -80,6 +82,9 @@ ADR-001 (Foundation)
         ├─→ ADR-008 (AI Model Selection — Ollama/llamafile/remote) [proposed]
         │    └─→ ADR-009 (OpenClaw Evaluation — confirms ADR-008) [proposed]
         └─→ ADR-010 (Action Approval Workflow) [future]
+
+ADR-003 (gRPC Contracts)
+   └─→ ADR-011 (Port Assignment — 4426/4427/443/80)
 ```
 
 **Critical Path**: ADR-001 → ADR-007 → ADR-002 → ADR-003 → ADR-006 (affects implementation order)
@@ -148,5 +153,5 @@ Before ADR Acceptance, run these validation spikes:
 
 ---
 
-**Status**: ✅ **ADRs 002-007 PROPOSED/ACCEPTED — ADR-008/009 PROPOSED - READY FOR TEAM REVIEW**
+**Status**: ✅ **ADRs 002-007 PROPOSED/ACCEPTED — ADR-008/009 PROPOSED — ADR-011 ACCEPTED - READY FOR TEAM REVIEW**
 
