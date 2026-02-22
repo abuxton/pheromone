@@ -76,6 +76,34 @@ validate-offline: ## Run validation tests that don't require etcd
 	@echo ""
 	@echo "Offline validation complete."
 
+.PHONY: vagrant-up
+vagrant-up: ## Start all Vagrant VMs (server + agent-ubuntu + agent-debian)
+	cd vagrant && vagrant up
+
+.PHONY: vagrant-up-server
+vagrant-up-server: ## Start server VM only
+	cd vagrant && vagrant up server
+
+.PHONY: vagrant-up-agents
+vagrant-up-agents: ## Start both agent VMs only
+	cd vagrant && vagrant up agent-ubuntu agent-debian
+
+.PHONY: vagrant-halt
+vagrant-halt: ## Stop all Vagrant VMs
+	cd vagrant && vagrant halt
+
+.PHONY: vagrant-destroy
+vagrant-destroy: ## Destroy all Vagrant VMs (WARNING: deletes VM disk state)
+	cd vagrant && vagrant destroy -f
+
+.PHONY: vagrant-status
+vagrant-status: ## Show status of all Vagrant VMs
+	cd vagrant && vagrant status
+
+.PHONY: vagrant-validate
+vagrant-validate: ## Validate the Vagrantfile syntax
+	cd vagrant && vagrant validate
+
 .PHONY: clean
 clean: ## Clean build artifacts
 	go clean
