@@ -1,8 +1,8 @@
 # Pheromone Repository
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/abuxton/pheromone/performance-validation.yml)](https://github.com/abuxton/pheromone/actions)
-[![License](https://img.shields.io/github/license/abuxton/pheromone)](LICENSE)
-[![Top Language](https://img.shields.io/github/languages/top/abuxton/pheromone)](https://github.com/abuxton/pheromone)
+[![License](https://img.shields.io/github/license/abuxton/dbad)](LICENSE)
+[![Top Language](https://img.shields.io/github/languages/top/golang)](https://github.com/abuxton/pheromone)
 [![Docker Compose](https://img.shields.io/badge/docker-compose-blue?logo=docker)](docker-compose.yml)
 
 ## Overview
