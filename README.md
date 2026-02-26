@@ -1,5 +1,10 @@
 # Pheromone Repository
 
+[![Build Status](https://img.shields.io/github/actions/workflow/status/abuxton/pheromone/performance-validation.yml)](https://github.com/abuxton/pheromone/actions)
+[![License](https://img.shields.io/github/license/abuxton/pheromone)](LICENSE)
+[![Top Language](https://img.shields.io/github/languages/top/abuxton/pheromone)](https://github.com/abuxton/pheromone)
+[![Docker Compose](https://img.shields.io/badge/docker-compose-blue?logo=docker)](docker-compose.yml)
+
 ## Overview
 Pheromone is a platform inspired by the pheromone-based communication system of the Alien species in Ridley Scott's franchise. The project explores the use of digital twins in a scalable 1:Many model to facilitate communication, observability, and alignment across nodes in a distributed system. It aims to leverage modular and hierarchical digital twins to manage server configurations and workloads effectively.
 
