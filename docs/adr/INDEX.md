@@ -54,6 +54,7 @@
 - **ADR-008**: AI model selection (Ollama/llamafile/remote); OS recommendations (Ubuntu 24.04 LTS, Talos Linux)
 - **ADR-009**: OpenClaw evaluation (confirms ADR-008 Ollama decision; no core architecture change)
 - **ADR-010**: Signal Protocol (signalapp) evaluation — NOT adopted; gRPC+mTLS confirmed as server↔agent security layer
+- **ADR-011**: Port assignment — 4426 (gRPC control), 4427 (gRPC telemetry), 443/80 (HTTP/HTTPS REST API)
 
 
 ### Should Review (Implementation Strategy)

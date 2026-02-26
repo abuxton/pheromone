@@ -220,6 +220,7 @@ These extensions are additive (backward-compatible within `pheromone.v1`). Old n
 - gRPC Best Practices: https://grpc.io/docs/guides/performance-best-practices/
 - Spec-001, FR-005, FR-006, FR-007, SC-002
 - ADR-007 (Agentic AI Agent Model — gRPC contract extensions)
+- ADR-011 (Port Assignment — AgentRegistry+TwinControl on **4426**, TelemetryStream on **4427**)
 - Constitution Principle III (Protocol foundation)
 
 ---
