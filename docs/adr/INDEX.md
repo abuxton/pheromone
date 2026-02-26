@@ -1,6 +1,6 @@
 # Pheromone ADR Index & Decision Status
 
-**Updated**: 2026-02-21
+**Updated**: 2026-02-22 (ADR-012 added)
 
 ## Decision Timeline & Status
 
@@ -16,7 +16,8 @@
 | **008** | AI Model Selection — Local vs. Remote Reasoning Engine | ⏳ Proposed | Phase 2 (AI Reasoning) | Ollama (local), llamafile (edge), remote API; OS recommendations | ADR-007,006,003 |
 | **009** | OpenClaw Evaluation — Central Server and Agent Role Assessment | ⏳ Proposed | Phase 2 (AI Reasoning) | OpenClaw as server/agent candidate; extends ADR-008 | ADR-008,007,003 |
 | **010** | Evaluate Signal Protocol (signalapp) for Server↔Agent Communication | ⏳ Proposed | Phase 1 (Security Review) | Signal Protocol not suitable; gRPC+mTLS confirmed; AGPL/Go/throughput constraints | ADR-001,003,005 |
-| **011** | Port Assignment for Pheromone Communication | ✅ Accepted | Phase 1 (MVP) | gRPC control plane 4426, telemetry 4427; HTTP/HTTPS 80/443 for REST API | ADR-001,003,010 |
+| **011** | Post-Action Hooks — Notifications, Webhooks, and Package Delivery | ⏳ Proposed | Phase 1 (MVP) | Notification Skill (agent-side) + Post-Action Hook Service (server-side); direct end-user notify | ADR-003,005,006,007,010 |
+| **012** | Vagrant Testing Environment | ⏳ Proposed | Phase 1 (MVP) | Multi-machine Vagrant setup (Ubuntu 24.04 + Debian 12) for server/agent integration testing | ADR-001,002,008 |
 
 ---
 
@@ -37,9 +38,10 @@
 - ⏳ ADR-004: How operators define twin models (YAML schema)
 - ⏳ ADR-010: Signal Protocol (signalapp) evaluated; gRPC+mTLS confirmed as server↔agent security
 
-### Layer 3: Telemetry & Extensibility (ADR-005, 006)
+### Layer 3: Telemetry & Extensibility (ADR-005, 006, 011)
 - ⏳ ADR-005: How metrics flow to observability tools (NATS/Kafka)
 - ⏳ ADR-006: How developers extend platform (agent scaffold)
+- ⏳ ADR-011: Post-action hooks — Notification Skill + server-side hook service; webhooks, package delivery, direct end-user notification
 
 ---
 
@@ -58,6 +60,7 @@
 ### Should Review (Implementation Strategy)
 - **ADR-005**: NATS for MVP; Kafka upgrade path (affects telemetry architecture)
 - **ADR-006**: Scaffold-based agent development (affects time-to-first-custom-agent)
+- **ADR-011**: Post-action hooks (Notification Skill + server hook service; affects agent scaffold and server API design)
 
 ---
 
@@ -72,6 +75,7 @@ ADR-001 (Foundation)
    │
    ├─→ ADR-005 (Message Queue)
    │    └─→ ADR-006 (Agent Lifecycle)
+   │         └─→ ADR-011 (Post-Action Hooks — Notification Skill)
    │
    ├─→ ADR-004 (Twin Schema) [indirect]
    │
@@ -79,12 +83,12 @@ ADR-001 (Foundation)
         ├─→ ADR-006 (Agent Lifecycle — updated)
         ├─→ ADR-002 (Server — AI capability registry)
         ├─→ ADR-003 (gRPC — capability advertisement)
+        │    └─→ ADR-011 (Post-Action Hooks — ActionEventService extends ADR-003)
         ├─→ ADR-008 (AI Model Selection — Ollama/llamafile/remote) [proposed]
         │    └─→ ADR-009 (OpenClaw Evaluation — confirms ADR-008) [proposed]
-        └─→ ADR-010 (Action Approval Workflow) [future]
-
-ADR-003 (gRPC Contracts)
-   └─→ ADR-011 (Port Assignment — 4426/4427/443/80)
+        ├─→ ADR-010 (Signal Protocol — mTLS confirmed) [proposed]
+        │    └─→ ADR-011 (Post-Action Hooks — mTLS for webhook credential transport)
+        └─→ ADR-011 (Post-Action Hooks — notification as post-reasoning-loop step)
 ```
 
 **Critical Path**: ADR-001 → ADR-007 → ADR-002 → ADR-003 → ADR-006 (affects implementation order)
@@ -104,8 +108,11 @@ Before ADR Acceptance, run these validation spikes:
 | ADR-007 | Agentic AI loop resource usage | Measure memory/CPU overhead of reasoning loop on typical instance | 6 hours |
 | ADR-008 | Ollama + phi3.5:mini resource benchmark | Measure RAM/CPU on 8 GB instance; test fallback to rule-based reasoner | 6 hours |
 | ADR-009 | OpenClaw HTTP API integration spike (optional) | Prototype operator-interface bridge (OpenClaw → Pheromone API); assess Slack/Discord channel feasibility for operator UX only | 4 hours |
+| ADR-011 | HTTP webhook dispatch at scale | Server dispatching hooks to 100 endpoints with 1000 simultaneous agent events | 6 hours |
+| ADR-011 | Agent direct notify resilience | Verify reasoning loop unblocked when notification destinations unreachable | 4 hours |
+| ADR-011 | HMAC webhook verification prototype | Signature generation/verification across Go agent and Python receiver | 2 hours |
 
-**Total Spike Effort**: ~50 hours (can run in parallel)
+**Total Spike Effort**: ~62 hours (can run in parallel)
 
 ---
 
@@ -143,6 +150,33 @@ Before ADR Acceptance, run these validation spikes:
 
 ---
 
+## Required GitHub Issues
+
+All GitHub issues required to process ADR material and unblock development are tracked in:
+
+> **[`docs/REQUIRED-ISSUES.md`](../REQUIRED-ISSUES.md)**
+
+| Issue | Type | ADR | Effort |
+|-------|------|-----|--------|
+| Complete etcd validation with live etcd | Tech Spike | ADR-002 | 2h |
+| gRPC Bidirectional Stream Prototype | Tech Spike | ADR-003 | 12h |
+| Agentic AI Loop Resource Usage | Tech Spike | ADR-007 | 6h |
+| Ollama + phi3.5:mini Benchmark | Tech Spike | ADR-008 | 6h |
+| HTTP Webhook Dispatch at Scale | Tech Spike | ADR-011 | 6h |
+| Agent Direct Notify Resilience | Tech Spike | ADR-011 | 4h |
+| HMAC Webhook Verification Prototype | Tech Spike | ADR-011 | 2h |
+| Review and Accept ADR-002 | ADR Review | ADR-002 | — |
+| Review and Accept ADR-003 | ADR Review | ADR-003 | — |
+| Review and Accept ADR-004 | ADR Review | ADR-004 | — |
+| Review and Accept ADR-008/009 | ADR Review | ADR-008/009 | — |
+| Review and Accept ADR-010 | ADR Review | ADR-010 | — |
+| Review and Accept ADR-011 | ADR Review | ADR-011 | — |
+| Review and Accept ADR-012 | ADR Review | ADR-012 | — |
+| Implement Vagrant provisioning scripts | Implementation | ADR-012 | 4h |
+| Implement gRPC proto definitions | Implementation | ADR-003 | 8h |
+
+---
+
 ## References
 
 - **Specification**: `.specify/memory/spec-001-digital-twin-platform.md`
@@ -150,8 +184,10 @@ Before ADR Acceptance, run these validation spikes:
 - **Quality Checklist**: `.specify/memory/checklists/spec-001-quality.md`
 - **Constitution**: `.specify/memory/constitution.md` (v2.0.0)
 - **ADR Framework**: `docs/adr/README.md`
+- **Required Issues**: `docs/REQUIRED-ISSUES.md`
 
 ---
 
-**Status**: ✅ **ADRs 002-007 PROPOSED/ACCEPTED — ADR-008/009 PROPOSED — ADR-011 ACCEPTED - READY FOR TEAM REVIEW**
+**Status**: ✅ **ADRs 002-007 PROPOSED/ACCEPTED — ADR-008/009/010/011/012 PROPOSED - READY FOR TEAM REVIEW**
+**Updated**: 2026-02-26 (required issues tracked; Vagrant scripts added)
 
