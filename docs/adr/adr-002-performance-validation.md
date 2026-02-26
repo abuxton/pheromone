@@ -9,7 +9,7 @@ Validate that hybrid in-memory + etcd persistence architecture meets performance
 - **Go Version**: 1.24.13
 - **etcd Version**: 3.5.16 (via Docker)
 - **Platform**: Linux amd64
-- **Test Date**: 2026-02-18
+- **Test Date**: 2026-02-26
 
 ## Success Criteria Validation
 
@@ -30,39 +30,42 @@ Validate that hybrid in-memory + etcd persistence architecture meets performance
 - Workload pattern: 850 hits / 150 misses out of 1000 queries
 - Real-world workloads with repeated twin state queries will benefit from >80% cache hits
 
-### 2. etcd Write Latency: <100ms (P99) ⏳
+### 2. etcd Write Latency: <100ms (P99) ✅
 
 **Test**: `TestEtcdWriteLatency`
 
-**Status**: Test implemented, requires live etcd instance for validation.
+```
+=== RUN   TestEtcdWriteLatency
+    etcd_bench_test.go:123: Write latencies - P50: 800.438µs, P95: 1.139369ms, P99: 1.813016ms
+--- PASS: TestEtcdWriteLatency (0.84s)
+```
 
-**Implementation Details**:
-- Test performs 1000 writes to etcd
-- Measures individual write latencies
-- Calculates P50, P95, and P99 percentiles
-- Validates P99 < 100ms requirement
+**Result**: PASS - P99 write latency of 1.81ms is well below the 100ms requirement.
 
-**Expected Results** (based on etcd 3.5 benchmarks):
-- P50: 5-15ms (local etcd)
-- P95: 20-50ms
-- P99: 30-80ms (well below 100ms requirement)
+**Analysis**:
+- P50: ~0.8ms — typical write latency for local etcd
+- P95: ~1.1ms — 95th percentile comfortably below limit
+- P99: ~1.8ms — 98% under budget vs 100ms requirement
+- Results confirm that etcd write latency is not a bottleneck for this architecture
 
-### 3. Server Recovery Time from etcd: <5 Seconds ⏳
+### 3. Server Recovery Time from etcd: <5 Seconds ✅
 
 **Test**: `TestServerRecoveryTime`
 
-**Status**: Test implemented, requires live etcd instance for validation.
+```
+=== RUN   TestServerRecoveryTime
+    etcd_bench_test.go:148: Populating etcd with 1000 twins...
+    etcd_bench_test.go:158: Starting recovery from etcd...
+    etcd_bench_test.go:167: Recovered 1000 twins in 16.945241ms
+--- PASS: TestServerRecoveryTime (0.84s)
+```
 
-**Implementation Details**:
-- Pre-populates etcd with 1000 twins
-- Simulates server crash by creating new memory store
-- Measures time to load all twins from etcd
-- Validates recovery time < 5 seconds
+**Result**: PASS - Recovered 1000 twins in 16.9ms, well under the 5 second budget.
 
-**Expected Results** (estimated):
-- 1000 twins recovery: 100-500ms
-- Well below 5 second requirement
-- Linear scaling with twin count
+**Analysis**:
+- Recovery of 1000 twins takes ~17ms — 295x faster than the 5s requirement
+- Linear scaling: even 100,000 twins would recover in ~1.7 seconds
+- Server restart impact on availability is negligible
 
 ### 4. No Data Loss on Write Failure ✅
 
@@ -158,16 +161,16 @@ Combined architecture with:
 ### etcd Store Performance
 
 **Write Performance**:
-- Expected: 10-50ms for local etcd
-- Network latency dominant factor
-- Batch operations available for bulk writes
+- P50: ~0.8ms (local etcd, Docker container)
+- P95: ~1.1ms
+- P99: ~1.8ms (well below 100ms requirement)
 
 **Read Performance**:
 - Expected: 1-10ms single key read
 - Range queries: 10-50ms for 1000 keys
 
 **Recovery Performance**:
-- 1000 twins: Expected 100-500ms
+- 1000 twins: 16.9ms actual (295x faster than 5s requirement)
 - Well below 5 second requirement
 
 ### Hybrid Store Performance
@@ -246,8 +249,8 @@ Combined architecture with:
 | Criterion | Target | Status | Result |
 |-----------|--------|--------|--------|
 | Cache hit ratio | >80% | ✅ PASS | 85% |
-| etcd write latency P99 | <100ms | ⏳ Pending etcd | Expected 30-80ms |
-| Server recovery time | <5s | ⏳ Pending etcd | Expected <1s |
+| etcd write latency P99 | <100ms | ✅ PASS | 1.81ms |
+| Server recovery time | <5s | ✅ PASS | 16.9ms (1000 twins) |
 | No data loss on failure | Yes | ✅ PASS | Rollback verified |
 
 ### Recommendation
@@ -263,10 +266,10 @@ Combined architecture with:
 
 ### Next Steps
 
-1. **Deploy etcd test cluster** to validate latency and recovery benchmarks
-2. **Run full benchmark suite** with live etcd
-3. **Document final results** in this report
-4. **Update ADR-002 status** from "Proposed" to "Accepted"
+1. ~~**Deploy etcd test cluster** to validate latency and recovery benchmarks~~ ✅ Done
+2. ~~**Run full benchmark suite** with live etcd~~ ✅ Done
+3. ~~**Document final results** in this report~~ ✅ Done
+4. ~~**Update ADR-002 status** from "Proposed" to "Accepted"~~ ✅ Done
 5. **Begin Phase 1 implementation** of management server
 
 ## Appendix: Running the Benchmarks

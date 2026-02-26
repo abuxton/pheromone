@@ -139,6 +139,11 @@ func TestServerRecoveryTime(t *testing.T) {
 
 	ctx := context.Background()
 
+	// Clean up any data left by previous test runs to ensure accurate count
+	if err := etcdStore.DeleteAll(ctx); err != nil {
+		t.Fatalf("Failed to clean up etcd: %v", err)
+	}
+
 	// Pre-populate with 1000 twins
 	t.Log("Populating etcd with 1000 twins...")
 	for i := 0; i < 1000; i++ {
