@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package pheromone.v1;
+
+option go_package = "github.com/abuxton/pheromone/internal/proto/pheromone/v1;pheromone_v1";
+
+// TwinControl provides bidirectional streaming for twin-state synchronisation and
+// an RPC for agentic AI action proposals (ADR-007 human-in-the-loop).
+service TwinControl {
+  // SyncTwinState is a bidirectional stream: the agent continuously reports actual state
+  // and enforcement status; the server pushes desired configuration and actions in return.
+  rpc SyncTwinState(stream TwinSyncRequest) returns (stream TwinSyncResponse);
+
+  // ProposeAction allows an AI agent to submit an action proposal for server-side
+  // approval before execution (ADR-007 human-in-the-loop gate).
+  rpc ProposeAction(ActionProposal) returns (ActionDecision);
+}
+
+// Twin represents a digital twin state snapshot carried over the wire.
+message Twin {
+  // twin_id is the unique identifier of the twin.
+  string twin_id = 1;
+
+  // twin_type is "os-level" or "workload".
+  string twin_type = 2;
+
+  // state_json is a JSON-encoded snapshot of the twin's current state.
+  bytes state_json = 3;
+
+  // config_version is the version of the twin state being reported.
+  string config_version = 4;
+}
+
+// EnforcementStatus reports whether an agent is compliant with the desired twin configuration.
+message EnforcementStatus {
+  // twin_id identifies the twin this status applies to.
+  string twin_id = 1;
+
+  // compliant is true when actual state matches desired state.
+  bool compliant = 2;
+
+  // drift_summary is a human-readable description of any detected drift.
+  string drift_summary = 3;
+}
+
+// ConfigAction is a server-issued instruction carried in a TwinSyncResponse.
+message ConfigAction {
+  // action_id is a unique identifier for this action, used for idempotency.
+  string action_id = 1;
+
+  // action_type describes the operation, e.g. "apply-config", "collect-metrics", "rollback".
+  string action_type = 2;
+
+  // twin_id is the target twin for this action.
+  string twin_id = 3;
+
+  // payload_json is JSON-encoded parameters for the action.
+  bytes payload_json = 4;
+}
+
+// TwinSyncRequest is streamed by the agent to report actual state and enforcement status.
+message TwinSyncRequest {
+  // agent_id identifies the sending agent.
+  string agent_id = 1;
+
+  // actual_state contains the agent's view of all managed twin states.
+  repeated Twin actual_state = 2;
+
+  // enforcement_status reports compliance with the currently applied desired config.
+  repeated EnforcementStatus enforcement_status = 3;
+}
+
+// TwinSyncResponse is streamed by the server to push desired configuration and actions.
+message TwinSyncResponse {
+  // server_id is the unique identifier of the responding server instance.
+  string server_id = 1;
+
+  // actions lists the operations the agent should execute.
+  repeated ConfigAction actions = 2;
+
+  // desired_config_version is the version of the desired state being pushed.
+  string desired_config_version = 3;
+}
+
+// ActionProposal is sent by an AI agent when it wants to execute an action that
+// requires server-side (or operator) approval (ADR-007).
+message ActionProposal {
+  // agent_id identifies the proposing agent.
+  string agent_id = 1;
+
+  // twin_id is the target twin for the proposed action.
+  string twin_id = 2;
+
+  // skill_name names the skill that would execute the action, e.g. "config-enforce".
+  string skill_name = 3;
+
+  // rationale is a natural-language summary of the AI reasoning behind this proposal.
+  string rationale = 4;
+
+  // action_payload is the serialised action parameters.
+  bytes action_payload = 5;
+}
+
+// ActionDecision is the server's response to an ActionProposal (ADR-007).
+message ActionDecision {
+  // approved is true when the server (or operator policy) permits the proposed action.
+  bool approved = 1;
+
+  // decision_by identifies who or what approved/rejected the proposal,
+  // e.g. "auto-approve", "operator-id-123", "policy-engine".
+  string decision_by = 2;
+
+  // rejection_reason is populated when approved is false.
+  string rejection_reason = 3;
+}

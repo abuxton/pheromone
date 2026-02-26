@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package pheromone.v1;
+
+option go_package = "github.com/abuxton/pheromone/internal/proto/pheromone/v1;pheromone_v1";
+
+// AgentRegistry provides request/response RPCs for agent discovery and heartbeating.
+service AgentRegistry {
+  // Register announces a new agent to the server and returns configuration metadata.
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // Heartbeat allows a registered agent to signal liveness and receive server acknowledgement.
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+// AgentCapabilities advertises the AI reasoning and skill capabilities of an agent (ADR-007).
+message AgentCapabilities {
+  // ai_reasoning_enabled is true for agentic AI agents; false for rule-based/legacy agents.
+  bool ai_reasoning_enabled = 1;
+
+  // ai_model_id identifies the AI reasoning model in use, e.g. "rule-engine-v1" or "llm-local-mistral".
+  string ai_model_id = 2;
+
+  // skills lists the skill names this agent supports, e.g. ["digital-twin", "metrics", "config-enforce"].
+  repeated string skills = 3;
+
+  // skill_contract_version is the semver version of the skill interface implemented by this agent.
+  string skill_contract_version = 4;
+
+  // direct_notify_enabled indicates whether the agent supports direct end-user notification (ADR-011).
+  bool direct_notify_enabled = 5;
+
+  // notify_dest_types lists the notification destination types supported, e.g. ["http-webhook", "slack"].
+  repeated string notify_dest_types = 6;
+}
+
+// RegisterRequest is sent by an agent to register with the server.
+message RegisterRequest {
+  // agent_id is the unique identifier for this agent instance.
+  string agent_id = 1;
+
+  // agent_type describes the agent implementation, e.g. "native-go", "native-python", "custom-rust".
+  string agent_type = 2;
+
+  // hostname is the FQDN or short hostname of the managed instance.
+  string hostname = 3;
+
+  // twin_ids lists the OS and workload twin IDs managed by this agent.
+  repeated string twin_ids = 4;
+
+  // metadata contains arbitrary key-value pairs, e.g. {"version": "v1.0.0"}.
+  map<string, string> metadata = 5;
+
+  // capabilities declares the agent's AI reasoning and skill capabilities (ADR-007).
+  AgentCapabilities capabilities = 6;
+}
+
+// RegisterResponse is returned by the server after a successful agent registration.
+message RegisterResponse {
+  // server_id is the unique identifier of the responding server instance.
+  string server_id = 1;
+
+  // accepted indicates whether the server accepted the registration.
+  bool accepted = 2;
+
+  // config_version is the version of the desired configuration the server currently holds for this agent.
+  string config_version = 3;
+}
+
+// HeartbeatRequest is sent periodically by an agent to signal liveness.
+message HeartbeatRequest {
+  // agent_id identifies the sending agent.
+  string agent_id = 1;
+
+  // timestamp_unix_ms is the agent-local time in milliseconds since the Unix epoch.
+  int64 timestamp_unix_ms = 2;
+}
+
+// HeartbeatResponse is returned by the server to acknowledge receipt of a heartbeat.
+message HeartbeatResponse {
+  // server_id is the unique identifier of the responding server instance.
+  string server_id = 1;
+
+  // acknowledged indicates whether the server recognised this agent.
+  bool acknowledged = 2;
+}
