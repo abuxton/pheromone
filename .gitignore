@@ -203,6 +203,8 @@ Cargo.lock
 ### Vagrant ###
 # General
 .vagrant/
+# Provisioning scripts are tracked (override [Ss]cripts pattern from venv template)
+!vagrant/scripts/
 
 # Log files (if you are creating logs in debug mode, uncomment this)
 # *.log
@@ -220,6 +222,9 @@ Cargo.lock
 [Ll]ib64
 [Ll]ocal
 [Ss]cripts
+# Re-include Vagrant provisioning scripts (overrides [Ss]cripts above)
+!vagrant/scripts/
+!vagrant/scripts/*.sh
 pyvenv.cfg
 .venv
 pip-selfcheck.json

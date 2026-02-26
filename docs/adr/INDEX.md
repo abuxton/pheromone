@@ -149,6 +149,33 @@ Before ADR Acceptance, run these validation spikes:
 
 ---
 
+## Required GitHub Issues
+
+All GitHub issues required to process ADR material and unblock development are tracked in:
+
+> **[`docs/REQUIRED-ISSUES.md`](../REQUIRED-ISSUES.md)**
+
+| Issue | Type | ADR | Effort |
+|-------|------|-----|--------|
+| Complete etcd validation with live etcd | Tech Spike | ADR-002 | 2h |
+| gRPC Bidirectional Stream Prototype | Tech Spike | ADR-003 | 12h |
+| Agentic AI Loop Resource Usage | Tech Spike | ADR-007 | 6h |
+| Ollama + phi3.5:mini Benchmark | Tech Spike | ADR-008 | 6h |
+| HTTP Webhook Dispatch at Scale | Tech Spike | ADR-011 | 6h |
+| Agent Direct Notify Resilience | Tech Spike | ADR-011 | 4h |
+| HMAC Webhook Verification Prototype | Tech Spike | ADR-011 | 2h |
+| Review and Accept ADR-002 | ADR Review | ADR-002 | — |
+| Review and Accept ADR-003 | ADR Review | ADR-003 | — |
+| Review and Accept ADR-004 | ADR Review | ADR-004 | — |
+| Review and Accept ADR-008/009 | ADR Review | ADR-008/009 | — |
+| Review and Accept ADR-010 | ADR Review | ADR-010 | — |
+| Review and Accept ADR-011 | ADR Review | ADR-011 | — |
+| Review and Accept ADR-012 | ADR Review | ADR-012 | — |
+| Implement Vagrant provisioning scripts | Implementation | ADR-012 | 4h |
+| Implement gRPC proto definitions | Implementation | ADR-003 | 8h |
+
+---
+
 ## References
 
 - **Specification**: `.specify/memory/spec-001-digital-twin-platform.md`
@@ -156,8 +183,10 @@ Before ADR Acceptance, run these validation spikes:
 - **Quality Checklist**: `.specify/memory/checklists/spec-001-quality.md`
 - **Constitution**: `.specify/memory/constitution.md` (v2.0.0)
 - **ADR Framework**: `docs/adr/README.md`
+- **Required Issues**: `docs/REQUIRED-ISSUES.md`
 
 ---
 
-**Status**: ✅ **ADRs 002-007 PROPOSED/ACCEPTED — ADR-008/009/011 PROPOSED - READY FOR TEAM REVIEW**
+**Status**: ✅ **ADRs 002-007 PROPOSED/ACCEPTED — ADR-008/009/010/011/012 PROPOSED - READY FOR TEAM REVIEW**
+**Updated**: 2026-02-26 (required issues tracked; Vagrant scripts added)
 
