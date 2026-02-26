@@ -129,6 +129,15 @@ func (e *EtcdStore) LoadAll(ctx context.Context, mem *MemoryStore) (int, error) 
 	return count, nil
 }
 
+// DeleteAll removes all twins from etcd
+func (e *EtcdStore) DeleteAll(ctx context.Context) error {
+	_, err := e.client.Delete(ctx, twinKeyPrefix, clientv3.WithPrefix())
+	if err != nil {
+		return fmt.Errorf("failed to delete all twins from etcd: %w", err)
+	}
+	return nil
+}
+
 // GetTwinIDFromKey extracts twin ID from etcd key
 func GetTwinIDFromKey(key string) string {
 	return strings.TrimPrefix(key, twinKeyPrefix)

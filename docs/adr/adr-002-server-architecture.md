@@ -1,7 +1,7 @@
 # ADR 002: Server Architecture - In-Memory with etcd Persistence vs. Pure etcd-Backed
 
 ## Status
-Proposed
+Accepted
 
 ## Context
 
@@ -101,4 +101,4 @@ These additions do not change the hybrid in-memory + etcd state management choic
 ---
 
 **Decision Date**: 2026-02-18
-**Status Update**: Proposed (pending tech spike validation on etcd sync latency)
+**Status Update**: Accepted (2026-02-26 — all performance criteria validated with live etcd; see `docs/adr/adr-002-performance-validation.md`)
