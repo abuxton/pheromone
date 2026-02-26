@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+package pheromone.v1;
+
+option go_package = "github.com/abuxton/pheromone/internal/proto/pheromone/v1;pheromone_v1";
+
+// ActionEventService provides RPCs for agents to report post-action outcomes and for the
+// server to stream registered hook configurations back to agents (ADR-011).
+service ActionEventService {
+  // ReportActionEvent allows an agent to report the outcome of a skill execution to the server.
+  // The server evaluates registered hooks and dispatches notifications as appropriate.
+  rpc ReportActionEvent(ActionEvent) returns (ActionEventAck);
+
+  // ReportDeliveryEvent allows an agent to report a package/artifact delivery outcome.
+  rpc ReportDeliveryEvent(PackageDeliveryEvent) returns (DeliveryEventAck);
+
+  // StreamHookConfig streams the hook configurations registered for this agent back to
+  // the agent at connection time so it can fire direct hooks without a server round-trip.
+  rpc StreamHookConfig(HookConfigRequest) returns (stream HookConfig);
+}
+
+// ActionEvent carries the outcome of a skill execution (ADR-011).
+message ActionEvent {
+  // agent_id identifies the agent that executed the skill.
+  string agent_id = 1;
+
+  // twin_id is the target twin for the executed action.
+  string twin_id = 2;
+
+  // skill_name names the skill that was executed, e.g. "config-enforce", "digital-twin".
+  string skill_name = 3;
+
+  // action_type describes the specific operation, e.g. "package-install", "config-apply", "rollback".
+  string action_type = 4;
+
+  // outcome is one of "success", "failure", or "partial".
+  string outcome = 5;
+
+  // detail is a human-readable summary of the outcome.
+  string detail = 6;
+
+  // timestamp_unix is the time the action completed, in seconds since the Unix epoch.
+  int64 timestamp_unix = 7;
+
+  // trace_id correlates this event with the corresponding TelemetryStream trace.
+  string trace_id = 8;
+
+  // labels contains arbitrary key-value context for this event.
+  map<string, string> labels = 9;
+}
+
+// ActionEventAck acknowledges receipt of an ActionEvent.
+message ActionEventAck {
+  // received indicates whether the server successfully persisted the event.
+  bool received = 1;
+
+  // hooks_triggered is the number of server-side hooks that were fired in response to this event.
+  int32 hooks_triggered = 2;
+}
+
+// PackageDeliveryEvent carries structured metadata about a package/artifact delivery (ADR-011).
+message PackageDeliveryEvent {
+  // agent_id identifies the agent that performed the delivery.
+  string agent_id = 1;
+
+  // twin_id is the OS or workload twin that was updated.
+  string twin_id = 2;
+
+  // package_name is the name of the package, e.g. "nginx".
+  string package_name = 3;
+
+  // package_version is the version of the package, e.g. "1.24.0-1ubuntu1".
+  string package_version = 4;
+
+  // action is one of "install", "upgrade", or "remove".
+  string action = 5;
+
+  // outcome is one of "success" or "failure".
+  string outcome = 6;
+
+  // error_detail is populated on failure and contains a description of the error.
+  string error_detail = 7;
+
+  // timestamp_unix is the time the delivery completed, in seconds since the Unix epoch.
+  int64 timestamp_unix = 8;
+
+  // trace_id correlates this event with the corresponding TelemetryStream trace.
+  string trace_id = 9;
+}
+
+// DeliveryEventAck acknowledges receipt of a PackageDeliveryEvent.
+message DeliveryEventAck {
+  // received indicates whether the server successfully persisted the delivery event.
+  bool received = 1;
+}
+
+// HookConfigRequest is sent by an agent to request its applicable hook configurations.
+message HookConfigRequest {
+  // agent_id identifies the requesting agent.
+  string agent_id = 1;
+}
+
+// HookConfig represents a single registered post-action hook (ADR-011).
+message HookConfig {
+  // hook_id is a unique identifier for this hook.
+  string hook_id = 1;
+
+  // scope_agent_id scopes the hook to a specific agent; use "*" for fleet-wide hooks.
+  string scope_agent_id = 2;
+
+  // scope_twin_id scopes the hook to a specific twin; use "*" for any twin.
+  string scope_twin_id = 3;
+
+  // scope_skill scopes the hook to a specific skill; use "*" for any skill.
+  string scope_skill = 4;
+
+  // event_type filters the hook to "action", "delivery", or "*" for any event type.
+  string event_type = 5;
+
+  // outcome_filter restricts the hook to "success", "failure", or "*" for any outcome.
+  string outcome_filter = 6;
+
+  // destination describes where and how to deliver notifications for this hook.
+  NotificationDestination destination = 7;
+}
+
+// NotificationDestination describes a target for hook dispatch (ADR-011).
+message NotificationDestination {
+  // type identifies the destination protocol: "http-webhook", "slack", "email", or "log".
+  string type = 1;
+
+  // url is the webhook URL or email address for this destination.
+  string url = 2;
+
+  // headers contains custom HTTP headers to include when dispatching, e.g. authorization tokens.
+  map<string, string> headers = 3;
+
+  // timeout_seconds is the per-dispatch HTTP timeout; default is 10.
+  int32 timeout_seconds = 4;
+
+  // max_retries is the maximum number of retry attempts on failure; default is 3.
+  int32 max_retries = 5;
+}

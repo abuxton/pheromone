@@ -1,0 +1,20 @@
+version: v2
+modules:
+  - path: .proto
+    name: buf.build/abuxton/pheromone
+lint:
+  use:
+    - STANDARD
+  except:
+    - PACKAGE_VERSION_SUFFIX
+    # ADR-003 defines canonical service names without "Service" suffix (e.g. AgentRegistry,
+    # TwinControl, TelemetryStream) as part of the wire contract; preserve them as specified.
+    - SERVICE_SUFFIX
+    # ADR-003 and ADR-011 define canonical message names for RPC parameters (e.g. TwinSyncRequest,
+    # ActionProposal, MetricsRequest) that deviate from the per-RPC naming convention.
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+    - RPC_REQUEST_RESPONSE_UNIQUE
+breaking:
+  use:
+    - FILE

@@ -104,6 +104,24 @@ vagrant-status: ## Show status of all Vagrant VMs
 vagrant-validate: ## Validate the Vagrantfile syntax
 	cd vagrant && vagrant validate
 
+.PHONY: proto-lint
+proto-lint: ## Lint proto files with buf
+	buf lint
+
+.PHONY: proto-generate
+proto-generate: ## Generate Go code from proto files using protoc
+	@mkdir -p internal/proto
+	protoc \
+	  --proto_path=.proto \
+	  --go_out=internal/proto \
+	  --go_opt=paths=source_relative \
+	  --go-grpc_out=internal/proto \
+	  --go-grpc_opt=paths=source_relative,require_unimplemented_servers=false \
+	  pheromone/v1/agent_registry.proto \
+	  pheromone/v1/twin_control.proto \
+	  pheromone/v1/telemetry.proto \
+	  pheromone/v1/action_events.proto
+
 .PHONY: clean
 clean: ## Clean build artifacts
 	go clean
