@@ -24,4 +24,15 @@ When you discover new information that would be helpful for future development w
 
 ## Important use subagents liberally
 
-When performing any research concurrent opus subagents can be used for performance and isolation. Use parrallel tool calls and tasks where possible
+When performing any research concurrent opus subagents can be used for performance and isolation. Use parallel tool calls and tasks where possible
+
+## Game Development
+
+The `games/` directory is a learning sandbox for terminal game development in Go. See `games/AGENTS.md` for patterns and library recommendations, and `docs/game-dev-resources.md` for curated learning materials.
+
+When working on games:
+- Use the `game-development` skill in `skills/game-development/SKILL.md`
+- Each game lives in its own subdirectory with an **independent** Go module (separate from the root `go.mod`)
+- Use `github.com/gdamore/tcell/v2` for full-screen arcade games and `github.com/charmbracelet/bubbletea` for component-style TUIs
+- Extract pure game-logic functions so they can be unit-tested without a real terminal
+- Always handle `tcell.EventResize` so games respond correctly when the terminal is resized
