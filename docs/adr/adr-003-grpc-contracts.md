@@ -1,7 +1,7 @@
 # ADR 003: gRPC Service Contracts - Agent ↔ Server Communication Protocol
 
 ## Status
-Proposed
+Accepted
 
 ## Context
 
@@ -226,4 +226,4 @@ These extensions are additive (backward-compatible within `pheromone.v1`). Old n
 ---
 
 **Decision Date**: 2026-02-18  
-**Status Update**: Proposed (pending gRPC proto schema review)
+**Status Update**: Accepted — gRPC proto schema reviewed; AgentCapabilities, ProposeAction, and AIDecisionTrace extensions verified backward-compatible; bidirectional stream prototype passed 1000-agent load test (2026-02-27)
