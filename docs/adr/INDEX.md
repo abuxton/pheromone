@@ -18,6 +18,7 @@
 | **010** | Evaluate Signal Protocol (signalapp) for Server↔Agent Communication | ⏳ Proposed | Phase 1 (Security Review) | Signal Protocol not suitable; gRPC+mTLS confirmed; AGPL/Go/throughput constraints | ADR-001,003,005 |
 | **011** | Post-Action Hooks — Notifications, Webhooks, and Package Delivery | ⏳ Proposed | Phase 1 (MVP) | Notification Skill (agent-side) + Post-Action Hook Service (server-side); direct end-user notify | ADR-003,005,006,007,010 |
 | **012** | Vagrant Testing Environment | ⏳ Proposed | Phase 1 (MVP) | Multi-machine Vagrant setup (Ubuntu 24.04 + Debian 12) for server/agent integration testing | ADR-001,002,008 |
+| **013** | Swamp Evaluation — System Initiative AI Automation CLI | ⏳ Proposed | Phase 0 (Spike) | Swamp not adopted (AGPL v3, TypeScript/Deno, single-machine CLI); Definition/CEL model noted as ADR-004 reference | ADR-003,004,007,010 |
 
 ---
 
@@ -31,6 +32,7 @@
 - ✅ Establish agentic AI agent model; digital twin as agent skill (ADR-007)
 - ⏳ Choose AI reasoning engine: Ollama (local), llamafile (edge), remote API (ADR-008)
 - ⏳ Evaluate OpenClaw as server/agent candidate — not adopted as core infra (ADR-009)
+- ⏳ Evaluate Swamp (System Initiative) — not adopted; YAML/CEL model noted as ADR-004 reference (ADR-013)
 
 ### Layer 2: Control Plane (ADR-002, 003, 004, 010)
 - ✅ ADR-002: How to structure server state (in-mem + etcd)
@@ -55,6 +57,7 @@
 - **ADR-009**: OpenClaw evaluation (confirms ADR-008 Ollama decision; no core architecture change)
 - **ADR-010**: Signal Protocol (signalapp) evaluation — NOT adopted; gRPC+mTLS confirmed as server↔agent security layer
 - **ADR-011**: Port assignment — 4426 (gRPC control), 4427 (gRPC telemetry), 443/80 (HTTP/HTTPS REST API)
+- **ADR-013**: Swamp (System Initiative) evaluation — NOT adopted; AGPL v3 licence + TypeScript/Deno mismatch; YAML/CEL Definition model noted as ADR-004 reference
 
 
 ### Should Review (Implementation Strategy)
@@ -172,6 +175,8 @@ All GitHub issues required to process ADR material and unblock development are t
 | Review and Accept ADR-010 | ADR Review | ADR-010 | — |
 | Review and Accept ADR-011 | ADR Review | ADR-011 | — |
 | Review and Accept ADR-012 | ADR Review | ADR-012 | — |
+| Review and Accept ADR-013 | ADR Review | ADR-013 | — |
+| Review Swamp YAML/CEL Definition model as ADR-004 reference input | Research | ADR-013/004 | 2h |
 | Implement Vagrant provisioning scripts | Implementation | ADR-012 | 4h |
 | Implement gRPC proto definitions | Implementation | ADR-003 | 8h |
 
@@ -188,6 +193,6 @@ All GitHub issues required to process ADR material and unblock development are t
 
 ---
 
-**Status**: ✅ **ADRs 001, 002, 003, 007 ACCEPTED — ADRs 004-006, 008-012 PROPOSED - READY FOR TEAM REVIEW**
-**Updated**: 2026-02-27 (ADR-003 accepted; gRPC service contracts ratified)
+**Status**: ✅ **ADRs 001, 002, 003, 007 ACCEPTED — ADRs 004-006, 008-013 PROPOSED - READY FOR TEAM REVIEW**
+**Updated**: 2026-03-02 (ADR-013 added; Swamp evaluation complete)
 
