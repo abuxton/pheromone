@@ -345,6 +345,103 @@ Server respects version constraints (doesn't push config to agents that don't su
 - **Integration Test**: Full agent lifecycle with mock server (test register → reason → collect → enforce → shutdown)
 - **AI Decision Trace Test**: Verify trace emitted per reasoning cycle with correct structure
 
+## Skill-Centric Revision (2026-03-05)
+
+### Should this ADR address Skills, not Independent Agents?
+
+> **Reviewed by @copilot on 2026-03-05 per agent instructions on this issue.**
+
+**Yes.** Given ADR-007 (Accepted) establishes that agents are agentic AI-capable processes with
+skill-based capabilities, ADR-006 should be re-framed as a **Skill Deployment and Distribution
+Framework**, not an independent-agent scaffold. Key reasons:
+
+1. **Skills are the unit of extension.** Developers write a `Skill` implementation (~50 lines),
+   not a full agent. The framework handles the reasoning loop, gRPC transport, and observability.
+
+2. **Server-distributed skill bundles.** The server holds a canonical `SkillRegistry` and
+   distributes a filtered skill bundle to each agent at registration time — only the skills the
+   agent is permitted to invoke based on its twin-level access policy.
+
+3. **Hierarchical access control across twin layers.** The layered twin architecture (Principle I)
+   requires that skills be gated by twin-level priority:
+
+   ```
+   TwinLevelOS (0) — highest priority; may invoke all skills, including OS-restricted ones
+   TwinLevelWorkload (1) — lower priority; may only invoke skills with MinTwinLevel = Workload
+   ```
+
+   An OS-level actor may explicitly grant a workload agent access to a restricted skill via
+   `AccessPolicy.Grant(agentID, skillName)`. This provides fine-grained capability segmentation:
+   OS twins own the authoritative DigitalTwinSkill; workload twins get MetricsCollection and
+   ConfigEnforce by default.
+
+4. **Blocking lower-priority twins.** A workload twin cannot access skills or artifacts that
+   require OS-level authority. The `SkillRegistry.BundleFor(agentID, twinLevels)` call enforces
+   this at distribution time — workload agents simply never receive restricted skills.
+
+### Revised Go Skill Framework (implemented in `internal/skill/`)
+
+```go
+// Skill is the interface every Pheromone skill must satisfy (~50 lines to implement).
+type Skill interface {
+    Name() string
+    Version() string
+    MinTwinLevel() TwinLevel  // access control boundary
+    Execute(ctx context.Context, obs *Observations, action *Action) (*SkillResult, error)
+}
+
+// SkillRegistry holds server-side skills and distributes filtered bundles to agents.
+type SkillRegistry struct { ... }
+func (r *SkillRegistry) BundleFor(agentID string, twinLevels []TwinLevel) []Skill { ... }
+
+// AccessPolicy enforces hierarchical access control.
+type AccessPolicy struct { ... }
+func (p *AccessPolicy) Check(agentID string, agentLevels []TwinLevel, s Skill) error { ... }
+func (p *AccessPolicy) Grant(agentID, skillName string) { ... }  // OS-level override
+
+// AgentFramework is the reasoning loop harness wired to a SkillRegistry.
+func NewAgentFramework(agentID string, registry *SkillRegistry, opts ...FrameworkOption) *AgentFramework
+func (f *AgentFramework) Run(ctx context.Context, agent Agent) error
+func (f *AgentFramework) RunOneTick(ctx context.Context, agent Agent) ([]Action, error)
+```
+
+### Built-in Skills
+
+| Skill | MinTwinLevel | Purpose |
+|-------|-------------|---------|
+| `digital-twin` | `TwinLevelOS` | ReadTwin, UpdateTwin, DiffModel, ApplyModel — OS agents only |
+| `metrics` | `TwinLevelWorkload` | Collect OS and workload metrics |
+| `config-enforce` | `TwinLevelWorkload` | Apply desired config, validate compliance, rollback |
+
+### Custom Skill Example (developer effort: ~50 lines)
+
+```go
+// internal/skill/example/nginx.go — NginxMonitorSkill
+type NginxMonitorSkill struct{}
+
+func (s *NginxMonitorSkill) Name() string                 { return "nginx-monitor" }
+func (s *NginxMonitorSkill) Version() string              { return "1.0.0" }
+func (s *NginxMonitorSkill) MinTwinLevel() skill.TwinLevel { return skill.TwinLevelWorkload }
+
+func (s *NginxMonitorSkill) Execute(ctx context.Context, obs *skill.Observations, action *skill.Action) (*skill.SkillResult, error) {
+    // business logic only (~40 lines): collect /nginx_status, return metrics
+}
+```
+
+### Skill Distribution Flow
+
+```
+Server SkillRegistry (canonical)
+  ├─ digital-twin  (MinTwinLevel=OS)
+  ├─ metrics       (MinTwinLevel=Workload)
+  └─ config-enforce (MinTwinLevel=Workload)
+
+Agent registration → BundleFor(agentID, twinLevels):
+  OS agent    → [digital-twin, metrics, config-enforce]
+  Workload agent → [metrics, config-enforce]
+  Workload agent + explicit grant → [digital-twin, metrics, config-enforce]
+```
+
 ## Follow-Up ADRs
 
 - **ADR-007**: Agentic AI Agent Model (establishes the agent-as-AI-capable-agent canonical model; digital twin as skill) — **Accepted**
@@ -354,13 +451,15 @@ Server respects version constraints (doesn't push config to agents that don't su
 ## References
 
 - Spec-001, FR-020, User Story 4, SC-009
-- Constitution Principle IV (Smoke tests), Principle II (Observability)
+- Constitution Principle I (Layered Twin Architecture), Principle II (Observability), Principle IV (Smoke tests)
 - ADR-007 (Agentic AI Agent Model — this ADR's context)
-- gRPC Go/Python/Rust Client Libraries
-- Similar frameworks (Telegraf plugin system, Fluent Bit plugins)
+- `internal/skill/` — Go skill framework implementation
+- `internal/skill/builtin/` — DigitalTwinSkill, MetricsCollectionSkill, ConfigEnforceSkill
+- `internal/skill/example/` — NginxMonitorSkill, PostgreSQLMonitorSkill
 
 ---
 
 **Decision Date**: 2026-02-18
 **Status Update**: Proposed (pending scaffold implementation review)
 **Updated**: 2026-02-20 — Revised to reflect agentic AI agent model (ADR-007); Digital Twin Skill added to lifecycle
+**Updated**: 2026-03-05 — Skill-centric revision: framework re-framed as skill deployment and distribution with hierarchical twin-level access control; Go implementation in `internal/skill/`
