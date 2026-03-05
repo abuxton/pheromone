@@ -2,7 +2,10 @@
 
 ## Status
 
-Proposed
+Accepted
+
+**Decision Date**: 2026-02-22
+**Accepted Date**: 2026-03-05
 
 ## Context
 
@@ -139,4 +142,4 @@ etcd is deployed on the `server` VM via Docker Compose (matching the existing
 ---
 
 **Decision Date**: 2026-02-22
-**Status**: Proposed
+**Accepted Date**: 2026-03-05

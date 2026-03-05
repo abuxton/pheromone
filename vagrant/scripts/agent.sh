@@ -47,6 +47,16 @@ else
   log "pheromone agent (cmd/agent/main.go) not yet implemented — skipping build."
 fi
 
+# ── Helper commands (agent VM) ──────────────────────────────────────────────
+log "Installing agent helper commands..."
+
+cat > /usr/local/bin/ph-server-health <<SCRIPT
+#!/usr/bin/env bash
+curl -sf "http://${SERVER_IP}:2379/health"
+SCRIPT
+
+chmod +x /usr/local/bin/ph-server-health
+
 log "Agent provisioning complete."
 log "  Agent IP:  ${AGENT_IP}"
 log "  Server IP: ${SERVER_IP}"

@@ -61,6 +61,43 @@ else
   log "pheromone server (cmd/server/main.go) not yet implemented — skipping build."
 fi
 
+# ── Helper commands (server VM) ─────────────────────────────────────────────
+log "Installing server helper commands..."
+
+cat > /usr/local/bin/ph-etcd-health <<SCRIPT
+#!/usr/bin/env bash
+curl -sf "http://${SERVER_IP}:2379/health"
+SCRIPT
+
+cat > /usr/local/bin/ph-etcd-up <<SCRIPT
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/vagrant/pheromone
+docker compose up -d etcd
+SCRIPT
+
+cat > /usr/local/bin/ph-etcd-down <<SCRIPT
+#!/usr/bin/env bash
+set -euo pipefail
+cd /home/vagrant/pheromone
+docker compose stop etcd
+SCRIPT
+
+cat > /usr/local/bin/ph-test-etcd <<SCRIPT
+#!/usr/bin/env bash
+set -euo pipefail
+export PATH="/usr/local/go/bin:\${PATH}"
+export ETCD_ENDPOINT="http://${SERVER_IP}:2379"
+cd /home/vagrant/pheromone
+exec go test -v ./benchmark/... -run 'TestEtcd|TestHybrid|TestServerRecoveryTime'
+SCRIPT
+
+chmod +x \
+  /usr/local/bin/ph-etcd-health \
+  /usr/local/bin/ph-etcd-up \
+  /usr/local/bin/ph-etcd-down \
+  /usr/local/bin/ph-test-etcd
+
 log "Server provisioning complete."
 log "  etcd health: curl ${ETCD_HEALTH_URL}"
 log "  SSH: vagrant ssh server"
