@@ -15,8 +15,8 @@ type MetricsCollectionSkill struct{}
 // NewMetricsCollectionSkill creates a MetricsCollectionSkill.
 func NewMetricsCollectionSkill() *MetricsCollectionSkill { return &MetricsCollectionSkill{} }
 
-func (s *MetricsCollectionSkill) Name() string                 { return "metrics" }
-func (s *MetricsCollectionSkill) Version() string              { return "1.0.0" }
+func (s *MetricsCollectionSkill) Name() string                  { return "metrics" }
+func (s *MetricsCollectionSkill) Version() string               { return "1.0.0" }
 func (s *MetricsCollectionSkill) MinTwinLevel() skill.TwinLevel { return skill.TwinLevelWorkload }
 
 // Execute runs the metrics collection action.

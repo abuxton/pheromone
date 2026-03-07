@@ -347,8 +347,8 @@ type stubSkill struct {
 	level   skill.TwinLevel
 }
 
-func (s *stubSkill) Name() string                 { return s.name }
-func (s *stubSkill) Version() string              { return s.version }
+func (s *stubSkill) Name() string                  { return s.name }
+func (s *stubSkill) Version() string               { return s.version }
 func (s *stubSkill) MinTwinLevel() skill.TwinLevel { return s.level }
 func (s *stubSkill) Execute(_ context.Context, _ *skill.Observations, _ *skill.Action) (*skill.SkillResult, error) {
 	return &skill.SkillResult{Success: true}, nil

@@ -26,8 +26,8 @@ func NewPostgreSQLMonitorSkill() *PostgreSQLMonitorSkill {
 	return s
 }
 
-func (s *PostgreSQLMonitorSkill) Name() string                 { return "postgresql-monitor" }
-func (s *PostgreSQLMonitorSkill) Version() string              { return "1.0.0" }
+func (s *PostgreSQLMonitorSkill) Name() string                  { return "postgresql-monitor" }
+func (s *PostgreSQLMonitorSkill) Version() string               { return "1.0.0" }
 func (s *PostgreSQLMonitorSkill) MinTwinLevel() skill.TwinLevel { return skill.TwinLevelWorkload }
 
 // Execute collects PostgreSQL metrics and returns them as a SkillResult.
