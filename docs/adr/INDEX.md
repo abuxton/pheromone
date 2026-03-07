@@ -1,6 +1,6 @@
 # Pheromone ADR Index & Decision Status
 
-**Updated**: 2026-02-27 (ADR-003 accepted — gRPC service contracts ratified)
+**Updated**: 2026-03-07 (ADR-012 accepted — Vagrant testing environment ratified)
 
 ## Decision Timeline & Status
 
@@ -17,7 +17,7 @@
 | **009** | OpenClaw Evaluation — Central Server and Agent Role Assessment | ⏳ Proposed | Phase 2 (AI Reasoning) | OpenClaw as server/agent candidate; extends ADR-008 | ADR-008,007,003 |
 | **010** | Evaluate Signal Protocol (signalapp) for Server↔Agent Communication | ⏳ Proposed | Phase 1 (Security Review) | Signal Protocol not suitable; gRPC+mTLS confirmed; AGPL/Go/throughput constraints | ADR-001,003,005 |
 | **011** | Post-Action Hooks — Notifications, Webhooks, and Package Delivery | ⏳ Proposed | Phase 1 (MVP) | Notification Skill (agent-side) + Post-Action Hook Service (server-side); direct end-user notify | ADR-003,005,006,007,010 |
-| **012** | Vagrant Testing Environment | ⏳ Proposed | Phase 1 (MVP) | Multi-machine Vagrant setup (Ubuntu 24.04 + Debian 12) for server/agent integration testing | ADR-001,002,008 |
+| **012** | Vagrant Testing Environment | ✅ Accepted | Phase 1 (MVP) | Multi-machine Vagrant setup (Ubuntu 24.04 + Debian 12) for server/agent integration testing | ADR-001,002,008 |
 | **013** | Swamp Evaluation — System Initiative AI Automation CLI | ⏳ Proposed | Phase 0 (Spike) | Swamp not adopted (AGPL v3, TypeScript/Deno, single-machine CLI); Definition/CEL model noted as ADR-004 reference | ADR-003,004,007,010 |
 
 ---
@@ -193,6 +193,6 @@ All GitHub issues required to process ADR material and unblock development are t
 
 ---
 
-**Status**: ✅ **ADRs 001, 002, 003, 007 ACCEPTED — ADRs 004-006, 008-013 PROPOSED - READY FOR TEAM REVIEW**
-**Updated**: 2026-03-02 (ADR-013 added; Swamp evaluation complete)
+**Status**: ✅ **ADRs 001, 002, 003, 007, 012 ACCEPTED — ADRs 004-006, 008-011, 013 PROPOSED - READY FOR TEAM REVIEW**
+**Updated**: 2026-03-07 (ADR-012 accepted — Vagrant testing environment ratified)
 
