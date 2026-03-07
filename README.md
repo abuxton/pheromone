@@ -56,6 +56,39 @@ make etcd-clean
 
 See [`ADR/adr-002-performance-validation.md`](ADR/adr-002-performance-validation.md) for complete results and [`benchmark/README.md`](benchmark/README.md) for detailed testing instructions.
 
+## Local Testing Environment (Vagrant)
+
+A multi-machine Vagrant environment is available for end-to-end validation on real Linux VMs
+(Ubuntu 24.04 LTS and Debian 12 Bookworm), as described in [ADR-012](docs/adr/adr-012-vagrant-testing-environment.md).
+
+| VM | IP | Role |
+|---|---|---|
+| `server` | `192.168.56.10` | etcd + future pheromone server |
+| `agent-ubuntu` | `192.168.56.11` | Pheromone agent (Ubuntu 24.04 LTS) |
+| `agent-debian` | `192.168.56.12` | Pheromone agent (Debian 12 Bookworm) |
+
+**Prerequisites**: [Vagrant ≥ 2.3.0](https://developer.hashicorp.com/vagrant/install) and [VirtualBox ≥ 6.1](https://www.virtualbox.org/wiki/Downloads).
+
+**Quick Start**:
+```bash
+# Start all VMs
+make vagrant-up
+
+# Start server only (etcd)
+make vagrant-up-server
+
+# Validate Vagrantfile syntax
+make vagrant-validate
+
+# Stop all VMs
+make vagrant-halt
+
+# Destroy all VMs
+make vagrant-destroy
+```
+
+See [`vagrant/README.md`](vagrant/README.md) for full usage, VM helper commands, troubleshooting, and integration test instructions.
+
 ## Inspiration
 This project is named after the pheromone-based communication used by the Aliens from Ridley Scott's franchise. The design embodies principles of decentralized communication, observability, and adaptability.
 

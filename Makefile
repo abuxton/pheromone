@@ -104,6 +104,14 @@ vagrant-status: ## Show status of all Vagrant VMs
 vagrant-validate: ## Validate the Vagrantfile syntax
 	cd vagrant && vagrant validate
 
+.PHONY: vagrant-provision
+vagrant-provision: ## Re-run provisioning scripts on all VMs (no destroy)
+	cd vagrant && vagrant provision
+
+.PHONY: vagrant-reload
+vagrant-reload: ## Restart all Vagrant VMs
+	cd vagrant && vagrant reload
+
 .PHONY: proto-lint
 proto-lint: ## Lint proto files with buf
 	buf lint
