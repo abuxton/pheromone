@@ -26,8 +26,8 @@ func NewNginxMonitorSkill() *NginxMonitorSkill {
 	return s
 }
 
-func (s *NginxMonitorSkill) Name() string                 { return "nginx-monitor" }
-func (s *NginxMonitorSkill) Version() string              { return "1.0.0" }
+func (s *NginxMonitorSkill) Name() string                  { return "nginx-monitor" }
+func (s *NginxMonitorSkill) Version() string               { return "1.0.0" }
 func (s *NginxMonitorSkill) MinTwinLevel() skill.TwinLevel { return skill.TwinLevelWorkload }
 
 // Execute collects Nginx metrics and returns them as a SkillResult.

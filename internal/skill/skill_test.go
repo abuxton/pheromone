@@ -18,7 +18,7 @@ type mockAgent struct {
 	desired map[string]*skill.TwinModel
 }
 
-func (a *mockAgent) Initialize() ([]*skill.TwinRef, error)          { return a.twins, nil }
+func (a *mockAgent) Initialize() ([]*skill.TwinRef, error) { return a.twins, nil }
 func (a *mockAgent) CollectMetrics(_ context.Context) ([]skill.Metric, error) {
 	return a.metrics, nil
 }
@@ -35,7 +35,7 @@ func (a *mockAgent) DesiredState(_ context.Context, id string) (*skill.TwinModel
 	return nil, nil
 }
 func (a *mockAgent) EnforceConfig(_ context.Context, _ *skill.TwinModel) error { return nil }
-func (a *mockAgent) Shutdown() error                                            { return nil }
+func (a *mockAgent) Shutdown() error                                           { return nil }
 
 func newOSTwinRef(id string) *skill.TwinRef {
 	return &skill.TwinRef{ID: id, Level: skill.TwinLevelOS}
@@ -166,8 +166,8 @@ func TestSkillRegistry_BundleForOSAgent(t *testing.T) {
 func TestSkillRegistry_BundleForWorkloadAgent(t *testing.T) {
 	policy := skill.NewAccessPolicy()
 	reg := skill.NewSkillRegistry(policy)
-	_ = reg.Register(builtin.NewDigitalTwinSkill())      // OS-only
-	_ = reg.Register(builtin.NewMetricsCollectionSkill()) // workload
+	_ = reg.Register(builtin.NewDigitalTwinSkill())          // OS-only
+	_ = reg.Register(builtin.NewMetricsCollectionSkill())    // workload
 	_ = reg.Register(builtin.NewConfigEnforceSkill("1.0.0")) // workload
 
 	bundle := reg.BundleFor("agent-workload", []skill.TwinLevel{skill.TwinLevelWorkload})

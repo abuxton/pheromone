@@ -24,8 +24,8 @@ func NewConfigEnforceSkill(supportedVersions ...string) *ConfigEnforceSkill {
 	return &ConfigEnforceSkill{supportedVersions: sv}
 }
 
-func (s *ConfigEnforceSkill) Name() string                 { return "config-enforce" }
-func (s *ConfigEnforceSkill) Version() string              { return "1.0.0" }
+func (s *ConfigEnforceSkill) Name() string                  { return "config-enforce" }
+func (s *ConfigEnforceSkill) Version() string               { return "1.0.0" }
 func (s *ConfigEnforceSkill) MinTwinLevel() skill.TwinLevel { return skill.TwinLevelWorkload }
 
 // Execute runs the config enforcement action.

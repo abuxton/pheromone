@@ -11,13 +11,16 @@ deps: ## Install Go dependencies
 	go mod tidy
 
 .PHONY: build
-build: ## Build all packages
+build: ## Build all packages and CLI binaries
 	go build ./internal/...
+	go build -o dist/pheromone-server ./cmd/pheromone-server
+	go build -o dist/pheromone-agent  ./cmd/pheromone-agent
 
 .PHONY: test
 test: ## Run all tests (without etcd)
 	go test -v ./benchmark -run TestMemoryCacheHitRatio
 	go test -v ./benchmark -run TestNoDataLossOnWriteFailure
+	go test -v -race ./internal/config/...
 
 .PHONY: test-etcd
 test-etcd: ## Run etcd integration tests (requires running etcd)
@@ -134,6 +137,24 @@ proto-generate: ## Generate Go code from proto files using protoc
 clean: ## Clean build artifacts
 	go clean
 	rm -rf dist/ build/
+
+.PHONY: config-validate-server
+config-validate-server: build ## Validate server configuration (uses PHEROMONE_SERVER_CONFIG_PATH or /etc/pheromone/server)
+	./dist/pheromone-server config validate
+
+.PHONY: config-validate-agent
+config-validate-agent: build ## Validate agent configuration (uses PHEROMONE_AGENT_CONFIG_PATH or /etc/pheromone/agent)
+	./dist/pheromone-agent config validate
+
+.PHONY: config-generate-server
+config-generate-server: build ## Generate default server configuration to ./dist/config/server/
+	mkdir -p dist/config/server
+	./dist/pheromone-server config generate --format yaml --component all --config-path dist/config/server
+
+.PHONY: config-generate-agent
+config-generate-agent: build ## Generate default agent configuration to ./dist/config/agent/
+	mkdir -p dist/config/agent
+	./dist/pheromone-agent config generate --format yaml --component all --config-path dist/config/agent
 
 .PHONY: fmt
 fmt: ## Format Go code

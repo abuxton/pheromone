@@ -25,8 +25,8 @@ func NewDigitalTwinSkill() *DigitalTwinSkill {
 	return &DigitalTwinSkill{models: make(map[string]*skill.TwinModel)}
 }
 
-func (s *DigitalTwinSkill) Name() string            { return "digital-twin" }
-func (s *DigitalTwinSkill) Version() string          { return "1.0.0" }
+func (s *DigitalTwinSkill) Name() string                  { return "digital-twin" }
+func (s *DigitalTwinSkill) Version() string               { return "1.0.0" }
 func (s *DigitalTwinSkill) MinTwinLevel() skill.TwinLevel { return skill.TwinLevelOS }
 
 // Execute dispatches the action to the appropriate twin operation.
