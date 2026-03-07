@@ -1,0 +1,15 @@
+{
+  "name": "nginx-monitor",
+  "version": "1.0.0",
+  "description": "Monitor Nginx web server metrics: requests/sec, active connections, p99 latency.",
+  "author": "pheromone-platform",
+  "min_twin_level": "workload",
+  "tags": ["monitoring", "nginx", "web-server"],
+  "capabilities": ["collect-metrics"],
+  "runtime": "go",
+  "source": {
+    "repository": "https://github.com/abuxton/pheromone",
+    "ref": "main",
+    "entry_point": "NewNginxMonitorSkill"
+  }
+}

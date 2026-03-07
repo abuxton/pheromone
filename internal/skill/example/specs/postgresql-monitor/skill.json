@@ -1,0 +1,15 @@
+{
+  "name": "postgresql-monitor",
+  "version": "1.0.0",
+  "description": "Monitor PostgreSQL database metrics: active connections and queries/sec.",
+  "author": "pheromone-platform",
+  "min_twin_level": "workload",
+  "tags": ["monitoring", "postgresql", "database"],
+  "capabilities": ["collect-metrics"],
+  "runtime": "go",
+  "source": {
+    "repository": "https://github.com/abuxton/pheromone",
+    "ref": "main",
+    "entry_point": "NewPostgreSQLMonitorSkill"
+  }
+}

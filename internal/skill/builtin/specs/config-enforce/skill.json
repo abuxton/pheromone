@@ -1,0 +1,10 @@
+{
+  "name": "config-enforce",
+  "version": "1.0.0",
+  "description": "Configuration enforcement skill: apply desired config, validate compliance, rollback.",
+  "author": "pheromone-platform",
+  "min_twin_level": "workload",
+  "tags": ["core", "config", "enforcement"],
+  "capabilities": ["apply-config", "validate-compliance", "rollback"],
+  "runtime": "go"
+}

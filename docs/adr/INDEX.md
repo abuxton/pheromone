@@ -11,7 +11,7 @@
 | **003** | gRPC Service Contracts | ✅ Accepted | Phase 1 (MVP) | Three services (Registry/Control/Telemetry) | spec-001 FR-005,006,007 |
 | **004** | Twin Model Schema Format | ⏳ Proposed | Phase 1 (MVP) | YAML + JSON Schema validation | spec-001 FR-001,003 |
 | **005** | Message Queue Selection | ⏳ Proposed | Phase 1 (MVP) | NATS (MVP) → Kafka (Phase 2) | spec-001 FR-010,011,SC-008 |
-| **006** | Agent Lifecycle Interface | ⏳ Proposed | Phase 1 (MVP) | Agentic AI agent scaffold (Go/Python/Rust) | spec-001 FR-020,SC-009 |
+| **006** | Agent Lifecycle Interface — Skill Deployment & Distribution Framework | ⏳ Proposed | Phase 1 (MVP) | Skills as unit of deployment; hierarchical twin-level access control; Go framework in `internal/skill/` | spec-001 FR-020,SC-009 |
 | **007** | Agentic AI Agent Model | ✅ Accepted | Phase 0 (Foundation) | Digital twin as agent skill; AI reasoning loop | ADR-001,003,006 |
 | **008** | AI Model Selection — Local vs. Remote Reasoning Engine | ⏳ Proposed | Phase 2 (AI Reasoning) | Ollama (local), llamafile (edge), remote API; OS recommendations | ADR-007,006,003 |
 | **009** | OpenClaw Evaluation — Central Server and Agent Role Assessment | ⏳ Proposed | Phase 2 (AI Reasoning) | OpenClaw as server/agent candidate; extends ADR-008 | ADR-008,007,003 |
@@ -62,7 +62,7 @@
 
 ### Should Review (Implementation Strategy)
 - **ADR-005**: NATS for MVP; Kafka upgrade path (affects telemetry architecture)
-- **ADR-006**: Scaffold-based agent development (affects time-to-first-custom-agent)
+- **ADR-006**: Skill deployment framework — skills as unit of deployment with hierarchical twin-level access control (Go framework implemented; revision complete)
 - **ADR-011**: Post-action hooks (Notification Skill + server hook service; affects agent scaffold and server API design)
 
 ---
@@ -107,7 +107,7 @@ Before ADR Acceptance, run these validation spikes:
 | ADR-002 | etcd sync latency + cache hit ratio | Prove <100ms sync, high hit rate | 8 hours |
 | ADR-003 | gRPC bidirectional stream prototype | Test 1000 agents streaming simultaneously | 12 hours |
 | ADR-005 | NATS load test 100K msgs/sec | Measure latency, memory overhead, JetStream persistence | 8 hours |
-| ADR-006 | Go agent scaffold + custom agent | Time end-to-end: scaffold → implement → test | 6 hours |
+| ADR-006 | Go skill framework + 2 example custom skills | Time end-to-end: skill impl (<1 hour, ~50 lines); hierarchical access control validated | ✅ 6 hours (complete — `internal/skill/`) |
 | ADR-007 | Agentic AI loop resource usage | Measure memory/CPU overhead of reasoning loop on typical instance | 6 hours |
 | ADR-008 | Ollama + phi3.5:mini resource benchmark | Measure RAM/CPU on 8 GB instance; test fallback to rule-based reasoner | 6 hours |
 | ADR-009 | OpenClaw HTTP API integration spike (optional) | Prototype operator-interface bridge (OpenClaw → Pheromone API); assess Slack/Discord channel feasibility for operator UX only | 4 hours |
