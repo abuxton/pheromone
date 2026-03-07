@@ -1,0 +1,10 @@
+{
+  "name": "digital-twin",
+  "version": "1.0.0",
+  "description": "Core digital twin skill: read, update, diff, and apply twin models. Restricted to OS-level agents.",
+  "author": "pheromone-platform",
+  "min_twin_level": "os",
+  "tags": ["core", "digital-twin", "state-management"],
+  "capabilities": ["read-twin", "update-twin", "diff-twin", "apply-model"],
+  "runtime": "go"
+}

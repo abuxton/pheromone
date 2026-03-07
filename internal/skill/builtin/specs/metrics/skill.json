@@ -1,0 +1,10 @@
+{
+  "name": "metrics",
+  "version": "1.0.0",
+  "description": "Metrics collection skill: collect OS and workload metrics in OpenMetrics format.",
+  "author": "pheromone-platform",
+  "min_twin_level": "workload",
+  "tags": ["core", "metrics", "observability"],
+  "capabilities": ["collect-os", "collect-workload"],
+  "runtime": "go"
+}
