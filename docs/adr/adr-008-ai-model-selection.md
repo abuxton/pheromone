@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -405,7 +405,7 @@ See **ADR-009** for the complete evaluation.
 
 ## Follow-Up ADRs
 
-- **ADR-009** (Proposed): OpenClaw evaluation — central server and agent role assessment (extension of this ADR)
+- **ADR-009** (Accepted): OpenClaw evaluation — central server and agent role assessment (extension of this ADR)
 - **ADR-010** (Proposed): Action approval workflow and human-in-the-loop gate design
 - **ADR-011** (Proposed): Ollama model lifecycle management (pull, update, rollback) across managed fleet
 
@@ -429,4 +429,5 @@ See **ADR-009** for the complete evaluation.
 ---
 
 **Decision Date**: 2026-02-20
-**Status**: Proposed — ready for team review
+**Accepted Date**: 2026-03-08
+**Status**: Accepted

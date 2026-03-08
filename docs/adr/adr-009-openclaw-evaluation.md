@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -238,4 +238,5 @@ The ADR-008 framework selection table is extended:
 ---
 
 **Decision Date**: 2026-02-21
-**Status**: Proposed — ready for team review
+**Accepted Date**: 2026-03-08
+**Status**: Accepted
