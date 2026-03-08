@@ -1,6 +1,6 @@
 # Pheromone ADR Index & Decision Status
 
-**Updated**: 2026-03-07 (ADR-012 accepted — Vagrant testing environment ratified)
+**Updated**: 2026-03-08 (ADR-008 and ADR-009 accepted — AI model selection and OpenClaw evaluation ratified)
 
 ## Decision Timeline & Status
 
@@ -13,8 +13,8 @@
 | **005** | Message Queue Selection | ⏳ Proposed | Phase 1 (MVP) | NATS (MVP) → Kafka (Phase 2) | spec-001 FR-010,011,SC-008 |
 | **006** | Agent Lifecycle Interface — Skill Deployment & Distribution Framework | ⏳ Proposed | Phase 1 (MVP) | Skills as unit of deployment; hierarchical twin-level access control; Go framework in `internal/skill/` | spec-001 FR-020,SC-009 |
 | **007** | Agentic AI Agent Model | ✅ Accepted | Phase 0 (Foundation) | Digital twin as agent skill; AI reasoning loop | ADR-001,003,006 |
-| **008** | AI Model Selection — Local vs. Remote Reasoning Engine | ⏳ Proposed | Phase 2 (AI Reasoning) | Ollama (local), llamafile (edge), remote API; OS recommendations | ADR-007,006,003 |
-| **009** | OpenClaw Evaluation — Central Server and Agent Role Assessment | ⏳ Proposed | Phase 2 (AI Reasoning) | OpenClaw as server/agent candidate; extends ADR-008 | ADR-008,007,003 |
+| **008** | AI Model Selection — Local vs. Remote Reasoning Engine | ✅ Accepted | Phase 2 (AI Reasoning) | Ollama (local), llamafile (edge), remote API; OS recommendations | ADR-007,006,003 |
+| **009** | OpenClaw Evaluation — Central Server and Agent Role Assessment | ✅ Accepted | Phase 2 (AI Reasoning) | OpenClaw as server/agent candidate; extends ADR-008 | ADR-008,007,003 |
 | **010** | Evaluate Signal Protocol (signalapp) for Server↔Agent Communication | ⏳ Proposed | Phase 1 (Security Review) | Signal Protocol not suitable; gRPC+mTLS confirmed; AGPL/Go/throughput constraints | ADR-001,003,005 |
 | **011** | Post-Action Hooks — Notifications, Webhooks, and Package Delivery | ⏳ Proposed | Phase 1 (MVP) | Notification Skill (agent-side) + Post-Action Hook Service (server-side); direct end-user notify | ADR-003,005,006,007,010 |
 | **012** | Vagrant Testing Environment | ✅ Accepted | Phase 1 (MVP) | Multi-machine Vagrant setup (Ubuntu 24.04 + Debian 12) for server/agent integration testing | ADR-001,002,008 |
@@ -30,8 +30,8 @@
 - ✅ Choose gRPC as primary protocol
 - ✅ Choose etcd/Consul for state management
 - ✅ Establish agentic AI agent model; digital twin as agent skill (ADR-007)
-- ⏳ Choose AI reasoning engine: Ollama (local), llamafile (edge), remote API (ADR-008)
-- ⏳ Evaluate OpenClaw as server/agent candidate — not adopted as core infra (ADR-009)
+- ✅ Choose AI reasoning engine: Ollama (local), llamafile (edge), remote API (ADR-008)
+- ✅ Evaluate OpenClaw as server/agent candidate — not adopted as core infra (ADR-009)
 - ⏳ Evaluate Swamp (System Initiative) — not adopted; YAML/CEL model noted as ADR-004 reference (ADR-013)
 
 ### Layer 2: Control Plane (ADR-002, 003, 004, 010)
@@ -87,8 +87,8 @@ ADR-001 (Foundation)
         ├─→ ADR-002 (Server — AI capability registry)
         ├─→ ADR-003 (gRPC — capability advertisement)
         │    └─→ ADR-011 (Post-Action Hooks — ActionEventService extends ADR-003)
-        ├─→ ADR-008 (AI Model Selection — Ollama/llamafile/remote) [proposed]
-        │    └─→ ADR-009 (OpenClaw Evaluation — confirms ADR-008) [proposed]
+        ├─→ ADR-008 (AI Model Selection — Ollama/llamafile/remote) [accepted]
+        │    └─→ ADR-009 (OpenClaw Evaluation — confirms ADR-008) [accepted]
         ├─→ ADR-010 (Signal Protocol — mTLS confirmed) [proposed]
         │    └─→ ADR-011 (Post-Action Hooks — mTLS for webhook credential transport)
         └─→ ADR-011 (Post-Action Hooks — notification as post-reasoning-loop step)
@@ -193,6 +193,6 @@ All GitHub issues required to process ADR material and unblock development are t
 
 ---
 
-**Status**: ✅ **ADRs 001, 002, 003, 007, 012 ACCEPTED — ADRs 004-006, 008-011, 013 PROPOSED - READY FOR TEAM REVIEW**
-**Updated**: 2026-03-07 (ADR-012 accepted — Vagrant testing environment ratified)
+**Status**: ✅ **ADRs 001, 002, 003, 007, 008, 009, 012 ACCEPTED — ADRs 004-006, 010-011, 013 PROPOSED - READY FOR TEAM REVIEW**
+**Updated**: 2026-03-08 (ADR-008 and ADR-009 accepted — AI model selection and OpenClaw evaluation ratified)
 
