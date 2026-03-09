@@ -1,0 +1,310 @@
+{
+  "version": 1,
+  "skills": {
+    "ai-prompt-engineering-safety-review": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "81bf64d383cb7a6c06d252f6b1097c40a161b1968b05204fffeacc395fda1ae9"
+    },
+    "architecture-blueprint-generator": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "9b20f13d1d96ba1c2550e1ce535f932e943c42939d3fae906a9e0d6c1bfb471a"
+    },
+    "context-map": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "cca0523289057f0f6fbff2c3ead5063359dd2482a451bf8694eac0f282185786"
+    },
+    "create-agentsmd": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "bfbdbb76b17cca970d1d624e36ce72b6847860d740581c8865da796c1fef8552"
+    },
+    "create-architectural-decision-record": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "5c99e32293271aef0270c279c2af8b62301e29257bf85f2ebf7e810c740b4404"
+    },
+    "create-github-action-workflow-specification": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "527e6c77d921d58a9d0059aa95d0d14b441d2166f9c20518263048a56ca8fbbb"
+    },
+    "create-github-issue-feature-from-specification": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "e4d8019e1a7e43b4ab7023117ec9d3332063fdb923a5cc9f2d42159b69cceb04"
+    },
+    "create-github-issues-feature-from-implementation-plan": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "ff0083bd824eaa94c6e4097abe27f1441694a44feb8d6ea43b51bf3f00b883e1"
+    },
+    "create-github-issues-for-unmet-specification-requirements": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "f44956e909348a20a808bcc2aa56a1b063ff1cc2ae1a1659de6193cff45f59ac"
+    },
+    "create-github-pull-request-from-specification": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "2693885db375a1e4a21f66ac69761a86db30911c0a2a9fcb8bac5d9dd05eeb5c"
+    },
+    "create-readme": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "d0ece1b2164ce1376e4ab6e98d6ac079df3a2a94f5f02224362b6a1ce2516ae9"
+    },
+    "create-specification": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "45b9ef98b0fb82ba0e1aee65dfb464fa1f8494a14a557b9788d73aae87e9e618"
+    },
+    "create-technical-spike": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "e711706b4aebacac01bcc025e19bcf0e88bf784cbe6419ddf07c2be67c501f33"
+    },
+    "create-tldr-page": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "9d929bc6ed3e9f90576986628758c8c39b7c9f110cd7863f87fa2ae6003f74ac"
+    },
+    "devops-rollout-plan": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "9c71bc5839febec1c42fdd6f5aed3beb3fa9df399460f0d20310124abd77cc31"
+    },
+    "docx": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "6962db07127ee540a56e4677f65576d0727668a1d67f7da8bc978f10791c2bfe"
+    },
+    "first-ask": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "5131fd3d738563429409476b2e0062d160e81a315d18b42bdd1f5675848bbca5"
+    },
+    "gh-cli": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "cbe644b0c6760ae2a1eaafa39133920d889331327065d92a131675a665273e56"
+    },
+    "go-code-review": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "1032087d03a6f51697bd927b4f4bf480ddb89982fcf919c6a541089e9ce1e607"
+    },
+    "go-concurrency": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "6d304569a363a8a6221fdbce54f38f4107f5a7f3982a9416c10803de37264384"
+    },
+    "go-context": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "90f028421ef19a5354cccecb1c4d41e361955dec5230ff97b8ea1f5a1c18140c"
+    },
+    "go-control-flow": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "2cc53da1f906ff235ed94be0c061562f57008f5f4a407b4f991cb78e632d39b0"
+    },
+    "go-data-structures": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "8b46dd4ca3c4802aa7de1d0497535edba230904dfe9df294222d89e94d4b192d"
+    },
+    "go-defensive": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "eeae73802d2969e0956f185809b699ff5afa55f2ff41adb163b8b15a83f3db66"
+    },
+    "go-documentation": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "5a52e6d13e5719b373a47a53975d48c1bbd570f489e7555725a802973e162e01"
+    },
+    "go-error-handling": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "77dfbb28456b8b6452726ede57c4af42251e70844e549de67be566b699f263a3"
+    },
+    "go-functional-options": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "aa768ae78673bac279ad742eb2e728d3f38931340403e8c89ca0e190f1133630"
+    },
+    "go-interfaces": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "f0387256fef8527bef3e3778d54c62b6f8c04515a1b25c7768628a05ecea14ce"
+    },
+    "go-linting": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "41effcb704d0836720d02ff497a8b4b5c76e41491612c22b36f67d87b42d3744"
+    },
+    "go-naming": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "1bb0e4a009afe3673797b9cb910ed5160d615db313ab221ba20c38e3c67e9c9d"
+    },
+    "go-packages": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "c498ff02c6144a544610750607617cfa550c7ed6ddfc1f77478afe368cbaddb5"
+    },
+    "go-performance": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "ad7131a15b124fb070a4c25183f325975e4b01c35e3794e0b741743aa164cd39"
+    },
+    "go-style-core": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "a1137bd5aad517b82f75d6f6ea5540e859fa18784058a7e77550d89f3c494635"
+    },
+    "go-testing": {
+      "source": "cxuu/golang-skills",
+      "sourceType": "github",
+      "computedHash": "5313f27158ada59a570389197277cc09a238bdeaf23937c55b8e8323a8da688f"
+    },
+    "jira-auth": {
+      "source": "01000001-01001110/agent-jira-skills",
+      "sourceType": "github",
+      "computedHash": "700430edffd292dab29d11320cc679725d78c812a96c8e0bdbf22908f2824f7f"
+    },
+    "jira-communication": {
+      "source": "netresearch/jira-skill",
+      "sourceType": "github",
+      "computedHash": "29402f77f6ef519b361bf9f2509c906cfa3ed26427ce75f1b7af3308496453df"
+    },
+    "jira-issues": {
+      "source": "01000001-01001110/agent-jira-skills",
+      "sourceType": "github",
+      "computedHash": "378eae4efbffddbadd7bf488fd848285cf109f600eac6a1bd8693d86d0cef89c"
+    },
+    "jira-safe": {
+      "source": "01000001-01001110/agent-jira-skills",
+      "sourceType": "github",
+      "computedHash": "b05f6f6eb99e8373b67e51966dbc40b6f1076289ff0c5a22392b5197f41e6c4f"
+    },
+    "jira-syntax": {
+      "source": "netresearch/jira-skill",
+      "sourceType": "github",
+      "computedHash": "1de991955e637e98fa87545badafdea2cd943c430f84e7415e9c37b53ca0ad26"
+    },
+    "jira-transitions": {
+      "source": "01000001-01001110/agent-jira-skills",
+      "sourceType": "github",
+      "computedHash": "03d26a41e644f4dbae8cd2a12a3f7829480f2ad4e9e35ce5630a64aee115591a"
+    },
+    "openspec-apply": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "7cf5ea16d5f47de2fe80a6aaeead8ebf56a2316df7fc089b026d9da0fe36a9d6"
+    },
+    "openspec-archive": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "ceb38b8eb49918f3466f6e2cc168bb9f57cd56908bc057d3cf9d316a1c0a879e"
+    },
+    "openspec-bulk-archive": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "a91f3776654e357222aed965c7d78bc1e63c1b8df8acd7ba32e1800d5d1553dc"
+    },
+    "openspec-config": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "ffa71f096618d77f244df97fc2edfd47f31d9dfe9630cea8a4991954a3392be8"
+    },
+    "openspec-continue": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "9169a5fed9ba3402408a0fe456ad16e802156dac749dc7db25909ba0966392a0"
+    },
+    "openspec-explore": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "001e5e9cd7a2b9fd06a6d25b4a8b3d3eaa830e25ddfdd70da18fed0f3a9a7477"
+    },
+    "openspec-ff": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "0dc9de5b8ad0cdaebbace0a372cfe1c1a3759a08d9fdaf326ec8d86393432c39"
+    },
+    "openspec-initial": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "aa0d00458e4cc805ff685fbe2453003fc8b80cea445e8aca7bd41f10bb5335f6"
+    },
+    "openspec-install": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "2248b383c0b98b23a947ed3bfc7a31291f75a94371c331dfe3c20848e2b4d7a7"
+    },
+    "openspec-new": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "28a5bdc81d0d8fa3280a6785689126ce43da528900996e49fb128053cf31f992"
+    },
+    "openspec-onboard": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "fde5de1166fcf842624654be4e5af485a1d3e04ea8b1eaabf634cf46200c43c8"
+    },
+    "openspec-schema": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "9755be0c8c3160e59d32983416f3b1f45ea58510bcf199f7c6e8ae6739c7ab05"
+    },
+    "openspec-sync": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "91057634ba761d2fa1bf6495bf6c79de17f44a96e4dd3e47f7b44b343ed0e744"
+    },
+    "openspec-template": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "7a8d3027bd3d5c8bd03eaf63926c293db4eac8df757cefa56654b565871bfc0e"
+    },
+    "openspec-update": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "992b3186f1fc9f3c65b23f3a83002a51be24516f86601e85de7efa966f8effaa"
+    },
+    "openspec-verify": {
+      "source": "partme-ai/openspec-skills",
+      "sourceType": "github",
+      "computedHash": "f399cc2b67d0583110b785e37e31b5bef0ecf3d8cecb3d19cb2a11353209ea66"
+    },
+    "pdf": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "cfbc539377088ca7e44a813b30c306327385bbd973cd7a721e1743f60837dd62"
+    },
+    "pptx": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "6b8b859d26f93aa059c9870d1ab76b44ab69e3d6757ce4a03cc94cb760888073"
+    },
+    "skill-creator": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "b122f4d1e91aa1d83027e050b5b37c3156203ee85458d7b1360bc48167c9e02a"
+    },
+    "template-skill": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "38c88f722b574a922311d334a70c2008a2a5b896f06eaa75516d716e5725b26f"
+    },
+    "xlsx": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "efd0c8011cf0677d8075cf93867ecec804f9a8754a777e1d2fdb46197e9c247f"
+    }
+  }
+}
