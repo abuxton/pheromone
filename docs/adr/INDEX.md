@@ -1,6 +1,6 @@
 # Pheromone ADR Index & Decision Status
 
-**Updated**: 2026-03-08 (ADR-008 and ADR-009 accepted — AI model selection and OpenClaw evaluation ratified)
+**Updated**: 2026-03-09 (ADR-010 accepted — Signal Protocol evaluation ratified; gRPC+mTLS confirmed)
 
 ## Decision Timeline & Status
 
@@ -15,7 +15,7 @@
 | **007** | Agentic AI Agent Model | ✅ Accepted | Phase 0 (Foundation) | Digital twin as agent skill; AI reasoning loop | ADR-001,003,006 |
 | **008** | AI Model Selection — Local vs. Remote Reasoning Engine | ✅ Accepted | Phase 2 (AI Reasoning) | Ollama (local), llamafile (edge), remote API; OS recommendations | ADR-007,006,003 |
 | **009** | OpenClaw Evaluation — Central Server and Agent Role Assessment | ✅ Accepted | Phase 2 (AI Reasoning) | OpenClaw as server/agent candidate; extends ADR-008 | ADR-008,007,003 |
-| **010** | Evaluate Signal Protocol (signalapp) for Server↔Agent Communication | ⏳ Proposed | Phase 1 (Security Review) | Signal Protocol not suitable; gRPC+mTLS confirmed; AGPL/Go/throughput constraints | ADR-001,003,005 |
+| **010** | Evaluate Signal Protocol (signalapp) for Server↔Agent Communication | ✅ Accepted | Phase 1 (Security Review) | Signal Protocol not suitable; gRPC+mTLS confirmed; AGPL/Go/throughput constraints | ADR-001,003,005 |
 | **011** | Post-Action Hooks — Notifications, Webhooks, and Package Delivery | ⏳ Proposed | Phase 1 (MVP) | Notification Skill (agent-side) + Post-Action Hook Service (server-side); direct end-user notify | ADR-003,005,006,007,010 |
 | **012** | Vagrant Testing Environment | ✅ Accepted | Phase 1 (MVP) | Multi-machine Vagrant setup (Ubuntu 24.04 + Debian 12) for server/agent integration testing | ADR-001,002,008 |
 | **013** | Swamp Evaluation — System Initiative AI Automation CLI | ⏳ Proposed | Phase 0 (Spike) | Swamp not adopted (AGPL v3, TypeScript/Deno, single-machine CLI); Definition/CEL model noted as ADR-004 reference | ADR-003,004,007,010 |
@@ -38,7 +38,7 @@
 - ✅ ADR-002: How to structure server state (in-mem + etcd)
 - ✅ ADR-003: How agents communicate with server (gRPC contracts)
 - ⏳ ADR-004: How operators define twin models (YAML schema)
-- ⏳ ADR-010: Signal Protocol (signalapp) evaluated; gRPC+mTLS confirmed as server↔agent security
+- ✅ ADR-010: Signal Protocol (signalapp) evaluated; gRPC+mTLS confirmed as server↔agent security
 
 ### Layer 3: Telemetry & Extensibility (ADR-005, 006, 011)
 - ⏳ ADR-005: How metrics flow to observability tools (NATS/Kafka)
@@ -55,7 +55,7 @@
 - **ADR-007**: Agentic AI agent model (affects all agent implementations and server design)
 - **ADR-008**: AI model selection (Ollama/llamafile/remote); OS recommendations (Ubuntu 24.04 LTS, Talos Linux)
 - **ADR-009**: OpenClaw evaluation (confirms ADR-008 Ollama decision; no core architecture change)
-- **ADR-010**: Signal Protocol (signalapp) evaluation — NOT adopted; gRPC+mTLS confirmed as server↔agent security layer
+- **ADR-010**: Signal Protocol (signalapp) evaluation — NOT adopted; gRPC+mTLS confirmed as server↔agent security layer ✅ **Accepted**
 - **ADR-011**: Port assignment — 4426 (gRPC control), 4427 (gRPC telemetry), 443/80 (HTTP/HTTPS REST API)
 - **ADR-013**: Swamp (System Initiative) evaluation — NOT adopted; AGPL v3 licence + TypeScript/Deno mismatch; YAML/CEL Definition model noted as ADR-004 reference
 
@@ -193,6 +193,6 @@ All GitHub issues required to process ADR material and unblock development are t
 
 ---
 
-**Status**: ✅ **ADRs 001, 002, 003, 007, 008, 009, 012 ACCEPTED — ADRs 004-006, 010-011, 013 PROPOSED - READY FOR TEAM REVIEW**
-**Updated**: 2026-03-08 (ADR-008 and ADR-009 accepted — AI model selection and OpenClaw evaluation ratified)
+**Status**: ✅ **ADRs 001, 002, 003, 007, 008, 009, 010, 012 ACCEPTED — ADRs 004-006, 011, 013 PROPOSED - READY FOR TEAM REVIEW**
+**Updated**: 2026-03-09 (ADR-010 accepted — Signal Protocol evaluation ratified; gRPC+mTLS confirmed as server↔agent security)
 

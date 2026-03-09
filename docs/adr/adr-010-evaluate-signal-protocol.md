@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -182,4 +182,8 @@ ADR-010 records the outcome of a deliberate review of the `signalapp` GitHub org
 ---
 
 **Decision Date**: 2026-02-21
-**Status**: Proposed — ready for team review
+**Status**: Accepted — 2026-03-09
+
+## Update — 2026-03-09
+
+ADR-010 formally accepted. Signal Protocol rejection rationale reviewed (5 reasons: architectural mismatch, transport incompatibility, no Go bindings, AGPL v3 licence constraint, operational complexity). mTLS security comparison table reviewed and confirmed adequate for server↔agent use case. AGPL v3 licence constraint acknowledged by project governance — no AGPL dependencies to be introduced without governance decision. Follow-up action confirmed: mTLS enablement requirements documented in ADR-003 update (see ADR-003 Update — 2026-03-09). gRPC + mTLS remains the sole server↔agent security architecture for Pheromone.
