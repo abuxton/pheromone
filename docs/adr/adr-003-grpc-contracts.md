@@ -214,6 +214,67 @@ message MetricsRequest {
 
 These extensions are additive (backward-compatible within `pheromone.v1`). Old non-AI agents omit the new fields and continue to operate normally.
 
+## Update — 2026-03-09 (mTLS Enablement — ADR-010 Follow-Up)
+
+ADR-010 confirmed that gRPC + mTLS is the sole server↔agent security architecture for Pheromone. This update documents mTLS configuration requirements for all three gRPC services.
+
+### mTLS Requirements
+
+All three gRPC services (`AgentRegistry`, `TwinControl`, `TelemetryStream`) MUST enforce mutual TLS:
+
+| Service | Port | mTLS Mode | Notes |
+|---|---|---|---|
+| AgentRegistry + TwinControl | 4426 | `RequireAndVerifyClientCert` | Agent presents client cert on registration and control-plane connections |
+| TelemetryStream | 4427 | `RequireAndVerifyClientCert` | Agent presents client cert on each telemetry stream open |
+
+### Certificate Requirements
+
+- **Server certificate**: issued by a trusted internal CA; presented to all connecting agents
+- **Agent client certificate**: unique per-agent X.509 cert, CN = `agent-<agent_id>`; provisioned at agent install time
+- **CA**: internal PKI (Vault PKI recommended, Phase 2); self-signed CA acceptable for Phase 1 MVP
+- **TLS version**: TLS 1.3 minimum (enforced via `tls.VersionTLS13` in Go `crypto/tls` config)
+- **Cipher suites**: defaults for TLS 1.3 (TLS_AES_128_GCM_SHA256, TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256)
+
+### Go Implementation Pattern
+
+```go
+// Server-side mTLS credentials
+tlsConfig := &tls.Config{
+    ClientAuth:   tls.RequireAndVerifyClientCert,
+    ClientCAs:    caCertPool,
+    MinVersion:   tls.VersionTLS13,
+}
+creds := credentials.NewTLS(tlsConfig)
+grpc.NewServer(grpc.Creds(creds))
+
+// Agent (client-side) mTLS credentials
+tlsConfig := &tls.Config{
+    Certificates: []tls.Certificate{agentCert},
+    RootCAs:      caCertPool,
+    MinVersion:   tls.VersionTLS13,
+}
+creds := credentials.NewTLS(tlsConfig)
+grpc.Dial(serverAddr, grpc.WithTransportCredentials(creds))
+```
+
+### Certificate Rotation Policy
+
+- Agent certs MUST have a maximum validity of **90 days**
+- Rotation MUST be automated (cert-manager or Vault PKI dynamic certs); no manual rotation
+- Server MUST accept connections from agents presenting certs issued by the trusted CA regardless of agent cert age (within validity window)
+- Hot-reload of server TLS credentials MUST be supported to avoid downtime during server cert rotation
+
+### Security Properties Provided (per ADR-010 comparison)
+
+| Property | Provided by mTLS |
+|---|---|
+| Mutual authentication | ✅ X.509 client + server certs |
+| Encryption in transit | ✅ TLS 1.3 AEAD |
+| Forward secrecy | ✅ TLS 1.3 ephemeral DH |
+| High-throughput streaming | ✅ Native gRPC streams |
+| Go ecosystem fit | ✅ `crypto/tls` + `google.golang.org/grpc/credentials` |
+| Licence compatibility | ✅ Apache 2.0 / BSD |
+
 ## References
 
 - gRPC Protocol Buffer Specification v3: https://developers.google.com/protocol-buffers/docs/proto3
