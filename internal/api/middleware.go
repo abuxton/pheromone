@@ -65,15 +65,22 @@ func adminMiddleware(next http.Handler) http.Handler {
 func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		allowed := false
+		allowOrigin := ""
 		for _, o := range s.cfg.AllowedOrigins {
-			if o == "*" || o == origin {
-				allowed = true
+			if o == "*" {
+				allowOrigin = "*"
+				break
+			}
+			if o == origin {
+				allowOrigin = origin
 				break
 			}
 		}
-		if allowed || len(s.cfg.AllowedOrigins) == 0 {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
+		if allowOrigin == "" && len(s.cfg.AllowedOrigins) == 0 {
+			allowOrigin = "*"
+		}
+		if allowOrigin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")

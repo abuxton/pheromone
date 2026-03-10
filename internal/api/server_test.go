@@ -526,3 +526,51 @@ func TestCORSPreflightReturns204(t *testing.T) {
 		t.Fatalf("expected 204 for OPTIONS, got %d", rr.Code)
 	}
 }
+
+func TestCORSReflectsSpecificOrigin(t *testing.T) {
+	cfg := config.UIConfig{
+		Enabled:        true,
+		Address:        "127.0.0.1",
+		Port:           0,
+		SecretKey:      "test-secret",
+		TokenTTL:       time.Hour,
+		AllowedOrigins: []string{"https://console.example.com"},
+		Users:          []config.UIUser{{Username: "admin", PasswordHash: hashPassword("admin", "s"), Role: "admin"}},
+	}
+	srv := New(cfg, nil)
+	h := newHandler(srv)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+	req.Header.Set("Origin", "https://console.example.com")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	got := rr.Header().Get("Access-Control-Allow-Origin")
+	if got != "https://console.example.com" {
+		t.Errorf("expected specific origin reflection, got %q", got)
+	}
+}
+
+func TestCORSBlocksUnknownOrigin(t *testing.T) {
+	cfg := config.UIConfig{
+		Enabled:        true,
+		Address:        "127.0.0.1",
+		Port:           0,
+		SecretKey:      "test-secret",
+		TokenTTL:       time.Hour,
+		AllowedOrigins: []string{"https://console.example.com"},
+		Users:          []config.UIUser{{Username: "admin", PasswordHash: hashPassword("admin", "s"), Role: "admin"}},
+	}
+	srv := New(cfg, nil)
+	h := newHandler(srv)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+	req.Header.Set("Origin", "https://attacker.example.com")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	got := rr.Header().Get("Access-Control-Allow-Origin")
+	if got == "https://attacker.example.com" || got == "*" {
+		t.Errorf("unexpected CORS header for unknown origin: %q", got)
+	}
+}

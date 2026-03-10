@@ -264,7 +264,12 @@ func runServe(args []string, globalConfigPath string) int {
 		uiCfg.Port = 8081
 	}
 	if uiCfg.SecretKey == "" {
+		log.Warn("SECURITY WARNING: ui.secret_key is not set; using insecure default. " +
+			"Set a strong random secret in your configuration before deploying to production.")
 		uiCfg.SecretKey = "pheromone-default-secret-change-in-production"
+	} else if uiCfg.SecretKey == "change-me-in-production" {
+		log.Warn("SECURITY WARNING: ui.secret_key is set to the default placeholder. " +
+			"Replace it with a strong random secret before deploying to production.")
 	}
 	if len(uiCfg.Users) == 0 {
 		// Default admin:admin account when no users are configured.

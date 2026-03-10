@@ -201,6 +201,7 @@ type UIConfig struct {
 	SecretKey string `json:"secret_key,omitempty" yaml:"secret_key,omitempty"`
 
 	// TokenTTL is the lifetime of issued bearer tokens. Default: 24h.
+	// When specified in configuration files, use Go duration syntax, e.g. "24h", "1h30m".
 	TokenTTL time.Duration `json:"token_ttl,omitempty" yaml:"token_ttl,omitempty"`
 
 	// Users is the list of users allowed to access the UI and API.

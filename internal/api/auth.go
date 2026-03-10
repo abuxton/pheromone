@@ -84,6 +84,10 @@ func validateToken(token, secretKey string) (*tokenPayload, error) {
 
 // hashPassword creates a deterministic hash for (salt, password).
 // The stored format is "sha256:<salt>:<hex-sha256(salt:password)>".
+//
+// Note: SHA-256 is used here for simplicity in the MVP without external
+// dependencies. For production deployments with high-security requirements,
+// consider migrating to bcrypt or argon2 via golang.org/x/crypto.
 func hashPassword(password, salt string) string {
 	h := sha256.New()
 	h.Write([]byte(salt + ":" + password))
