@@ -19,9 +19,18 @@ See [ADR-012](../docs/adr/adr-012-vagrant-testing-environment.md) for the full d
 
 | VM | Box | IP | Role |
 |---|---|---|---|
-| `server` | `bento/ubuntu-24.04` | `192.168.56.10` | etcd + future pheromone server |
+| `server` | `bento/ubuntu-24.04` | `192.168.56.10` | etcd + pheromone-server + Management UI |
 | `agent-ubuntu` | `bento/ubuntu-24.04` | `192.168.56.11` | Pheromone agent (Ubuntu 24.04 LTS) |
 | `agent-debian` | `bento/debian-12` | `192.168.56.12` | Pheromone agent (Debian 12 Bookworm) |
+
+## Port Forwarding
+
+The Vagrantfile forwards these ports from the server VM to your host machine:
+
+| Service | Guest Port | Host Port | URL |
+|---|---|---|---|
+| Management UI | 8081 | 8081 | http://localhost:8081 |
+| etcd | 2379 | 2379 | http://localhost:2379/health |
 
 ## Quick Start
 
@@ -30,35 +39,92 @@ See [ADR-012](../docs/adr/adr-012-vagrant-testing-environment.md) for the full d
 cd vagrant/
 vagrant up
 
-# Or start a single VM
+# Or start the server VM only (includes the management UI)
 vagrant up server
-vagrant up agent-ubuntu
-vagrant up agent-debian
 ```
 
-### Verify the Server
+Once the server VM is up, open the management UI in your host browser:
+
+```
+http://localhost:8081
+```
+
+Default credentials: **admin / admin** (also available: **viewer / viewer**).
+
+## Management UI
+
+The `pheromone-server serve` process runs as a systemd service (`pheromone-ui`) on the server VM.
+It provides a browser-based console for managing agents, digital twins, skills, groups, change
+sets, and connections.
+
+### Accessing the UI
+
+| Path | Description |
+|---|---|
+| `http://localhost:8081` | Management console (login page) |
+| `http://localhost:8081/api/v1/health` | Health check (no auth required) |
+| `http://localhost:8081/api/v1/stats` | Runtime stats (requires Bearer token) |
+
+### UI Helper Commands (server VM)
 
 ```bash
 vagrant ssh server
 
-# Inside the VM:
-ph-etcd-health           # Check etcd health
-ph-test                  # Run offline validation tests
-ph-test-etcd             # Run etcd integration tests
-docker compose ps        # Show running containers
+ph-ui-health     # GET /api/v1/health and print JSON summary
+ph-ui-status     # Show systemd service status
+ph-ui-logs       # Tail live UI logs (Ctrl-C to stop)
+ph-ui-restart    # Restart the pheromone-ui service
 ```
 
-### Verify an Agent VM
+### UI Configuration
+
+The UI configuration is written during provisioning to `/etc/pheromone/server/ui.yaml`.
+A random secret key and hashed passwords are generated at provision time.
+
+To change the admin password after provisioning:
 
 ```bash
-vagrant ssh agent-ubuntu   # or agent-debian
+vagrant ssh server
 
-# Inside the VM:
-ph-server-health           # Check server etcd reachability
-ph-build                   # Build the project
-ph-test                    # Run offline unit tests
-ph-lint                    # Format and vet code
-go version                 # Verify Go installation
+# Generate a new password hash
+NEW_HASH=$(pheromone-server ui hash-password mynewpassword)
+
+# Edit the config
+sudo sed -i "s|password_hash: .*admin.*|password_hash: \"${NEW_HASH}\"|" \
+  /etc/pheromone/server/ui.yaml
+
+# Restart the service to pick up the change
+ph-ui-restart
+```
+
+### Verifying the UI via API
+
+You can exercise the API directly from the server VM or any agent VM:
+
+```bash
+# Login and capture token
+TOKEN=$(curl -sf -X POST http://192.168.56.10:8081/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"admin"}' \
+  | python3 -c 'import sys,json; print(json.load(sys.stdin)["token"])')
+
+# List agents
+curl -sf -H "Authorization: Bearer ${TOKEN}" \
+  http://192.168.56.10:8081/api/v1/agents | python3 -m json.tool
+
+# List twins
+curl -sf -H "Authorization: Bearer ${TOKEN}" \
+  http://192.168.56.10:8081/api/v1/twins | python3 -m json.tool
+```
+
+### Verifying the Selector
+
+```bash
+vagrant ssh server
+
+# Verify etcd and UI are both healthy
+ph-etcd-health
+ph-ui-health
 ```
 
 ## Common Commands
@@ -109,7 +175,40 @@ go test -v ./benchmark -run TestHybrid
 go test -v ./benchmark -run TestServerRecoveryTime
 ```
 
+## Running API Tests Against the Live UI
+
+With the server VM running, run the API package tests against the live server:
+
+```bash
+vagrant ssh server
+
+# Run all UI/API unit tests
+cd ~/pheromone
+go test -v -race ./internal/api/...
+
+# Or run a single test
+go test -v ./internal/api/... -run TestHandleLogin_Success
+```
+
 ## Troubleshooting
+
+### Management UI not reachable on http://localhost:8081
+
+```bash
+vagrant ssh server
+ph-ui-status     # check systemd service
+ph-ui-logs       # inspect logs
+ph-ui-restart    # restart the service
+```
+
+If the binary is missing (e.g., first provision before source code was synced):
+
+```bash
+vagrant ssh server
+cd ~/pheromone
+go build -o /usr/local/bin/pheromone-server ./cmd/pheromone-server/
+ph-ui-restart
+```
 
 ### etcd not healthy on server VM
 
@@ -128,6 +227,7 @@ vagrant status              # check VM states
 vagrant ssh agent-ubuntu
 ping 192.168.56.10          # test network connectivity
 ph-server-health            # test etcd endpoint
+ph-ui-health                # test management UI endpoint
 ```
 
 ### Go binary not found
@@ -146,3 +246,4 @@ vagrant provision server
 vagrant provision agent-ubuntu
 vagrant provision agent-debian
 ```
+

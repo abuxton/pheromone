@@ -17,6 +17,11 @@
 #   - Vagrant >= 2.3.0
 #   - VirtualBox >= 6.1 (default provider)
 #   - 8 GB RAM recommended (all three VMs: ~2 GB)
+#
+# UI Access (after 'vagrant up server'):
+#   Management UI:  http://localhost:8081   (admin / admin)
+#   API health:     http://localhost:8081/api/v1/health
+#   etcd health:    http://localhost:2379/health
 
 GO_VERSION = "1.24.1"
 PROJECT_NAME = "pheromone"
@@ -25,6 +30,9 @@ PROJECT_NAME = "pheromone"
 SERVER_IP      = "192.168.56.10"
 AGENT_UBUNTU_IP = "192.168.56.11"
 AGENT_DEBIAN_IP = "192.168.56.12"
+
+# UI port exposed on the server VM
+UI_PORT = 8081
 
 Vagrant.configure("2") do |config|
   # Disable default /vagrant sync; we use an explicit synced folder below
@@ -35,6 +43,18 @@ Vagrant.configure("2") do |config|
     server.vm.box = "bento/ubuntu-24.04"
     server.vm.hostname = "pheromone-server"
     server.vm.network "private_network", ip: SERVER_IP
+
+    # Forward the management UI port so the host browser can reach it
+    server.vm.network "forwarded_port",
+      guest: UI_PORT, host: UI_PORT,
+      host_ip: "127.0.0.1",
+      auto_correct: true
+
+    # Forward etcd for host-side integration tests
+    server.vm.network "forwarded_port",
+      guest: 2379, host: 2379,
+      host_ip: "127.0.0.1",
+      auto_correct: true
 
     server.vm.provider "virtualbox" do |vb|
       vb.name   = "#{PROJECT_NAME}-server"
@@ -54,14 +74,23 @@ Vagrant.configure("2") do |config|
     server.vm.provision "shell", path: "scripts/server.sh",
       env: {
         "SERVER_IP" => SERVER_IP,
+        "UI_PORT"   => UI_PORT.to_s,
         "GO_VERSION" => GO_VERSION
       }
 
     server.vm.post_up_message = <<~MSG
       Pheromone server VM is ready.
-        SSH:    vagrant ssh server
-        etcd:   http://#{SERVER_IP}:2379/health
-        IP:     #{SERVER_IP}
+        SSH:          vagrant ssh server
+        Management UI: http://localhost:#{UI_PORT}   (admin / admin)
+        API health:   http://localhost:#{UI_PORT}/api/v1/health
+        etcd health:  http://#{SERVER_IP}:2379/health
+        IP:           #{SERVER_IP}
+
+      Helper commands (inside VM):
+        ph-ui-status   — show management UI service status
+        ph-ui-logs     — tail management UI logs
+        ph-ui-health   — check UI health endpoint
+        ph-etcd-health — check etcd health
     MSG
   end
 
@@ -86,6 +115,7 @@ Vagrant.configure("2") do |config|
     agent.vm.provision "shell", path: "scripts/agent.sh",
       env: {
         "SERVER_IP"  => SERVER_IP,
+        "UI_PORT"    => UI_PORT.to_s,
         "AGENT_IP"   => AGENT_UBUNTU_IP,
         "GO_VERSION" => GO_VERSION
       }
@@ -95,6 +125,7 @@ Vagrant.configure("2") do |config|
         SSH:    vagrant ssh agent-ubuntu
         IP:     #{AGENT_UBUNTU_IP}
         Server: #{SERVER_IP}
+        UI:     http://#{SERVER_IP}:#{UI_PORT}
     MSG
   end
 
@@ -119,6 +150,7 @@ Vagrant.configure("2") do |config|
     agent.vm.provision "shell", path: "scripts/agent.sh",
       env: {
         "SERVER_IP"  => SERVER_IP,
+        "UI_PORT"    => UI_PORT.to_s,
         "AGENT_IP"   => AGENT_DEBIAN_IP,
         "GO_VERSION" => GO_VERSION
       }
@@ -128,6 +160,8 @@ Vagrant.configure("2") do |config|
         SSH:    vagrant ssh agent-debian
         IP:     #{AGENT_DEBIAN_IP}
         Server: #{SERVER_IP}
+        UI:     http://#{SERVER_IP}:#{UI_PORT}
     MSG
   end
 end
+
