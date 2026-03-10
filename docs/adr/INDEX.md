@@ -16,7 +16,7 @@
 | **008** | AI Model Selection — Local vs. Remote Reasoning Engine | ✅ Accepted | Phase 2 (AI Reasoning) | Ollama (local), llamafile (edge), remote API; OS recommendations | ADR-007,006,003 |
 | **009** | OpenClaw Evaluation — Central Server and Agent Role Assessment | ✅ Accepted | Phase 2 (AI Reasoning) | OpenClaw as server/agent candidate; extends ADR-008 | ADR-008,007,003 |
 | **010** | Evaluate Signal Protocol (signalapp) for Server↔Agent Communication | ✅ Accepted | Phase 1 (Security Review) | Signal Protocol not suitable; gRPC+mTLS confirmed; AGPL/Go/throughput constraints | ADR-001,003,005 |
-| **011** | Post-Action Hooks — Notifications, Webhooks, and Package Delivery | ⏳ Proposed | Phase 1 (MVP) | Notification Skill (agent-side) + Post-Action Hook Service (server-side); direct end-user notify | ADR-003,005,006,007,010 |
+| **011** | Post-Action Hooks — Notifications, Webhooks, and Package Delivery | ✅ Accepted | Phase 1 (MVP) | Notification Skill (agent-side) + Post-Action Hook Service (server-side); direct end-user notify | ADR-003,005,006,007,010 |
 | **012** | Vagrant Testing Environment | ✅ Accepted | Phase 1 (MVP) | Multi-machine Vagrant setup (Ubuntu 24.04 + Debian 12) for server/agent integration testing | ADR-001,002,008 |
 | **013** | Swamp Evaluation — System Initiative AI Automation CLI | ⏳ Proposed | Phase 0 (Spike) | Swamp not adopted (AGPL v3, TypeScript/Deno, single-machine CLI); Definition/CEL model noted as ADR-004 reference | ADR-003,004,007,010 |
 
@@ -193,6 +193,6 @@ All GitHub issues required to process ADR material and unblock development are t
 
 ---
 
-**Status**: ✅ **ADRs 001, 002, 003, 007, 008, 009, 010, 012 ACCEPTED — ADRs 004-006, 011, 013 PROPOSED - READY FOR TEAM REVIEW**
-**Updated**: 2026-03-09 (ADR-010 accepted — Signal Protocol evaluation ratified; gRPC+mTLS confirmed as server↔agent security)
+**Status**: ✅ **ADRs 001, 002, 003, 007, 008, 009, 010, 011, 012 ACCEPTED — ADRs 004-006, 013 PROPOSED - READY FOR TEAM REVIEW**
+**Updated**: 2026-03-10 (ADR-011 accepted — Post-Action Hooks; all three spikes passed; HMAC signing, direct-notify resilience, and 100K webhook dispatch at scale validated)
 
