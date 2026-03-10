@@ -158,9 +158,11 @@ func defaultSkillConfig() SkillConfig {
 // --- serialisation helpers ---
 
 // writeConfig encodes v into path using the specified format.
-// The parent directory is created with 0755 permissions if absent.
+// The parent directory is created with 0750 permissions if absent.
+// Config files are written with 0600 permissions to protect secrets
+// (webhook secrets, TLS key paths, API tokens) from other local users.
 func writeConfig(path string, format Format, v interface{}) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
 		return fmt.Errorf("config generate: mkdir %s: %w", filepath.Dir(path), err)
 	}
 
@@ -181,7 +183,7 @@ func writeConfig(path string, format Format, v interface{}) error {
 		data = append(data, '\n')
 	}
 
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("config generate: write %s: %w", path, err)
 	}
 	return nil
