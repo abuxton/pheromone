@@ -22,6 +22,10 @@ test: ## Run all tests (without etcd)
 	go test -v ./benchmark -run TestNoDataLossOnWriteFailure
 	go test -v -race ./internal/config/...
 
+.PHONY: test-grpc-spike
+test-grpc-spike: ## Run ADR-003 gRPC spike validation tests (1000-agent load, latency, throughput)
+	go test -v -timeout 180s ./benchmark -run '^TestGRPC'
+
 .PHONY: test-etcd
 test-etcd: ## Run etcd integration tests (requires running etcd)
 	go test -v ./benchmark -run TestEtcd
@@ -30,7 +34,11 @@ test-etcd: ## Run etcd integration tests (requires running etcd)
 
 .PHONY: bench
 bench: ## Run all benchmarks
-	go test -bench=. ./benchmark -benchmem -benchtime=100x
+	go test -bench=. -run='^$' ./benchmark -benchmem -benchtime=100x
+
+.PHONY: bench-grpc
+bench-grpc: ## Run ADR-003 gRPC spike benchmarks (Register throughput, TelemetryStream throughput)
+	go test -bench=BenchmarkGRPC -run='^$' ./benchmark -benchmem -benchtime=200x
 
 .PHONY: bench-memory
 bench-memory: ## Run memory benchmarks only
