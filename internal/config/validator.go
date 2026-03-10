@@ -70,14 +70,59 @@ func ValidateServerConfig(cfg *ServerConfig) error {
 		listenerNames[l.Name] = i
 	}
 
+	if err := ValidateUIConfig(&cfg.UI); err != nil {
+		var ve *ValidationError
+		if errors.As(err, &ve) {
+			errs = append(errs, ve.Errors...)
+		}
+	}
+
 	if len(errs) > 0 {
 		return &ValidationError{Errors: errs}
 	}
 	return nil
 }
 
-// ValidateAgentConfig checks that cfg is internally consistent and contains
-// all required fields.
+// ValidateUIConfig validates the UIConfig section of the server configuration.
+func ValidateUIConfig(cfg *UIConfig) error {
+	if !cfg.Enabled {
+		return nil
+	}
+	var errs []string
+
+	if cfg.Port < 1 || cfg.Port > 65535 {
+		errs = append(errs, fmt.Sprintf("ui.port %d is out of range (1-65535)", cfg.Port))
+	}
+
+	if cfg.SecretKey == "" {
+		errs = append(errs, "ui.secret_key is required when ui is enabled")
+	}
+
+	validRoles := map[string]bool{"admin": true, "viewer": true}
+	usernames := make(map[string]int)
+	for i, u := range cfg.Users {
+		if u.Username == "" {
+			errs = append(errs, fmt.Sprintf("ui.users[%d]: username is required", i))
+		}
+		if u.PasswordHash == "" {
+			errs = append(errs, fmt.Sprintf("ui.users[%d]: password_hash is required", i))
+		}
+		if u.Role == "" {
+			errs = append(errs, fmt.Sprintf("ui.users[%d]: role is required", i))
+		} else if !validRoles[strings.ToLower(u.Role)] {
+			errs = append(errs, fmt.Sprintf("ui.users[%d]: role %q is invalid; must be admin or viewer", i, u.Role))
+		}
+		if _, seen := usernames[u.Username]; seen && u.Username != "" {
+			errs = append(errs, fmt.Sprintf("ui.users[%d]: duplicate username %q", i, u.Username))
+		}
+		usernames[u.Username] = i
+	}
+
+	if len(errs) > 0 {
+		return &ValidationError{Errors: errs}
+	}
+	return nil
+}
 func ValidateAgentConfig(cfg *AgentConfig) error {
 	var errs []string
 

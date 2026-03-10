@@ -5,15 +5,23 @@
 //	pheromone-server [--config-path <dir>] [--format json|yaml]
 //	pheromone-server config validate [--config-path <dir>]
 //	pheromone-server config generate [--config-path <dir>] [--format json|yaml] [--component server|twin|listener|all]
+//	pheromone-server serve [--config-path <dir>] [--ui-port <port>]
+//	pheromone-server ui hash-password <password>
 package main
 
 import (
-	"flag"
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"strconv"
+	"syscall"
 
+	"flag"
+
+	"github.com/abuxton/pheromone/internal/api"
 	"github.com/abuxton/pheromone/internal/config"
 )
 
@@ -25,6 +33,8 @@ Usage:
 Commands:
   config validate   Validate all configuration files in the config directory
   config generate   Generate a default configuration file
+  serve             Start the management UI and REST API HTTP server
+  ui hash-password  Generate a password hash suitable for ui.users[*].password_hash
 
 Global Flags:
   --config-path <dir>   Directory containing server configuration files
@@ -36,15 +46,25 @@ Config Generate Flags:
                         server, twin, listener, all (default: all)
   --output  <path>      Output file path (default: <config-path>/<component>.<format>)
 
+Serve Flags:
+  --ui-addr <addr>      Override the UI bind address (default: from config or 0.0.0.0)
+  --ui-port <port>      Override the UI HTTP port (default: from config or 8081)
+
 Examples:
+  # Start the management UI on default port 8081
+  pheromone-server serve
+
+  # Start with a custom UI port
+  pheromone-server serve --ui-port 9090
+
   # Validate the current server configuration
   pheromone-server config validate
 
   # Generate a default server config in YAML
   pheromone-server config generate --format yaml --component server
 
-  # Generate all component configs in JSON to a custom path
-  pheromone-server config generate --format json --component all --config-path /opt/pheromone/server
+  # Generate a password hash for a new user
+  pheromone-server ui hash-password mysecretpassword
 `
 
 func main() {
@@ -78,6 +98,10 @@ func run(args []string) int {
 	switch remaining[0] {
 	case "config":
 		return runConfig(remaining[1:], *configPath)
+	case "serve":
+		return runServe(remaining[1:], *configPath)
+	case "ui":
+		return runUI(remaining[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", remaining[0], usageText)
 		return 1
@@ -206,4 +230,98 @@ func configPathFromEnv() string {
 		return v
 	}
 	return config.DefaultServerConfigPath
+}
+
+// runServe starts the HTTP management UI and REST API server.
+func runServe(args []string, globalConfigPath string) int {
+	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
+	configPath := fs.String("config-path", globalConfigPath, "directory containing server configuration files")
+	uiAddr := fs.String("ui-addr", "", "override UI bind address")
+	uiPort := fs.Int("ui-port", 0, "override UI HTTP port")
+
+	if err := fs.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return 0
+		}
+		return 1
+	}
+
+	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	// Attempt to load config; fall back to defaults if not found.
+	cfg, err := config.LoadServerConfig(*configPath)
+	if err != nil {
+		log.Warn("could not load server config, using defaults", "path", *configPath, "error", err)
+		cfg = &config.ServerConfig{}
+	}
+
+	uiCfg := cfg.UI
+	if !uiCfg.Enabled && uiCfg.Port == 0 {
+		// No explicit config – use defaults
+		uiCfg.Enabled = true
+	}
+	if uiCfg.Port == 0 {
+		uiCfg.Port = 8081
+	}
+	if uiCfg.SecretKey == "" {
+		uiCfg.SecretKey = "pheromone-default-secret-change-in-production"
+	}
+	if len(uiCfg.Users) == 0 {
+		// Default admin:admin account when no users are configured.
+		hash, _ := api.GeneratePasswordHash("admin")
+		uiCfg.Users = []config.UIUser{
+			{Username: "admin", PasswordHash: hash, Role: "admin"},
+		}
+	}
+	// Apply flag overrides.
+	if *uiAddr != "" {
+		uiCfg.Address = *uiAddr
+	}
+	if *uiPort != 0 {
+		uiCfg.Port = *uiPort
+	}
+
+	srv := api.New(uiCfg, log)
+	srv.Seed()
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	addr := uiCfg.Address + ":" + strconv.Itoa(uiCfg.Port)
+	if uiCfg.Address == "" {
+		addr = "0.0.0.0:" + strconv.Itoa(uiCfg.Port)
+	}
+	log.Info("starting pheromone management UI", "addr", addr)
+
+	if err := srv.ListenAndServe(ctx); err != nil {
+		log.Error("server error", "error", err)
+		return 1
+	}
+	log.Info("server stopped")
+	return 0
+}
+
+// runUI handles the 'ui' subcommand (currently: hash-password).
+func runUI(args []string) int {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "ui requires a subcommand: hash-password")
+		return 1
+	}
+	switch args[0] {
+	case "hash-password":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "usage: pheromone-server ui hash-password <password>")
+			return 1
+		}
+		hash, err := api.GeneratePasswordHash(args[1])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
+		}
+		fmt.Println(hash)
+		return 0
+	default:
+		fmt.Fprintf(os.Stderr, "unknown ui subcommand %q\n", args[0])
+		return 1
+	}
 }

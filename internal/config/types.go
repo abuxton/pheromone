@@ -42,6 +42,9 @@ type ServerConfig struct {
 
 	// Listeners configures event-listener endpoints (webhooks, NATS, Kafka, etc.).
 	Listeners []ListenerConfig `json:"listeners,omitempty" yaml:"listeners,omitempty"`
+
+	// UI configures the built-in HTTP management UI and REST API.
+	UI UIConfig `json:"ui,omitempty" yaml:"ui,omitempty"`
 }
 
 // ServerSettings holds core operational settings for the Pheromone server.
@@ -179,4 +182,44 @@ type SkillConfig struct {
 
 	// Options holds skill-specific key-value settings passed to the skill at init time.
 	Options map[string]string `json:"options,omitempty" yaml:"options,omitempty"`
+}
+
+// UIConfig configures the built-in HTTP management UI and REST API server.
+type UIConfig struct {
+	// Enabled controls whether the HTTP UI and REST API server is started.
+	// Default: true.
+	Enabled bool `json:"enabled" yaml:"enabled"`
+
+	// Address is the network interface the HTTP server binds to. Default: "0.0.0.0".
+	Address string `json:"address,omitempty" yaml:"address,omitempty"`
+
+	// Port is the TCP port the HTTP server listens on. Default: 8081.
+	Port int `json:"port,omitempty" yaml:"port,omitempty"`
+
+	// SecretKey is the HMAC secret used to sign bearer tokens.
+	// Must be set to a random value in production.
+	SecretKey string `json:"secret_key,omitempty" yaml:"secret_key,omitempty"`
+
+	// TokenTTL is the lifetime of issued bearer tokens. Default: 24h.
+	TokenTTL time.Duration `json:"token_ttl,omitempty" yaml:"token_ttl,omitempty"`
+
+	// Users is the list of users allowed to access the UI and API.
+	// At least one admin user should be configured.
+	Users []UIUser `json:"users,omitempty" yaml:"users,omitempty"`
+
+	// AllowedOrigins lists CORS allowed origins. Default: ["*"] (all origins).
+	AllowedOrigins []string `json:"allowed_origins,omitempty" yaml:"allowed_origins,omitempty"`
+}
+
+// UIUser is a user that may authenticate with the management UI.
+type UIUser struct {
+	// Username is the login name, e.g. "admin".
+	Username string `json:"username" yaml:"username"`
+
+	// PasswordHash is the stored credential in the format "sha256:<salt>:<hex-hash>".
+	// Generate with: pheromone-server ui hash-password <password>
+	PasswordHash string `json:"password_hash" yaml:"password_hash"`
+
+	// Role controls the user's permissions: "admin" (full access) or "viewer" (read-only).
+	Role string `json:"role" yaml:"role"`
 }
