@@ -11,7 +11,7 @@
 
 The Pheromone server currently holds all operational twin state in-memory with asynchronous persistence to etcd (ADR-002 hybrid). This plan drives the research, structured evaluation, and formal ADR for offloading that state to a dedicated **dataplane service** — making the server process itself stateless and crash-resilient without any loss of committed data.
 
-The primary output is **ADR-015** (`docs/adr/adr-015-stateless-server-dataplane.md`), a comprehensive Architecture Decision Record that evaluates six named candidate technologies, recommends a selection, and enumerates the follow-up implementation issues. Secondary outputs are an update to `docs/adr/INDEX.md` and a structured list of GitHub issues.
+The primary output is **ADR-016** (`docs/adr/adr-016-stateless-server-dataplane.md`), a comprehensive Architecture Decision Record that evaluates six named candidate technologies, recommends a selection, and enumerates the follow-up implementation issues. Secondary outputs are an update to `docs/adr/INDEX.md` and a structured list of GitHub issues.
 
 **This plan does not include implementing the selected dataplane.** Implementation follows from the accepted ADR in a subsequent feature branch.
 
@@ -40,11 +40,11 @@ The primary output is **ADR-015** (`docs/adr/adr-015-stateless-server-dataplane.
 
 | Principle | Check | Status |
 |-----------|-------|--------|
-| **I — Layered Twin Architecture** | ADR-015 must fit within the existing three-layer model: Layer 1 (in-memory cache), Layer 2 (dataplane), Layer 3 (audit/history). Agents never connect directly to the dataplane — server mediates all reads and writes (FR-009). | ✅ PASS — spec explicitly preserves layering; agents remain on gRPC path |
-| **II — ADR-Driven Decision Contracts** | A new ADR is the primary deliverable. ADR-015 must reference ADR-002, ADR-003, ADR-014 and be published in `docs/adr/` before any implementation begins. Status starts as Proposed; advances to Accepted after team review. | ✅ PASS — feature is explicitly ADR creation; no code changes in scope |
+| **I — Layered Twin Architecture** | ADR-016 must fit within the existing three-layer model: Layer 1 (in-memory cache), Layer 2 (dataplane), Layer 3 (audit/history). Agents never connect directly to the dataplane — server mediates all reads and writes (FR-009). | ✅ PASS — spec explicitly preserves layering; agents remain on gRPC path |
+| **II — ADR-Driven Decision Contracts** | A new ADR is the primary deliverable. ADR-016 must reference ADR-002, ADR-003, ADR-014 and be published in `docs/adr/` before any implementation begins. Status starts as Proposed; advances to Accepted after team review. | ✅ PASS — feature is explicitly ADR creation; no code changes in scope |
 | **III — Language-Agnostic Protocol Foundation** | Dataplane client library must be available in Go. If a separate service is chosen (e.g., PostgreSQL, Redis, etcd), its Go SDK must be evaluated for gRPC compatibility, connection pooling, and TLS support. | ✅ PASS — Go SDK availability is an explicit evaluation criterion (FR-002) |
 | **IV — Smoke Tests & Quality Gates** | No new code in this feature. The ADR document itself is the deliverable. Existing smoke tests must not regress. | ✅ PASS — documentation-only deliverable; CI gates unaffected |
-| **V — Git-Driven ADR Workflow** | Feature branch is already created (`copilot/feature-evaluate-data-plane-implementation`). ADR-015 must be committed in this branch. PR description must link to spec-002 and ADR-015. Squash-commit message: `docs(adr): ADR-015 stateless server dataplane selection`. | ✅ PASS — branch exists; naming convention is acceptable (non-standard prefix approved for Copilot agent branches) |
+| **V — Git-Driven ADR Workflow** | Feature branch is already created (`copilot/feature-evaluate-data-plane-implementation`). ADR-016 must be committed in this branch. PR description must link to spec-002 and ADR-016. Squash-commit message: `docs(adr): ADR-016 stateless server dataplane selection`. | ✅ PASS — branch exists; naming convention is acceptable (non-standard prefix approved for Copilot agent branches) |
 
 **Constitution Gate**: ✅ ALL PASS — proceed to Phase 0.
 
@@ -61,7 +61,7 @@ The primary output is **ADR-015** (`docs/adr/adr-015-stateless-server-dataplane.
 └── (no data-model.md or contracts/ — documentation-only feature)
 
 docs/adr/
-├── adr-015-stateless-server-dataplane.md    ← PRIMARY DELIVERABLE (Phase 1)
+├── adr-016-stateless-server-dataplane.md    ← PRIMARY DELIVERABLE (Phase 1)
 └── INDEX.md                                 ← UPDATE REQUIRED (Phase 1)
 ```
 
@@ -79,7 +79,7 @@ None. This feature is documentation-only. All implementation issues are generate
 
 ## Phase 0: Research
 
-**Goal**: Resolve all NEEDS CLARIFICATION items and produce a structured evidence base that the ADR author can directly cite. Research findings are embedded directly in ADR-015's Context and Alternatives Considered sections — no separate `research.md` file is required for a documentation-only feature; the ADR IS the research output.
+**Goal**: Resolve all NEEDS CLARIFICATION items and produce a structured evidence base that the ADR author can directly cite. Research findings are embedded directly in ADR-016's Context and Alternatives Considered sections — no separate `research.md` file is required for a documentation-only feature; the ADR IS the research output.
 
 ### 0.1 Evaluation Criteria Definition
 
@@ -229,9 +229,9 @@ If any additional candidate scores strictly higher than all named candidates on 
 
 ### 0.3 ADR-002 Transition Analysis
 
-The research MUST explicitly map the current ADR-002 state layers to their post-ADR-015 owners (FR-007, SC-007):
+The research MUST explicitly map the current ADR-002 state layers to their post-ADR-016 owners (FR-007, SC-007):
 
-| ADR-002 Layer | Current Owner | Post-ADR-015 Owner (to be determined) |
+| ADR-002 Layer | Current Owner | Post-ADR-016 Owner (to be determined) |
 |---------------|---------------|---------------------------------------|
 | Layer 1 — In-memory cache | Server process (Go maps) | Server process (retained as read-through cache — source-of-truth moves to dataplane) |
 | Layer 2 — Durable state (`/pheromone/twins/*`, `/pheromone/agents/*`) | etcd | **Dataplane** (selected candidate) — unless the ADR decides to keep etcd as Layer 2 |
@@ -276,13 +276,13 @@ If any candidate's estimated RTO exceeds 30 s (the server recovery window target
 
 ---
 
-## Phase 1: ADR-015 and INDEX.md
+## Phase 1: ADR-016 and INDEX.md
 
 **Prerequisites**: Phase 0 research complete — all candidates scored against all criteria.
 
-### 1.1 ADR-015 Document Structure
+### 1.1 ADR-016 Document Structure
 
-Create `docs/adr/adr-015-stateless-server-dataplane.md` following the project ADR template (`.specify/templates/adr-template.md`) with the **mandatory sections** below. Each section maps to spec-002 functional requirements and success criteria.
+Create `docs/adr/adr-016-stateless-server-dataplane.md` following the project ADR template (`.specify/templates/adr-template.md`) with the **mandatory sections** below. Each section maps to spec-002 functional requirements and success criteria.
 
 ---
 
@@ -379,7 +379,7 @@ Minimum three issues; each must have:
 | I-01 | `[DATAPLANE] Implement <selected> dataplane adapter in Pheromone server` | Wire the selected dataplane client into the server's twin state read/write paths, replacing the current in-memory mutation model | P1 |
 | I-02 | `[DATAPLANE] Migrate etcd Layer 2 state to <selected> dataplane` | Remove or repurpose the `/pheromone/twins/*` and `/pheromone/agents/*` etcd keyspace; update the server boot sequence to load state from the new dataplane | P1 |
 | I-03 | `[DATAPLANE][SECURITY] Configure mTLS / TLS for server↔dataplane transport` | Implement TLS client certificate authentication between the Pheromone server and the selected dataplane service (or document compensating network isolation if embedded store) | P1 |
-| I-04 | `[DATAPLANE][SECURITY] Implement encryption-at-rest for <selected> dataplane` | Configure or implement the encryption-at-rest mechanism identified in ADR-015 for the selected dataplane | P2 |
+| I-04 | `[DATAPLANE][SECURITY] Implement encryption-at-rest for <selected> dataplane` | Configure or implement the encryption-at-rest mechanism identified in ADR-016 for the selected dataplane | P2 |
 | I-05 | `[DATAPLANE][OPS] Write backup and recovery runbook for <selected> dataplane` | Document step-by-step backup, verify, and restore procedures for the dataplane; include automation scripts where possible | P2 |
 | I-06 | `[DATAPLANE] Add Vagrant provisioning for <selected> dataplane` | Extend `vagrant/` provisioning scripts to install and configure the selected dataplane service in the test environment (ADR-012) | P2 |
 | I-07 | `[DATAPLANE][OBS] Add Prometheus metrics for dataplane health and latency` | Expose server-side dataplane read/write latency histograms and connection pool metrics via the existing Prometheus endpoint | P2 |
@@ -410,10 +410,10 @@ Additional issues may be added by the ADR author based on the specific technolog
 ```markdown
 ## Related Decisions
 
-- [ADR-002: Server Architecture](adr-002-server-architecture.md) — defines the current in-memory + etcd hybrid that ADR-015 supersedes (partially or fully)
+- [ADR-002: Server Architecture](adr-002-server-architecture.md) — defines the current in-memory + etcd hybrid that ADR-016 supersedes (partially or fully)
 - [ADR-003: gRPC Service Contracts](adr-003-grpc-contracts.md) — agents connect to server via gRPC; this contract is unchanged by dataplane selection
-- [ADR-014: Security Architecture](adr-014-security-approach.md) — mandates TLS/mTLS; ADR-015 must satisfy or mitigate all D1–D5 requirements for the dataplane path
-- [ADR-005: Message Queue Selection](adr-005-message-queue.md) — telemetry/metrics path (NATS/Kafka) is separate from twin state dataplane; ADR-015 must not conflate these
+- [ADR-014: Security Architecture](adr-014-security-approach.md) — mandates TLS/mTLS; ADR-016 must satisfy or mitigate all D1–D5 requirements for the dataplane path
+- [ADR-005: Message Queue Selection](adr-005-message-queue.md) — telemetry/metrics path (NATS/Kafka) is separate from twin state dataplane; ADR-016 must not conflate these
 ```
 
 ---
@@ -441,7 +441,7 @@ Additional issues may be added by the ADR author based on the specific technolog
 
 Update `docs/adr/INDEX.md` with the following changes:
 
-#### 1.2.1 Add ADR-015 to Decision Timeline table
+#### 1.2.1 Add ADR-016 to Decision Timeline table
 
 Insert after the ADR-014 Security Architecture row:
 
@@ -453,14 +453,14 @@ Insert after the ADR-014 Security Architecture row:
 
 Add under Layer 2:
 ```markdown
-- ⏳ ADR-015: How operational twin/agent state is persisted (stateless server dataplane selection)
+- ⏳ ADR-016: How operational twin/agent state is persisted (stateless server dataplane selection)
 ```
 
 #### 1.2.3 Add to ADR Dependencies graph
 
 Add after the ADR-014 block:
 ```markdown
-ADR-015 (Stateless Server Dataplane)
+ADR-016 (Stateless Server Dataplane)
    ├─→ ADR-002 (Server Architecture — partially superseded for Layer 2 state)
    ├─→ ADR-003 (gRPC Contracts — agent access model unchanged)
    └─→ ADR-014 (Security Architecture — TLS/mTLS requirements for dataplane transport)
@@ -469,47 +469,47 @@ ADR-015 (Stateless Server Dataplane)
 #### 1.2.4 Add to "Key Decisions to Ratify — Must Review" section
 
 ```markdown
-- **ADR-015**: Stateless server dataplane selection (affects server architecture, security, and Phase 2 scaling)
+- **ADR-016**: Stateless server dataplane selection (affects server architecture, security, and Phase 2 scaling)
 ```
 
 #### 1.2.5 Update the status footer
 
-Update the `**Status**:` line at the bottom of INDEX.md to include ADR-015 Proposed.
+Update the `**Status**:` line at the bottom of INDEX.md to include ADR-016 Proposed.
 
 #### 1.2.6 Add to Required GitHub Issues table
 
-Add at minimum I-01 through I-08 from Section 1.1 §8 above, referencing ADR-015.
+Add at minimum I-01 through I-08 from Section 1.1 §8 above, referencing ADR-016.
 
 ---
 
 ### 1.3 Agent Context Update
 
-After ADR-015 and INDEX.md are committed, run:
+After ADR-016 and INDEX.md are committed, run:
 
 ```bash
 cd /home/runner/work/pheromone/pheromone
 bash .specify/scripts/bash/update-agent-context.sh copilot
 ```
 
-This updates the Copilot agent context file with the new technologies introduced by ADR-015 (selected dataplane Go client library, any new operational tooling).
+This updates the Copilot agent context file with the new technologies introduced by ADR-016 (selected dataplane Go client library, any new operational tooling).
 
 ---
 
 ## Follow-Up GitHub Issues (Standalone Reference)
 
-The following issues MUST be created in the repository after ADR-015 is accepted. They are reproduced here for planning visibility. Actual issue text will be finalised by the ADR author based on the selected technology.
+The following issues MUST be created in the repository after ADR-016 is accepted. They are reproduced here for planning visibility. Actual issue text will be finalised by the ADR author based on the selected technology.
 
 | Issue | Label | ADR | Priority | Effort Estimate |
 |-------|-------|-----|----------|-----------------|
-| Implement `<selected>` dataplane adapter in Pheromone server | `enhancement`, `dataplane`, `P1` | ADR-015 | P1 | 16–24 h |
-| Migrate etcd Layer 2 state (`/pheromone/twins/*`) to new dataplane | `refactor`, `dataplane`, `P1` | ADR-015 | P1 | 8–12 h |
-| Configure TLS/mTLS for server↔dataplane transport | `security`, `dataplane`, `P1` | ADR-015, ADR-014 | P1 | 4–8 h |
-| Implement encryption-at-rest for selected dataplane | `security`, `dataplane`, `P2` | ADR-015, ADR-014 | P2 | 4–8 h |
-| Write backup and recovery runbook for selected dataplane | `documentation`, `ops`, `P2` | ADR-015 | P2 | 4 h |
-| Add Vagrant provisioning for selected dataplane | `infrastructure`, `P2` | ADR-015, ADR-012 | P2 | 4–6 h |
-| Add Prometheus metrics for dataplane health and latency | `observability`, `P2` | ADR-015 | P2 | 4 h |
-| Tech spike — dataplane write throughput at 1 000 agents | `spike`, `P2` | ADR-015 | P2 | 6–8 h |
-| Review and Accept ADR-015 | `adr-review` | ADR-015 | P1 | — |
+| Implement `<selected>` dataplane adapter in Pheromone server | `enhancement`, `dataplane`, `P1` | ADR-016 | P1 | 16–24 h |
+| Migrate etcd Layer 2 state (`/pheromone/twins/*`) to new dataplane | `refactor`, `dataplane`, `P1` | ADR-016 | P1 | 8–12 h |
+| Configure TLS/mTLS for server↔dataplane transport | `security`, `dataplane`, `P1` | ADR-016, ADR-014 | P1 | 4–8 h |
+| Implement encryption-at-rest for selected dataplane | `security`, `dataplane`, `P2` | ADR-016, ADR-014 | P2 | 4–8 h |
+| Write backup and recovery runbook for selected dataplane | `documentation`, `ops`, `P2` | ADR-016 | P2 | 4 h |
+| Add Vagrant provisioning for selected dataplane | `infrastructure`, `P2` | ADR-016, ADR-012 | P2 | 4–6 h |
+| Add Prometheus metrics for dataplane health and latency | `observability`, `P2` | ADR-016 | P2 | 4 h |
+| Tech spike — dataplane write throughput at 1 000 agents | `spike`, `P2` | ADR-016 | P2 | 6–8 h |
+| Review and Accept ADR-016 | `adr-review` | ADR-016 | P1 | — |
 
 **Total estimated implementation effort**: ~50–70 hours across 8 issues (excluding ADR review).
 
@@ -526,36 +526,36 @@ The following issues MUST be created in the repository after ADR-015 is accepted
 - [ ] Licensing for all candidates confirmed — any AGPL or proprietary licences flagged
 
 ### Phase 1 Complete When:
-- [ ] `docs/adr/adr-015-stateless-server-dataplane.md` exists with all 11 sections complete
+- [ ] `docs/adr/adr-016-stateless-server-dataplane.md` exists with all 11 sections complete
 - [ ] Technology recommendation (or phased shortlist) is stated and justified
 - [ ] Security section covers all four requirements (at-rest, transport, mTLS, sovereignty) with no silent gaps
 - [ ] Backup and recovery section includes restore procedure and RTO estimate
 - [ ] Transition path from ADR-002 hybrid model is described at code-path granularity
-- [ ] Minimum 3 follow-up issues (I-01 through I-03 at minimum) listed in ADR-015 §8
-- [ ] `docs/adr/INDEX.md` updated with ADR-015 row, dependency graph entry, and status footer
+- [ ] Minimum 3 follow-up issues (I-01 through I-03 at minimum) listed in ADR-016 §8
+- [ ] `docs/adr/INDEX.md` updated with ADR-016 row, dependency graph entry, and status footer
 - [ ] Agent context updated via `update-agent-context.sh copilot`
 - [ ] Branch `copilot/feature-evaluate-data-plane-implementation` pushed with both files
-- [ ] PR description references spec-002 and ADR-015
+- [ ] PR description references spec-002 and ADR-016
 
 ### Post-Phase-1 (after ADR acceptance):
 - [ ] GitHub issues I-01 through I-08 created in repository
-- [ ] ADR-015 status updated from `Proposed` to `Accepted` after 2 approvals + 1-week review
-- [ ] ADR-002 updated with "Partially superseded by ADR-015 for Layer 2 state — see [link]" dated note
-- [ ] Implementation feature branch created: `feature/ADR-015-dataplane-adapter`
+- [ ] ADR-016 status updated from `Proposed` to `Accepted` after 2 approvals + 1-week review
+- [ ] ADR-002 updated with "Partially superseded by ADR-016 for Layer 2 state — see [link]" dated note
+- [ ] Implementation feature branch created: `feature/ADR-016-dataplane-adapter`
 
 ---
 
 ## Constitution Re-Check (Post Phase 1)
 
-After ADR-015 and INDEX.md are drafted, re-verify:
+After ADR-016 and INDEX.md are drafted, re-verify:
 
 | Principle | Post-Design Status |
 |-----------|-------------------|
-| I — Layered Architecture | ✅ ADR-015 explicitly maps to Layer 2; Layer 1 (cache) and Layer 3 (audit) unchanged |
-| II — ADR-Driven Decisions | ✅ ADR-015 is the deliverable; status starts Proposed pending review |
+| I — Layered Architecture | ✅ ADR-016 explicitly maps to Layer 2; Layer 1 (cache) and Layer 3 (audit) unchanged |
+| II — ADR-Driven Decisions | ✅ ADR-016 is the deliverable; status starts Proposed pending review |
 | III — Protocol Foundation | ✅ Evaluation criteria C-07 enforces Go client library requirement for all candidates |
 | IV — Smoke Tests | ✅ No code changes; existing tests unaffected |
-| V — Git Workflow | ✅ Branch exists; PR will reference ADR-015 |
+| V — Git Workflow | ✅ Branch exists; PR will reference ADR-016 |
 
 ---
 

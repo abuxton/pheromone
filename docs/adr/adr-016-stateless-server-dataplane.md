@@ -1,4 +1,4 @@
-# ADR-015: Stateless Server — Dataplane Selection
+# ADR-016: Stateless Server — Dataplane Selection
 
 **Status**: Proposed
 **Date**: 2026-03-10
@@ -382,7 +382,7 @@ Phase 1 recommendation: **daily `pg_basebackup` + continuous WAL archiving**. Th
 
 ## Transition Path from ADR-002
 
-| ADR-002 Layer | Current Owner | Post-ADR-015 Owner | Migration Notes |
+| ADR-002 Layer | Current Owner | Post-ADR-016 Owner | Migration Notes |
 |---|---|---|---|
 | Layer 1 — In-memory cache | Go `map[string]Twin` | Go `map[string]Twin` (unchanged) | No change; cache warms from PostgreSQL instead of etcd |
 | Layer 2 — Durable state | etcd `/pheromone/twins/*` | PostgreSQL `twins` table | Migrate existing etcd twin keys to PostgreSQL on first deployment |
@@ -435,15 +435,15 @@ The following issues are required to implement the decision in this ADR. All imp
 
 | # | Title | Priority | Estimate | ADR Reference |
 |---|---|---|---|---|
-| I-01 | Implement PostgreSQL dataplane adapter in Pheromone server | P1 | 16–24 h | ADR-015 §Decision |
-| I-02 | One-time migration utility: etcd Layer 2 keys → PostgreSQL | P1 | 8–12 h | ADR-015 §Transition Path |
-| I-03 | Configure mTLS for server ↔ PostgreSQL connection (sslmode=verify-full) | P1 | 4–8 h | ADR-015 §Security |
-| I-04 | Deploy PostgreSQL to Vagrant environment (ADR-012) and docker-compose | P2 | 4–6 h | ADR-015, ADR-012 |
-| I-05 | Implement encryption at rest: LUKS setup for PostgreSQL data directory | P2 | 4–8 h | ADR-015 §Security |
-| I-06 | Write backup and recovery runbook (pg_basebackup + WAL archiving) | P2 | 4 h | ADR-015 §Backup |
-| I-07 | Add Prometheus metrics for PostgreSQL health, connection pool, and query latency | P2 | 4 h | ADR-015, ADR-002 |
-| I-08 | Tech spike: throughput at 1 000 agents with pgxpool (read/write p99) | P2 | 6–8 h | ADR-015 §Constraints |
-| I-09 | Review and Accept ADR-015 | P1 | — | ADR-015 |
+| I-01 | Implement PostgreSQL dataplane adapter in Pheromone server | P1 | 16–24 h | ADR-016 §Decision |
+| I-02 | One-time migration utility: etcd Layer 2 keys → PostgreSQL | P1 | 8–12 h | ADR-016 §Transition Path |
+| I-03 | Configure mTLS for server ↔ PostgreSQL connection (sslmode=verify-full) | P1 | 4–8 h | ADR-016 §Security |
+| I-04 | Deploy PostgreSQL to Vagrant environment (ADR-012) and docker-compose | P2 | 4–6 h | ADR-016, ADR-012 |
+| I-05 | Implement encryption at rest: LUKS setup for PostgreSQL data directory | P2 | 4–8 h | ADR-016 §Security |
+| I-06 | Write backup and recovery runbook (pg_basebackup + WAL archiving) | P2 | 4 h | ADR-016 §Backup |
+| I-07 | Add Prometheus metrics for PostgreSQL health, connection pool, and query latency | P2 | 4 h | ADR-016, ADR-002 |
+| I-08 | Tech spike: throughput at 1 000 agents with pgxpool (read/write p99) | P2 | 6–8 h | ADR-016 §Constraints |
+| I-09 | Review and Accept ADR-016 | P1 | — | ADR-016 |
 
 ---
 

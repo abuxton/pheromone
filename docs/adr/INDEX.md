@@ -1,6 +1,6 @@
 # Pheromone ADR Index & Decision Status
 
-**Updated**: 2026-03-10 (ADR-004 accepted — Twin Model Schema Format ratified; ADR-010 accepted — Signal Protocol evaluation ratified; gRPC+mTLS confirmed; ADR-014 accepted — Security Architecture; ADR-015 proposed — Stateless Server Dataplane Selection)
+**Updated**: 2026-03-10 (ADR-004 accepted — Twin Model Schema Format ratified; ADR-010 accepted — Signal Protocol evaluation ratified; gRPC+mTLS confirmed; ADR-014 accepted — Security Architecture; ADR-016 proposed — Stateless Server Dataplane Selection)
 
 ## Decision Timeline & Status
 
@@ -48,8 +48,8 @@
 - ⏳ ADR-006: How developers extend platform (agent scaffold)
 - ⏳ ADR-011: Post-action hooks — Notification Skill + server-side hook service; webhooks, package delivery, direct end-user notification
 
-### Layer 4: Scalability & Data Plane (ADR-015)
-- ⏳ ADR-015: Stateless server dataplane — PostgreSQL as primary durable store; etcd retained for control-plane coordination only
+### Layer 4: Scalability & Data Plane (ADR-016)
+- ⏳ ADR-016: Stateless server dataplane — PostgreSQL as primary durable store; etcd retained for control-plane coordination only
 
 ---
 
@@ -65,7 +65,7 @@
 - **ADR-011**: Port assignment — 4426 (gRPC control), 4427 (gRPC telemetry), 443/80 (HTTP/HTTPS REST API)
 - **ADR-013**: Swamp (System Initiative) evaluation — NOT adopted; AGPL v3 licence + TypeScript/Deno mismatch; YAML/CEL Definition model noted as ADR-004 reference
 - **ADR-014**: Envoy Proxy evaluation — server-side ingress recommended (Phase 1); per-agent sidecar and xDS control plane deferred to Phase 2
-- **ADR-015**: Stateless server dataplane — PostgreSQL selected as primary durable store; etcd retained for control-plane coordination; server becomes crash-recoverable
+- **ADR-016**: Stateless server dataplane — PostgreSQL selected as primary durable store; etcd retained for control-plane coordination; server becomes crash-recoverable
 
 
 ### Should Review (Implementation Strategy)
@@ -104,7 +104,7 @@ ADR-014 (Envoy Proxy Evaluation — monitoring, observability, service mesh)
    ├─→ ADR-003 (gRPC Contracts — Envoy proxies existing services)
    ├─→ ADR-010 (mTLS confirmed — Envoy can own TLS termination via SDS)
    └─→ ADR-012 (Vagrant — Envoy added to server provisioning scripts)
-ADR-015 (Stateless Server Dataplane — PostgreSQL selection)
+ADR-016 (Stateless Server Dataplane — PostgreSQL selection)
    ├─→ ADR-002 (Server Architecture — Layer 2 durable state moves from etcd to PostgreSQL)
    ├─→ ADR-003 (gRPC Contracts — agents access dataplane via server only)
    └─→ ADR-014 (Security — mTLS and encryption-at-rest requirements drive candidate scoring)
@@ -133,10 +133,10 @@ Before ADR Acceptance, run these validation spikes:
 | ADR-014 | Envoy server-side ingress prototype | Add Envoy to docker-compose; validate gRPC traffic metrics and admin API | 4 hours |
 | ADR-014 | Per-agent sidecar RAM overhead spike | Measure `envoy:distroless` memory footprint on target managed instances | 4 hours |
 | ADR-014 | go-control-plane xDS server spike | Prototype Pheromone server as xDS control plane feeding agent registration into EDS | 12 hours |
-| ADR-015 | PostgreSQL throughput at 1 000 agents | Measure pgxpool read/write p99 with 1 000 twin blobs (≤64 KB each) | 6–8 hours |
-| ADR-015 | Server cold-start rehydration benchmark | Measure time to load 10 000 twin records from PostgreSQL into in-memory cache | 4 hours |
+| ADR-016 | PostgreSQL throughput at 1 000 agents | Measure pgxpool read/write p99 with 1 000 twin blobs (≤64 KB each) | 6–8 hours |
+| ADR-016 | Server cold-start rehydration benchmark | Measure time to load 10 000 twin records from PostgreSQL into in-memory cache | 4 hours |
 
-**Total Spike Effort**: ~92 hours (can run in parallel; +10 hours added for ADR-015 PostgreSQL spikes)
+**Total Spike Effort**: ~92 hours (can run in parallel; +10 hours added for ADR-016 PostgreSQL spikes)
 
 ---
 
@@ -208,22 +208,22 @@ All GitHub issues required to process ADR material and unblock development are t
 | Spike: SDS certificate management via Envoy for agent mTLS | Tech Spike | ADR-014 | 8h |
 | Implement Vagrant provisioning scripts | Implementation | ADR-012 | 4h |
 | Implement gRPC proto definitions | Implementation | ADR-003 | 8h |
-| Review and Accept ADR-015 | ADR Review | ADR-015 | — |
-| Implement PostgreSQL dataplane adapter in Pheromone server | Implementation | ADR-015 | 16–24h |
-| One-time migration utility: etcd Layer 2 keys → PostgreSQL | Implementation | ADR-015 | 8–12h |
-| Configure mTLS for server ↔ PostgreSQL (sslmode=verify-full) | Implementation | ADR-015 | 4–8h |
-| Deploy PostgreSQL to Vagrant environment and docker-compose | Implementation | ADR-015 | 4–6h |
-| Implement LUKS encryption at rest for PostgreSQL data directory | Implementation | ADR-015 | 4–8h |
-| Write backup and recovery runbook (pg_basebackup + WAL archiving) | Documentation | ADR-015 | 4h |
-| Add Prometheus metrics for PostgreSQL health, connection pool, query latency | Implementation | ADR-015 | 4h |
-| Spike: PostgreSQL throughput at 1 000 agents with pgxpool | Tech Spike | ADR-015 | 6–8h |
+| Review and Accept ADR-016 | ADR Review | ADR-016 | — |
+| Implement PostgreSQL dataplane adapter in Pheromone server | Implementation | ADR-016 | 16–24h |
+| One-time migration utility: etcd Layer 2 keys → PostgreSQL | Implementation | ADR-016 | 8–12h |
+| Configure mTLS for server ↔ PostgreSQL (sslmode=verify-full) | Implementation | ADR-016 | 4–8h |
+| Deploy PostgreSQL to Vagrant environment and docker-compose | Implementation | ADR-016 | 4–6h |
+| Implement LUKS encryption at rest for PostgreSQL data directory | Implementation | ADR-016 | 4–8h |
+| Write backup and recovery runbook (pg_basebackup + WAL archiving) | Documentation | ADR-016 | 4h |
+| Add Prometheus metrics for PostgreSQL health, connection pool, query latency | Implementation | ADR-016 | 4h |
+| Spike: PostgreSQL throughput at 1 000 agents with pgxpool | Tech Spike | ADR-016 | 6–8h |
 
 ---
 
 ## References
 
 - **Specification**: `.specify/memory/spec-001-digital-twin-platform.md`
-- **Specification (ADR-015)**: `.specify/memory/spec-002-stateless-server-dataplane.md`
+- **Specification (ADR-016)**: `.specify/memory/spec-002-stateless-server-dataplane.md`
 - **Status**: `.specify/memory/PHASE1-STATUS.md`
 - **Quality Checklist**: `.specify/memory/checklists/spec-001-quality.md`
 - **Constitution**: `.specify/memory/constitution.md` (v2.0.0)
@@ -233,5 +233,5 @@ All GitHub issues required to process ADR material and unblock development are t
 ---
 
 **Status**: ✅ **ADRs 001, 002, 003, 004, 007, 008, 009, 010, 011, 012, 014(Security) ACCEPTED — ADRs 005, 006, 013, 014(Envoy), 015 PROPOSED - READY FOR TEAM REVIEW**
-**Updated**: 2026-03-10 (ADR-015 proposed — Stateless Server Dataplane; PostgreSQL selected as primary durable store; etcd retained for control-plane coordination)
+**Updated**: 2026-03-10 (ADR-016 proposed — Stateless Server Dataplane; PostgreSQL selected as primary durable store; etcd retained for control-plane coordination)
 
