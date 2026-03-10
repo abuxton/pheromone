@@ -1,6 +1,6 @@
 # Pheromone ADR Index & Decision Status
 
-**Updated**: 2026-03-09 (ADR-010 accepted — Signal Protocol evaluation ratified; gRPC+mTLS confirmed)
+**Updated**: 2026-03-10 (ADR-004 accepted — Twin Model Schema Format ratified; ADR-010 accepted — Signal Protocol evaluation ratified; gRPC+mTLS confirmed; ADR-014 accepted — Security Architecture)
 
 ## Decision Timeline & Status
 
@@ -9,7 +9,7 @@
 | **001** | Digital Twin Architecture Design | ✅ Accepted | Phase 0 (Foundation) | Initial architecture, lang/protocols/frameworks | Original ADR |
 | **002** | Server Architecture | ✅ Accepted | Phase 1 (MVP) | In-memory + etcd hybrid | spec-001 FR-002,013,014 |
 | **003** | gRPC Service Contracts | ✅ Accepted | Phase 1 (MVP) | Three services (Registry/Control/Telemetry) | spec-001 FR-005,006,007 |
-| **004** | Twin Model Schema Format | ⏳ Proposed | Phase 1 (MVP) | YAML + JSON Schema validation | spec-001 FR-001,003 |
+| **004** | Twin Model Schema Format | ✅ Accepted | Phase 1 (MVP) | YAML + JSON Schema validation | spec-001 FR-001,003 |
 | **005** | Message Queue Selection | ⏳ Proposed | Phase 1 (MVP) | NATS (MVP) → Kafka (Phase 2) | spec-001 FR-010,011,SC-008 |
 | **006** | Agent Lifecycle Interface — Skill Deployment & Distribution Framework | ⏳ Proposed | Phase 1 (MVP) | Skills as unit of deployment; hierarchical twin-level access control; Go framework in `internal/skill/` | spec-001 FR-020,SC-009 |
 | **007** | Agentic AI Agent Model | ✅ Accepted | Phase 0 (Foundation) | Digital twin as agent skill; AI reasoning loop | ADR-001,003,006 |
@@ -20,6 +20,7 @@
 | **012** | Vagrant Testing Environment | ✅ Accepted | Phase 1 (MVP) | Multi-machine Vagrant setup (Ubuntu 24.04 + Debian 12) for server/agent integration testing | ADR-001,002,008 |
 | **013** | Swamp Evaluation — System Initiative AI Automation CLI | ⏳ Proposed | Phase 0 (Spike) | Swamp not adopted (AGPL v3, TypeScript/Deno, single-machine CLI); Definition/CEL model noted as ADR-004 reference | ADR-003,004,007,010 |
 | **014** | Envoy Proxy Evaluation — Monitoring, Observability, and Service Mesh Integration | ⏳ Proposed | Phase 1 (Spike) | Server-side ingress recommended (Phase 1); per-agent sidecar and xDS control plane deferred to Phase 2 | ADR-002,003,005,010,012 |
+| **014** | Security Architecture | ✅ Accepted | Phase 1 (Security) | TLS enforcement, gRPC auth interceptors (Phase 2), config permissions hardened, vulnerability scanning in CI | ADR-003,007,010,011 |
 
 ---
 
@@ -38,7 +39,7 @@
 ### Layer 2: Control Plane (ADR-002, 003, 004, 010)
 - ✅ ADR-002: How to structure server state (in-mem + etcd)
 - ✅ ADR-003: How agents communicate with server (gRPC contracts)
-- ⏳ ADR-004: How operators define twin models (YAML schema)
+- ✅ ADR-004: How operators define twin models (YAML schema)
 - ✅ ADR-010: Signal Protocol (signalapp) evaluated; gRPC+mTLS confirmed as server↔agent security
 
 ### Layer 3: Telemetry & Extensibility (ADR-005, 006, 011)
@@ -212,4 +213,6 @@ All GitHub issues required to process ADR material and unblock development are t
 
 **Status**: ✅ **ADRs 001, 002, 003, 007, 008, 009, 010, 011, 012 ACCEPTED — ADRs 004-006, 013, 014 PROPOSED - READY FOR TEAM REVIEW**
 **Updated**: 2026-03-10 (ADR-014 proposed — Envoy Proxy evaluation; server-side ingress recommended for Phase 1)
+**Status**: ✅ **ADRs 001, 002, 003, 004, 007, 008, 009, 010, 011, 012 ACCEPTED — ADRs 005-006, 013 PROPOSED - READY FOR TEAM REVIEW**
+**Updated**: 2026-03-10 (ADR-004 accepted — Twin Model Schema Format; YAML+JSON Schema validated; Go model structs and smoke tests added; sample files in twin-models/)
 

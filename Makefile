@@ -175,5 +175,18 @@ vet: ## Run go vet
 .PHONY: lint
 lint: fmt vet ## Run linters
 
+.PHONY: security-scan
+security-scan: govulncheck gosec ## Run all security scans (govulncheck + gosec)
+
+.PHONY: govulncheck
+govulncheck: ## Check Go dependencies for known vulnerabilities (requires govulncheck)
+	@command -v govulncheck >/dev/null 2>&1 || go install golang.org/x/vuln/cmd/govulncheck@latest
+	govulncheck ./...
+
+.PHONY: gosec
+gosec: ## Run SAST security linter (requires gosec)
+	@command -v gosec >/dev/null 2>&1 || go install github.com/securego/gosec/v2/cmd/gosec@latest
+	gosec -fmt sarif -out gosec-results.sarif ./... || gosec ./...
+
 .PHONY: all
 all: deps build test ## Install deps, build, and test
