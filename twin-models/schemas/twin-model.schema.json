@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://pheromone.io/schemas/twin-model/v1",
+  "title": "Pheromone Twin Model",
+  "description": "Schema for Pheromone twin model YAML files (ADR-004)",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "pattern": "^pheromone\\.io/v[0-9]+$",
+      "description": "API version — must match pheromone.io/vN pattern"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["TwinModel"],
+      "description": "Resource kind — must be TwinModel"
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Lowercase alphanumeric name with hyphens"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Logical namespace (e.g. prod, staging, dev)"
+        },
+        "description": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Semantic version of the model"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "required": ["selectors", "twins"],
+      "additionalProperties": false,
+      "properties": {
+        "selectors": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Agent selection criteria",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "hostname_pattern": { "type": "string" }
+            }
+          }
+        },
+        "twins": {
+          "type": "array",
+          "minItems": 1,
+          "description": "List of twin definitions (OS-level and workload)",
+          "items": {
+            "type": "object",
+            "required": ["name", "type", "desired_state"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Unique twin name within this model"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["os-level", "workload"],
+                "description": "Twin level: os-level or workload"
+              },
+              "metadata": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "description": { "type": "string" }
+                }
+              },
+              "dependencies": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Names of twins this twin depends on"
+              },
+              "desired_state": {
+                "type": "object",
+                "description": "Desired configuration state (free-form key/value)"
+              }
+            }
+          }
+        },
+        "rollout": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "strategy": {
+              "type": "string",
+              "enum": ["rolling", "canary", "blue-green"]
+            },
+            "max_unavailable": { "type": "string" },
+            "wait_before_apply": { "type": "string" }
+          }
+        },
+        "rollback": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "auto_rollback_on_failed_health_check": { "type": "boolean" },
+            "history_retention": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    }
+  }
+}
