@@ -118,10 +118,38 @@ func ValidateUIConfig(cfg *UIConfig) error {
 		usernames[u.Username] = i
 	}
 
+	if tlsErrs := validateUITLSConfig(&cfg.TLS); len(tlsErrs) > 0 {
+		errs = append(errs, tlsErrs...)
+	}
+
 	if len(errs) > 0 {
 		return &ValidationError{Errors: errs}
 	}
 	return nil
+}
+
+// validateUITLSConfig validates the UITLSConfig section.
+// Returns a slice of error strings (empty on success).
+func validateUITLSConfig(t *UITLSConfig) []string {
+	if !t.Enabled {
+		return nil
+	}
+	var errs []string
+
+	// The server must always have its own certificate and private key.
+	if t.CertFile == "" {
+		errs = append(errs, "ui.tls.cert_file is required when ui.tls.enabled is true")
+	}
+	if t.KeyFile == "" {
+		errs = append(errs, "ui.tls.key_file is required when ui.tls.enabled is true")
+	}
+
+	// ca_bundle_file and use_os_cert_store are mutually exclusive.
+	if t.UseOSCertStore && t.CABundleFile != "" {
+		errs = append(errs, "ui.tls.ca_bundle_file must not be set when ui.tls.use_os_cert_store is true")
+	}
+
+	return errs
 }
 func ValidateAgentConfig(cfg *AgentConfig) error {
 	var errs []string

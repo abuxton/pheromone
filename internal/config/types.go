@@ -184,6 +184,32 @@ type SkillConfig struct {
 	Options map[string]string `json:"options,omitempty" yaml:"options,omitempty"`
 }
 
+// UITLSConfig configures TLS for the management UI HTTP server.
+type UITLSConfig struct {
+	// Enabled controls whether the HTTP management UI serves HTTPS instead of HTTP.
+	// Default: false.
+	Enabled bool `json:"enabled" yaml:"enabled"`
+
+	// UseOSCertStore instructs the server to use the platform (OS) certificate store
+	// for client certificate verification instead of an explicit CA bundle.
+	// When true, ca_bundle_file is not required; the system trust pool is used.
+	// The server's own cert_file and key_file are still required to present its certificate.
+	UseOSCertStore bool `json:"use_os_cert_store" yaml:"use_os_cert_store"`
+
+	// CertFile is the path to the server TLS certificate in PEM format.
+	// Required when Enabled is true.
+	CertFile string `json:"cert_file,omitempty" yaml:"cert_file,omitempty"`
+
+	// KeyFile is the path to the server TLS private key in PEM format.
+	// Required when Enabled is true.
+	KeyFile string `json:"key_file,omitempty" yaml:"key_file,omitempty"`
+
+	// CABundleFile is the path to the CA certificate bundle in PEM format used
+	// for verifying client certificates (mutual TLS). Optional; ignored when
+	// UseOSCertStore is true.
+	CABundleFile string `json:"ca_bundle_file,omitempty" yaml:"ca_bundle_file,omitempty"`
+}
+
 // UIConfig configures the built-in HTTP management UI and REST API server.
 type UIConfig struct {
 	// Enabled controls whether the HTTP UI and REST API server is started.
@@ -210,6 +236,10 @@ type UIConfig struct {
 
 	// AllowedOrigins lists CORS allowed origins. Default: ["*"] (all origins).
 	AllowedOrigins []string `json:"allowed_origins,omitempty" yaml:"allowed_origins,omitempty"`
+
+	// TLS configures HTTPS for the management UI. When TLS.Enabled is false
+	// (the default), the server listens on plain HTTP.
+	TLS UITLSConfig `json:"tls,omitempty" yaml:"tls,omitempty"`
 }
 
 // UIUser is a user that may authenticate with the management UI.

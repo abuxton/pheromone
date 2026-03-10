@@ -2,10 +2,13 @@ package api
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +36,11 @@ type Server struct {
 
 // New creates a new API Server with the given UIConfig and logger.
 // Call Seed to populate demo data and ListenAndServe to start accepting requests.
+// If log is nil, slog.Default() is used.
 func New(cfg config.UIConfig, log *slog.Logger) *Server {
+	if log == nil {
+		log = slog.Default()
+	}
 	s := &Server{
 		cfg:         cfg,
 		log:         log,
@@ -235,7 +242,48 @@ func (s *Server) Seed() {
 	}
 }
 
-// ListenAndServe starts the HTTP server on the configured address and port.
+// buildTLSConfig constructs a *tls.Config from the UI TLS configuration.
+// Returns nil, nil when TLS is disabled.
+func (s *Server) buildTLSConfig() (*tls.Config, error) {
+	t := s.cfg.TLS
+	if !t.Enabled {
+		return nil, nil
+	}
+
+	cert, err := tls.LoadX509KeyPair(t.CertFile, t.KeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("load TLS cert/key: %w", err)
+	}
+
+	tc := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+	}
+
+	if t.UseOSCertStore {
+		pool, err := x509.SystemCertPool()
+		if err != nil {
+			return nil, fmt.Errorf("load system cert pool: %w", err)
+		}
+		tc.ClientCAs = pool
+		tc.ClientAuth = tls.VerifyClientCertIfGiven
+	} else if t.CABundleFile != "" {
+		pem, err := os.ReadFile(t.CABundleFile)
+		if err != nil {
+			return nil, fmt.Errorf("read CA bundle %s: %w", t.CABundleFile, err)
+		}
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM(pem) {
+			return nil, fmt.Errorf("no valid certificates found in CA bundle %s", t.CABundleFile)
+		}
+		tc.ClientCAs = pool
+		tc.ClientAuth = tls.VerifyClientCertIfGiven
+	}
+
+	return tc, nil
+}
+
+// ListenAndServe starts the HTTP (or HTTPS) server on the configured address and port.
 // It blocks until the context is cancelled or a fatal error occurs.
 func (s *Server) ListenAndServe(ctx context.Context) error {
 	addr := fmt.Sprintf("%s:%d", s.cfg.Address, s.cfg.Port)
@@ -252,12 +300,18 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 		),
 	)
 
+	tlsConfig, err := s.buildTLSConfig()
+	if err != nil {
+		return fmt.Errorf("TLS config: %w", err)
+	}
+
 	s.httpSrv = &http.Server{
 		Addr:         addr,
 		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
+		TLSConfig:    tlsConfig,
 	}
 
 	ln, err := net.Listen("tcp", addr)
@@ -265,7 +319,13 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 		return fmt.Errorf("listen %s: %w", addr, err)
 	}
 
-	s.log.Info("pheromone UI server listening", "addr", addr)
+	scheme := "http"
+	if tlsConfig != nil {
+		ln = tls.NewListener(ln, tlsConfig)
+		scheme = "https"
+	}
+
+	s.log.Info("pheromone UI server listening", "addr", addr, "scheme", scheme)
 
 	errCh := make(chan error, 1)
 	go func() {

@@ -2,9 +2,22 @@ package api
 
 import (
 	"bytes"
+	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
+	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -573,4 +586,181 @@ func TestCORSBlocksUnknownOrigin(t *testing.T) {
 	if got == "https://attacker.example.com" || got == "*" {
 		t.Errorf("unexpected CORS header for unknown origin: %q", got)
 	}
+}
+
+/* ── TLS ── */
+
+// generateSelfSignedCert writes a self-signed certificate and private key to dir.
+// Returns the cert path, key path, and the DER-encoded certificate bytes.
+func generateSelfSignedCert(t *testing.T, dir string) (certPath, keyPath string, certDER []byte) {
+	t.Helper()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "pheromone-test"},
+		NotBefore:    time.Now().Add(-time.Minute),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("create certificate: %v", err)
+	}
+
+	certPath = filepath.Join(dir, "server.crt")
+	f, err := os.Create(certPath)
+	if err != nil {
+		t.Fatalf("create cert file: %v", err)
+	}
+	if err := pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: der}); err != nil {
+		t.Fatalf("encode cert: %v", err)
+	}
+	f.Close()
+
+	keyPath = filepath.Join(dir, "server.key")
+	fk, err := os.Create(keyPath)
+	if err != nil {
+		t.Fatalf("create key file: %v", err)
+	}
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		t.Fatalf("marshal key: %v", err)
+	}
+	if err := pem.Encode(fk, &pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}); err != nil {
+		t.Fatalf("encode key: %v", err)
+	}
+	fk.Close()
+
+	return certPath, keyPath, der
+}
+
+// TestListenAndServe_TLS starts the server with a self-signed cert and verifies
+// the health endpoint is reachable over HTTPS.
+func TestListenAndServe_TLS(t *testing.T) {
+	dir := t.TempDir()
+	certPath, keyPath, certDER := generateSelfSignedCert(t, dir)
+
+	cfg := config.UIConfig{
+		Enabled:        true,
+		Address:        "127.0.0.1",
+		Port:           0, // assigned by OS
+		SecretKey:      "test-secret-tls",
+		TokenTTL:       time.Hour,
+		AllowedOrigins: []string{"*"},
+		Users: []config.UIUser{
+			{Username: "admin", PasswordHash: hashPassword("admin", "salt1"), Role: "admin"},
+		},
+		TLS: config.UITLSConfig{
+			Enabled:  true,
+			CertFile: certPath,
+			KeyFile:  keyPath,
+		},
+	}
+
+	srv := New(cfg, nil)
+
+	// Find a free port by binding temporarily.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("find free port: %v", err)
+	}
+	port := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
+
+	cfg.Port = port
+	srv = New(cfg, nil)
+	srv.Seed()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- srv.ListenAndServe(ctx)
+	}()
+
+	// Give the server a moment to start.
+	time.Sleep(100 * time.Millisecond)
+
+	// Build an HTTP client that trusts our self-signed cert.
+	certPool := x509.NewCertPool()
+	certPool.AddCert(func() *x509.Certificate {
+		c, err := x509.ParseCertificate(certDER)
+		if err != nil {
+			t.Fatalf("parse cert: %v", err)
+		}
+		return c
+	}())
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: certPool},
+		},
+	}
+
+	url := "https://127.0.0.1:" + itoa(port) + "/api/v1/health"
+	resp, err := client.Get(url)
+	if err != nil {
+		t.Fatalf("HTTPS GET health: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+
+	// Shut down gracefully.
+	cancel()
+	if err := <-errCh; err != nil {
+		t.Logf("server stopped with: %v", err)
+	}
+}
+
+// TestBuildTLSConfig_InvalidCert verifies that buildTLSConfig returns an error
+// when the cert file does not exist.
+func TestBuildTLSConfig_InvalidCert(t *testing.T) {
+	cfg := config.UIConfig{
+		Enabled:   true,
+		Port:      8081,
+		SecretKey: "secret",
+		TLS: config.UITLSConfig{
+			Enabled:  true,
+			CertFile: "/nonexistent/server.crt",
+			KeyFile:  "/nonexistent/server.key",
+		},
+	}
+	srv := New(cfg, nil)
+	if _, err := srv.buildTLSConfig(); err == nil {
+		t.Fatal("expected error for nonexistent cert/key files")
+	}
+}
+
+// TestBuildTLSConfig_Disabled verifies that buildTLSConfig returns nil when TLS is off.
+func TestBuildTLSConfig_Disabled(t *testing.T) {
+	cfg := config.UIConfig{
+		Enabled:   true,
+		Port:      8081,
+		SecretKey: "secret",
+		TLS:       config.UITLSConfig{Enabled: false},
+	}
+	srv := New(cfg, nil)
+	tc, err := srv.buildTLSConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if tc != nil {
+		t.Error("expected nil tls.Config when TLS is disabled")
+	}
+}
+
+// itoa converts an int to string for use in test URLs.
+func itoa(n int) string {
+	return strconv.Itoa(n)
 }

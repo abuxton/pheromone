@@ -47,15 +47,36 @@ Config Generate Flags:
   --output  <path>      Output file path (default: <config-path>/<component>.<format>)
 
 Serve Flags:
-  --ui-addr <addr>      Override the UI bind address (default: from config or 0.0.0.0)
-  --ui-port <port>      Override the UI HTTP port (default: from config or 8081)
+  --ui-addr <addr>                Override the UI bind address (default: from config or 0.0.0.0)
+  --ui-port <port>                Override the UI HTTP port (default: from config or 8081)
+
+  TLS Flags (HTTPS):
+  --ui-tls-cert <path>            Path to the server TLS certificate (PEM format). Enables TLS.
+  --ui-tls-key  <path>            Path to the server TLS private key (PEM format). Enables TLS.
+  --ui-tls-ca-bundle <path>       Path to a CA certificate bundle (PEM) for client cert verification.
+  --ui-tls-os-cert-store          Use the platform (OS) certificate store for client cert verification
+                                  instead of --ui-tls-ca-bundle.
 
 Examples:
-  # Start the management UI on default port 8081
+  # Start the management UI on default port 8081 (HTTP)
   pheromone-server serve
 
   # Start with a custom UI port
   pheromone-server serve --ui-port 9090
+
+  # Start with HTTPS using explicit cert and key
+  pheromone-server serve --ui-tls-cert /etc/pheromone/tls/server.crt \
+                         --ui-tls-key  /etc/pheromone/tls/server.key
+
+  # Start with HTTPS, verifying client certs against a CA bundle
+  pheromone-server serve --ui-tls-cert /etc/pheromone/tls/server.crt \
+                         --ui-tls-key  /etc/pheromone/tls/server.key \
+                         --ui-tls-ca-bundle /etc/pheromone/tls/ca-bundle.pem
+
+  # Start with HTTPS, using the OS trust store for client cert verification
+  pheromone-server serve --ui-tls-cert /etc/pheromone/tls/server.crt \
+                         --ui-tls-key  /etc/pheromone/tls/server.key \
+                         --ui-tls-os-cert-store
 
   # Validate the current server configuration
   pheromone-server config validate
@@ -239,6 +260,12 @@ func runServe(args []string, globalConfigPath string) int {
 	uiAddr := fs.String("ui-addr", "", "override UI bind address")
 	uiPort := fs.Int("ui-port", 0, "override UI HTTP port")
 
+	// TLS flags — when cert+key are provided via flags, TLS is enabled.
+	uiTLSCert := fs.String("ui-tls-cert", "", "path to server TLS certificate (PEM)")
+	uiTLSKey := fs.String("ui-tls-key", "", "path to server TLS private key (PEM)")
+	uiTLSCABundle := fs.String("ui-tls-ca-bundle", "", "path to CA certificate bundle (PEM) for client cert verification")
+	uiTLSOSCertStore := fs.Bool("ui-tls-os-cert-store", false, "use the platform (OS) certificate store for client cert verification")
+
 	if err := fs.Parse(args); err != nil {
 		if err == flag.ErrHelp {
 			return 0
@@ -278,12 +305,35 @@ func runServe(args []string, globalConfigPath string) int {
 			{Username: "admin", PasswordHash: hash, Role: "admin"},
 		}
 	}
-	// Apply flag overrides.
+
+	// Apply address/port flag overrides.
 	if *uiAddr != "" {
 		uiCfg.Address = *uiAddr
 	}
 	if *uiPort != 0 {
 		uiCfg.Port = *uiPort
+	}
+
+	// Apply TLS flag overrides.  Flag-supplied cert/key takes precedence over config.
+	if *uiTLSCert != "" {
+		uiCfg.TLS.Enabled = true
+		uiCfg.TLS.CertFile = *uiTLSCert
+	}
+	if *uiTLSKey != "" {
+		uiCfg.TLS.Enabled = true
+		uiCfg.TLS.KeyFile = *uiTLSKey
+	}
+	if *uiTLSCABundle != "" {
+		uiCfg.TLS.CABundleFile = *uiTLSCABundle
+	}
+	if *uiTLSOSCertStore {
+		uiCfg.TLS.UseOSCertStore = true
+	}
+
+	// Warn if TLS is enabled but cert/key are missing.
+	if uiCfg.TLS.Enabled && (uiCfg.TLS.CertFile == "" || uiCfg.TLS.KeyFile == "") {
+		log.Error("TLS is enabled but ui.tls.cert_file and/or ui.tls.key_file are missing")
+		return 1
 	}
 
 	srv := api.New(uiCfg, log)
@@ -292,11 +342,15 @@ func runServe(args []string, globalConfigPath string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	scheme := "http"
+	if uiCfg.TLS.Enabled {
+		scheme = "https"
+	}
 	addr := uiCfg.Address + ":" + strconv.Itoa(uiCfg.Port)
 	if uiCfg.Address == "" {
 		addr = "0.0.0.0:" + strconv.Itoa(uiCfg.Port)
 	}
-	log.Info("starting pheromone management UI", "addr", addr)
+	log.Info("starting pheromone management UI", "addr", addr, "scheme", scheme)
 
 	if err := srv.ListenAndServe(ctx); err != nil {
 		log.Error("server error", "error", err)

@@ -182,6 +182,14 @@ func defaultUIConfig() UIConfig {
 				Role:         "admin",
 			},
 		},
+		// TLS is disabled by default. To enable HTTPS, set tls.enabled: true and
+		// provide the server certificate and private key in PEM format.
+		// Use tls.use_os_cert_store: true to verify client certificates against the
+		// platform trust store instead of an explicit ca_bundle_file.
+		TLS: UITLSConfig{
+			Enabled:        false,
+			UseOSCertStore: false,
+		},
 	}
 }
 
