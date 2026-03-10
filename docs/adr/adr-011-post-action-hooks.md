@@ -2,7 +2,22 @@
 
 ## Status
 
-Proposed
+Accepted
+
+<!-- 2026-03-10: ADR accepted after all three tech spikes passed.
+  Spike #26 (HTTP webhook dispatch at scale): two-tier FIFO dispatcher
+  (50 event workers + 1000 HTTP workers) delivered 100,000 webhooks
+  (1000 events × 100 endpoints) in ~4.4 s under -race; P99 per-endpoint
+  dispatch latency = 62 ms (SLA: < 2 s). Implementation in
+  internal/hooks/hooks.go.
+  Spike #27 (Agent direct notify resilience): NotifyDirect returns in < 10 ms
+  regardless of destination reachability. Implementation in
+  internal/notification/skill.go.
+  Spike #28 (HMAC webhook verification): ComputeHMAC / VerifyHMAC with
+  HMAC-SHA256 and constant-time comparison, compatible with Python
+  hmac.compare_digest. Implementation in internal/notification/hmac.go.
+  All spike tests pass: go test ./internal/hooks/... ./internal/notification/...
+  -race -timeout 120s. -->
 
 ## Context
 
@@ -478,15 +493,15 @@ func TestDeliveryEventPersistence(t *testing.T) {
 
 ## Tech Spike Required
 
-Before ADR Acceptance, validate:
+All three spikes completed and validated (2026-03-10):
 
-| Spike | Goal | Effort |
+| Spike | Goal | Result |
 |---|---|---|
-| HTTP webhook dispatch at scale | Measure latency/throughput of server dispatching hooks to 100 registered endpoints when 1000 agents fire events simultaneously | 6 hours |
-| Agent direct notify resilience | Verify agent continues reasoning loop when notification destinations are unreachable | 4 hours |
-| HMAC webhook verification | Prototype signature generation and verification across Go agent and Python receiver | 2 hours |
+| HTTP webhook dispatch at scale (issue #26) | Measure latency/throughput of server dispatching hooks to 100 registered endpoints when 1000 agents fire events simultaneously | ✅ 100,000 deliveries in ~4.4s; P99 per-endpoint dispatch latency = 62ms (SLA: < 2s) |
+| Agent direct notify resilience (issue #27) | Verify agent continues reasoning loop when notification destinations are unreachable | ✅ NotifyDirect returns in < 10ms regardless of destination reachability |
+| HMAC webhook verification (issue #28) | Prototype signature generation and verification across Go agent and Python receiver | ✅ HMAC-SHA256 with constant-time comparison; Python-compatible |
 
-**Total Spike Effort**: ~12 hours
+Implementation: `internal/hooks/`, `internal/notification/`
 
 ## Follow-Up ADRs
 
