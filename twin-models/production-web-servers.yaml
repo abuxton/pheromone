@@ -1,0 +1,63 @@
+# File: twin-models/production-web-servers.yaml
+# Purpose: Production web server cluster twin model
+# Reviewed: 2026-03-10 (ADR-004 acceptance review)
+
+apiVersion: pheromone.io/v1
+kind: TwinModel
+metadata:
+  name: production-web-servers
+  namespace: prod
+  description: "Production web server cluster (nginx, OS-level config)"
+  version: "1.0.0"
+  labels:
+    env: production
+    tier: web
+spec:
+  selectors:
+    - label: "env=production"
+    - label: "tier=web"
+    - hostname_pattern: "web-*.prod.internal"
+
+  twins:
+    # OS-Level Twin
+    - name: os-config
+      type: os-level
+      metadata:
+        description: "OS-level configuration for production servers"
+      desired_state:
+        kernel_version: "5.15.0"
+        security_patch_level: "2026-02-10"
+        installed_packages:
+          nginx: "1.24.0"
+          openssh-server: "8.2p1"
+          chrony: "4.3"
+
+    # Workload-Level Twin
+    - name: nginx-service
+      type: workload
+      metadata:
+        description: "Nginx web service configuration"
+      dependencies:
+        - os-config
+      desired_state:
+        service_name: nginx
+        port: 80
+        config: |
+          worker_processes auto;
+          worker_connections 2048;
+          keepalive_timeout 65;
+        restart_policy: "always"
+        health_check:
+          type: http
+          endpoint: "http://localhost/health"
+          interval_seconds: 30
+          timeout_seconds: 5
+
+  rollout:
+    strategy: rolling
+    max_unavailable: "10%"
+    wait_before_apply: "5m"
+
+  rollback:
+    auto_rollback_on_failed_health_check: true
+    history_retention: 10

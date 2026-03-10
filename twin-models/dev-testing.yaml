@@ -1,0 +1,58 @@
+# File: twin-models/dev-testing.yaml
+# Purpose: Development / testing environment twin model
+# Reviewed: 2026-03-10 (ADR-004 acceptance review)
+
+apiVersion: pheromone.io/v1
+kind: TwinModel
+metadata:
+  name: dev-testing
+  namespace: dev
+  description: "Developer testing environment — relaxed constraints, fast iteration"
+  version: "1.0.0"
+  labels:
+    env: development
+    tier: all
+spec:
+  selectors:
+    - label: "env=development"
+    - hostname_pattern: "dev-*.internal"
+
+  twins:
+    - name: os-config
+      type: os-level
+      metadata:
+        description: "Minimal OS config for dev boxes"
+      desired_state:
+        kernel_version: "5.15.0"
+        security_patch_level: "2026-01-01"
+        installed_packages:
+          nginx: "1.24.0"
+          openssh-server: "8.2p1"
+
+    - name: nginx-service
+      type: workload
+      metadata:
+        description: "Nginx in dev mode — single worker, verbose logs"
+      dependencies:
+        - os-config
+      desired_state:
+        service_name: nginx
+        port: 8080
+        config: |
+          worker_processes 1;
+          error_log /var/log/nginx/error.log debug;
+        restart_policy: "on-failure"
+        health_check:
+          type: http
+          endpoint: "http://localhost:8080/health"
+          interval_seconds: 60
+          timeout_seconds: 10
+
+  rollout:
+    strategy: rolling
+    max_unavailable: "100%"
+    wait_before_apply: "0s"
+
+  rollback:
+    auto_rollback_on_failed_health_check: false
+    history_retention: 3

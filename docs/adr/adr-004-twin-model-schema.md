@@ -1,7 +1,7 @@
 # ADR 004: Twin Model Schema Format - YAML/JSON Definition Language
 
 ## Status
-Proposed
+Accepted
 
 ## Context
 
@@ -212,4 +212,8 @@ Each model file is independently versionable in Git; teams can review changes vi
 ---
 
 **Decision Date**: 2026-02-18
-**Status Update**: Proposed (pending sample model review for usability)
+**Status Update**: Accepted (2026-03-10) — sample twin model YAML reviewed for
+operator usability; JSON Schema Draft-07 validated against sample files;
+`apiVersion: pheromone.io/v1` pattern confirmed; schema evolution strategy reviewed
+and unchanged; Go struct model and smoke tests added (`internal/twin/model.go`,
+`internal/twin/model_test.go`); sample files committed to `twin-models/`.
