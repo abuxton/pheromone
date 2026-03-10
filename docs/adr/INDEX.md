@@ -1,6 +1,6 @@
 # Pheromone ADR Index & Decision Status
 
-**Updated**: 2026-03-10 (ADR-004 accepted — Twin Model Schema Format ratified; ADR-010 accepted — Signal Protocol evaluation ratified; gRPC+mTLS confirmed)
+**Updated**: 2026-03-10 (ADR-004 accepted — Twin Model Schema Format ratified; ADR-010 accepted — Signal Protocol evaluation ratified; gRPC+mTLS confirmed; ADR-014 accepted — Security Architecture)
 
 ## Decision Timeline & Status
 
@@ -19,6 +19,7 @@
 | **011** | Post-Action Hooks — Notifications, Webhooks, and Package Delivery | ✅ Accepted | Phase 1 (MVP) | Notification Skill (agent-side) + Post-Action Hook Service (server-side); direct end-user notify | ADR-003,005,006,007,010 |
 | **012** | Vagrant Testing Environment | ✅ Accepted | Phase 1 (MVP) | Multi-machine Vagrant setup (Ubuntu 24.04 + Debian 12) for server/agent integration testing | ADR-001,002,008 |
 | **013** | Swamp Evaluation — System Initiative AI Automation CLI | ⏳ Proposed | Phase 0 (Spike) | Swamp not adopted (AGPL v3, TypeScript/Deno, single-machine CLI); Definition/CEL model noted as ADR-004 reference | ADR-003,004,007,010 |
+| **014** | Security Architecture | ✅ Accepted | Phase 1 (Security) | TLS enforcement, gRPC auth interceptors (Phase 2), config permissions hardened, vulnerability scanning in CI | ADR-003,007,010,011 |
 
 ---
 

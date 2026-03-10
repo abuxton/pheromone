@@ -573,6 +573,43 @@ func TestValidateAgentConfig_DuplicateSkillName(t *testing.T) {
 	}
 }
 
+// ---- File permission tests --------------------------------------------------
+
+func TestGenerateServerConfig_FilePermissions(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "server.yaml")
+
+	if err := config.GenerateServerConfig(path, config.FormatYAML); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat failed: %v", err)
+	}
+	// Config files must be owner-only read/write (0600) to protect embedded secrets.
+	if perm := info.Mode().Perm(); perm != 0600 {
+		t.Errorf("expected file permissions 0600, got %04o", perm)
+	}
+}
+
+func TestGenerateAgentConfig_FilePermissions(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "agent.yaml")
+
+	if err := config.GenerateAgentConfig(path, config.FormatYAML); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat failed: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0600 {
+		t.Errorf("expected file permissions 0600, got %04o", perm)
+	}
+}
+
 // ---- helpers ----------------------------------------------------------------
 
 func writeFile(t *testing.T, dir, name, content string) {

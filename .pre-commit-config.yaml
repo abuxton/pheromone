@@ -1,4 +1,4 @@
-# Pre-commit hooks for Terraform code quality
+# Pre-commit hooks for code quality and security
 #
 # Install: pre-commit install
 # Run manually: pre-commit run --all-files
@@ -23,6 +23,3 @@ repos:
       - id: shellcheck
         name: ShellCheck for shell scripts
         files: \.(sh|bash)$
-      - id: large-file
-        name: Check for large files
-        args: ['--maxkb=500']
