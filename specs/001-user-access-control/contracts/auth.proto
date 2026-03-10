@@ -1,0 +1,260 @@
+syntax = "proto3";
+
+package pheromone.v1;
+
+option go_package = "github.com/pheromone/pheromone/internal/gen/pheromone/v1;pheromone_v1";
+
+// AuthService provides application-layer authentication and user management
+// for human operators of the Pheromone platform.
+//
+// Authentication flow:
+//   1. Client calls Login(username, password) → receives JWT bearer token
+//   2. Client includes token in all subsequent RPCs via gRPC metadata:
+//      key: "authorization", value: "Bearer <token>"
+//   3. Server interceptor validates token and enforces RBAC on every RPC
+//
+// Machine agents use mTLS certificates (ADR-014 D1) and are NOT subject to
+// this service. The interceptor distinguishes human JWT sessions from agent
+// mTLS sessions automatically.
+//
+// ADR: ADR-015 — User Access Control & Identity Provider Integration
+service AuthService {
+  // Login authenticates a user with username and password.
+  // Returns a signed JWT bearer token on success.
+  // This RPC is exempt from the authentication interceptor.
+  //
+  // Errors:
+  //   UNAUTHENTICATED  — invalid credentials
+  //   RESOURCE_EXHAUSTED — rate limit exceeded (max 10 attempts/minute/IP)
+  //   FAILED_PRECONDITION — account disabled
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  // Logout invalidates the client's current session.
+  // In Phase 1 this is a no-op server-side (client discards the token);
+  // Phase 3 adds the token jti to the etcd deny-list.
+  //
+  // Requires: any authenticated role
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+
+  // ChangePassword updates the caller's own password (or an admin
+  // changing another user's password with admin privileges).
+  //
+  // Requires: any authenticated role (own password); admin/owner (other user)
+  //
+  // Errors:
+  //   UNAUTHENTICATED — not logged in
+  //   PERMISSION_DENIED — insufficient role to change another user's password
+  //   INVALID_ARGUMENT — new password fails policy (min 12 chars)
+  //   NOT_FOUND — target user not found (admin path)
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+
+  // ListUsers returns all user records.
+  //
+  // Requires: admin or owner
+  //
+  // Errors:
+  //   UNAUTHENTICATED — not logged in
+  //   PERMISSION_DENIED — requires admin or owner role
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+
+  // CreateUser creates a new user account.
+  //
+  // Requires:
+  //   - admin or owner to create viewer/operator accounts
+  //   - owner only to create admin accounts
+  //
+  // Errors:
+  //   UNAUTHENTICATED — not logged in
+  //   PERMISSION_DENIED — insufficient role
+  //   ALREADY_EXISTS — username already taken
+  //   INVALID_ARGUMENT — invalid username or role
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+
+  // UpdateUser modifies an existing user's role or display name.
+  // Users may update their own display name; role changes require admin/owner.
+  //
+  // Requires:
+  //   - any role for own display name update
+  //   - admin or owner to change roles (operator/viewer target)
+  //   - owner only to change admin roles
+  //
+  // Errors:
+  //   UNAUTHENTICATED — not logged in
+  //   PERMISSION_DENIED — insufficient role
+  //   NOT_FOUND — user not found
+  //   INVALID_ARGUMENT — invalid role
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+
+  // DeleteUser removes a user account permanently.
+  //
+  // Requires:
+  //   - admin or owner to delete viewer/operator accounts
+  //   - owner only to delete admin accounts
+  //
+  // Errors:
+  //   UNAUTHENTICATED — not logged in
+  //   PERMISSION_DENIED — insufficient role
+  //   NOT_FOUND — user not found
+  //   FAILED_PRECONDITION — cannot delete own account
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+
+  // DisableUser disables a user account without deleting it.
+  // Disabled users cannot log in but their records are preserved.
+  //
+  // Requires: admin or owner
+  rpc DisableUser(DisableUserRequest) returns (DisableUserResponse);
+
+  // EnableUser re-enables a previously disabled user account.
+  //
+  // Requires: admin or owner
+  rpc EnableUser(EnableUserRequest) returns (EnableUserResponse);
+}
+
+// ----- Request / Response Messages -----
+
+message LoginRequest {
+  // username of the user to authenticate.
+  // Max 64 bytes; alphanumeric + hyphens + underscores.
+  string username = 1;
+
+  // password is the plaintext password for local authentication.
+  // The server hashes and compares against the stored bcrypt digest.
+  // Never logged or stored.
+  string password = 2;
+}
+
+message LoginResponse {
+  // token is a signed JWT bearer token.
+  // Include in subsequent RPCs as: metadata["authorization"] = "Bearer <token>"
+  string token = 1;
+
+  // expires_at is the RFC3339 timestamp when the token expires.
+  string expires_at = 2;
+
+  // user is the authenticated user's record (sans password hash).
+  UserSummary user = 3;
+}
+
+message LogoutRequest {
+  // No fields required; the server identifies the session from the JWT
+  // in the gRPC metadata.
+}
+
+message LogoutResponse {
+  // message is a human-readable confirmation.
+  string message = 1;
+}
+
+message ChangePasswordRequest {
+  // username of the account to change. Leave empty to change own password.
+  // Admin/owner required when targeting another user.
+  string username = 1;
+
+  // current_password is required when changing own password (self-service).
+  // Omit when an admin is resetting another user's password.
+  string current_password = 2;
+
+  // new_password must be at least 12 characters.
+  string new_password = 3;
+}
+
+message ChangePasswordResponse {
+  string message = 1;
+}
+
+message ListUsersRequest {
+  // page_size limits the number of results. Default: 100. Max: 1000.
+  int32 page_size = 1;
+
+  // page_token is the continuation token from a previous ListUsersResponse.
+  string page_token = 2;
+}
+
+message ListUsersResponse {
+  repeated UserSummary users = 1;
+
+  // next_page_token is set when there are more results available.
+  string next_page_token = 2;
+}
+
+message CreateUserRequest {
+  // username must be unique; 1–64 characters; alphanumeric + hyphens + underscores.
+  string username = 1;
+
+  // password is the initial password. Must be at least 12 characters.
+  string password = 2;
+
+  // role is the initial RBAC role.
+  Role role = 3;
+
+  // display_name is optional human-readable name.
+  string display_name = 4;
+}
+
+message CreateUserResponse {
+  UserSummary user = 1;
+}
+
+message UpdateUserRequest {
+  // username of the account to update.
+  string username = 1;
+
+  // role is the new role. Leave unset to keep existing role.
+  // ROLE_UNSPECIFIED means no change to role.
+  Role role = 2;
+
+  // display_name is the new display name. Leave empty to keep existing.
+  string display_name = 3;
+}
+
+message UpdateUserResponse {
+  UserSummary user = 1;
+}
+
+message DeleteUserRequest {
+  string username = 1;
+}
+
+message DeleteUserResponse {
+  string message = 1;
+}
+
+message DisableUserRequest {
+  string username = 1;
+}
+
+message DisableUserResponse {
+  UserSummary user = 1;
+}
+
+message EnableUserRequest {
+  string username = 1;
+}
+
+message EnableUserResponse {
+  UserSummary user = 1;
+}
+
+// ----- Shared Types -----
+
+// Role represents a platform-level RBAC role.
+// Roles are hierarchical: OWNER > ADMIN > OPERATOR > VIEWER.
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_VIEWER      = 1;
+  ROLE_OPERATOR    = 2;
+  ROLE_ADMIN       = 3;
+  ROLE_OWNER       = 4;
+}
+
+// UserSummary is the public projection of a UserRecord (no password hash).
+message UserSummary {
+  string username     = 1;
+  Role   role         = 2;
+  string display_name = 3;
+  string email        = 4;
+  string provider     = 5; // "local", "ldap", "oidc", "saml"
+  bool   disabled     = 6;
+  string created_at   = 7; // RFC3339
+  string updated_at   = 8; // RFC3339
+}

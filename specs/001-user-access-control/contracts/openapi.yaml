@@ -1,0 +1,298 @@
+openapi: "3.1.0"
+
+info:
+  title: Pheromone Auth HTTP Endpoints
+  version: "1.0.0"
+  description: |
+    HTTP endpoints for the Pheromone authentication system.
+
+    Phase 1 exposes only the JWKS endpoint (public key distribution for JWT
+    RS256 verification). Phase 2 adds SAML SP and OIDC callback endpoints.
+
+    All gRPC-based AuthService operations (Login, Logout, CreateUser, etc.)
+    are defined in `auth.proto` and accessed via the gRPC port (4426).
+
+    ADR Reference: ADR-015 — User Access Control & Identity Provider Integration
+
+servers:
+  - url: https://{host}:{port}
+    variables:
+      host:
+        default: localhost
+      port:
+        default: "8080"
+        description: HTTP listener port (shares ADR-011 notification webhook listener)
+
+paths:
+
+  # ─── Phase 1 ────────────────────────────────────────────────────────────────
+
+  /auth/jwks:
+    get:
+      operationId: getJWKS
+      summary: Get JSON Web Key Set (JWKS)
+      description: |
+        Returns the RS256 public key(s) used to verify Pheromone JWT bearer tokens.
+
+        This endpoint allows:
+        - Third-party services (e.g., Envoy proxy, API gateways) to verify tokens
+          without access to the signing private key.
+        - Future OIDC federation — this endpoint is referenced in the OIDC Discovery
+          document when Pheromone acts as an OIDC provider (Phase 3).
+
+        The response follows RFC 7517 (JSON Web Key). Keys are rotated only when
+        the operator explicitly generates a new RSA key pair (`pheromone key rotate`).
+
+        Only available when `server.auth.jwt_algorithm = rs256`.
+        Returns 404 when using HS256 (symmetric; no public key to share).
+      tags: [Auth - Phase 1]
+      security: []
+      responses:
+        "200":
+          description: JWKS document containing the active RS256 public key(s)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JWKS"
+              example:
+                keys:
+                  - kty: RSA
+                    use: sig
+                    alg: RS256
+                    kid: "2026-03-24"
+                    n: "sA6..."
+                    e: "AQAB"
+        "404":
+          description: JWKS not available (server configured for HS256)
+        "503":
+          description: Server initialising or key file unreadable
+
+  # ─── Phase 2 — OIDC / OAuth 2.0 ────────────────────────────────────────────
+
+  /auth/oidc/callback:
+    get:
+      operationId: oidcCallback
+      summary: OIDC Authorization Code callback
+      description: |
+        Handles the redirect from the OIDC provider after user authentication.
+
+        Flow:
+          1. Operator visits /auth/oidc/start (future endpoint; redirects to IdP)
+          2. IdP authenticates user and redirects to this endpoint with `code` and `state`
+          3. Server exchanges `code` for tokens (Authorization Code + PKCE flow)
+          4. Server validates ID token, extracts group claims, maps to platform role
+          5. Server issues a Pheromone JWT and returns it to the client
+
+        The `state` parameter is validated against the session cookie (CSRF protection).
+        This endpoint requires a browser session; not suitable for CLI/API use.
+
+        **Phase 2 only** — returns 501 Not Implemented in Phase 1.
+      tags: [Auth - Phase 2 (OIDC)]
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Authorization code from OIDC provider
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+          description: CSRF state token (must match session cookie)
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Error code from OIDC provider (when authentication failed)
+        - name: error_description
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Authentication successful; returns Pheromone JWT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "400":
+          description: Invalid state (CSRF) or missing code
+        "401":
+          description: OIDC authentication failed (invalid code or IdP error)
+        "501":
+          description: Not implemented (Phase 1 deployments)
+        "503":
+          description: OIDC provider unreachable
+
+  # ─── Phase 2 — SAML 2.0 ─────────────────────────────────────────────────────
+
+  /auth/saml/metadata:
+    get:
+      operationId: samlMetadata
+      summary: SAML 2.0 Service Provider metadata
+      description: |
+        Returns the SP (Service Provider) metadata XML document.
+
+        IdP administrators use this document to register Pheromone as a trusted SP
+        in their identity management system (Okta, ADFS, Azure AD SAML, etc.).
+
+        The metadata includes:
+        - Entity ID (configurable via `server.auth.saml.sp_entity_id`)
+        - ACS (Assertion Consumer Service) URL → POST /auth/saml/acs
+        - SP signing certificate (public key; used by IdP to verify AuthnRequests)
+
+        **Phase 2 only** — returns 501 Not Implemented in Phase 1.
+      tags: [Auth - Phase 2 (SAML)]
+      security: []
+      responses:
+        "200":
+          description: SAML SP metadata XML
+          content:
+            application/xml:
+              schema:
+                type: string
+                format: xml
+        "501":
+          description: Not implemented (Phase 1 deployments)
+
+  /auth/saml/acs:
+    post:
+      operationId: samlACS
+      summary: SAML 2.0 Assertion Consumer Service
+      description: |
+        Receives and processes SAML assertions from the Identity Provider.
+
+        Flow:
+          1. User initiates SP-initiated SSO (browser redirects to IdP)
+          2. IdP authenticates user and POSTs a signed SAML Response to this endpoint
+          3. Server validates the assertion signature against IdP certificate
+          4. Server extracts attribute values (name, email, groups)
+          5. Server maps group memberships to platform role via `group_role_map` config
+          6. Server issues a Pheromone JWT and redirects the browser to the UI
+
+        The SAML Response is validated for:
+        - Signature validity (IdP certificate from metadata)
+        - Audience restriction (must match SP entity ID)
+        - Conditions (NotBefore / NotOnOrAfter)
+        - InResponseTo (matches outstanding AuthnRequest; replay protection)
+
+        **Phase 2 only** — returns 501 Not Implemented in Phase 1.
+      tags: [Auth - Phase 2 (SAML)]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [SAMLResponse]
+              properties:
+                SAMLResponse:
+                  type: string
+                  description: Base64-encoded SAML Response XML
+                RelayState:
+                  type: string
+                  description: Opaque value to restore client state after SSO
+      responses:
+        "302":
+          description: Authentication successful; redirect to UI with JWT cookie
+        "400":
+          description: Malformed SAML Response
+        "401":
+          description: Invalid assertion signature or expired assertion
+        "501":
+          description: Not implemented (Phase 1 deployments)
+        "503":
+          description: IdP metadata unavailable
+
+components:
+  schemas:
+
+    JWKS:
+      type: object
+      description: JSON Web Key Set (RFC 7517)
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: "#/components/schemas/JWK"
+
+    JWK:
+      type: object
+      description: A single JSON Web Key (RSA public key)
+      required: [kty, use, alg, kid, n, e]
+      properties:
+        kty:
+          type: string
+          enum: [RSA]
+          description: Key type
+        use:
+          type: string
+          enum: [sig]
+          description: Key use (signing)
+        alg:
+          type: string
+          enum: [RS256]
+          description: Algorithm
+        kid:
+          type: string
+          description: Key ID (used to select key during validation)
+        n:
+          type: string
+          description: RSA modulus (Base64URL-encoded)
+        e:
+          type: string
+          description: RSA exponent (Base64URL-encoded)
+
+    TokenResponse:
+      type: object
+      description: Pheromone JWT token response (OIDC/SAML callback flows)
+      required: [token, expires_at]
+      properties:
+        token:
+          type: string
+          description: Signed JWT bearer token
+        expires_at:
+          type: string
+          format: date-time
+          description: Token expiry timestamp (RFC3339)
+        user:
+          $ref: "#/components/schemas/UserSummary"
+
+    UserSummary:
+      type: object
+      properties:
+        username:
+          type: string
+        role:
+          type: string
+          enum: [viewer, operator, admin, owner]
+        display_name:
+          type: string
+        email:
+          type: string
+        provider:
+          type: string
+          enum: [local, ldap, oidc, saml]
+        disabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+tags:
+  - name: "Auth - Phase 1"
+    description: "Endpoints available in Phase 1 MVP"
+  - name: "Auth - Phase 2 (OIDC)"
+    description: "OIDC/OAuth 2.0 endpoints — Phase 2 only"
+  - name: "Auth - Phase 2 (SAML)"
+    description: "SAML 2.0 SP endpoints — Phase 2 only"
