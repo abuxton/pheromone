@@ -19,6 +19,7 @@
 | **011** | Post-Action Hooks — Notifications, Webhooks, and Package Delivery | ✅ Accepted | Phase 1 (MVP) | Notification Skill (agent-side) + Post-Action Hook Service (server-side); direct end-user notify | ADR-003,005,006,007,010 |
 | **012** | Vagrant Testing Environment | ✅ Accepted | Phase 1 (MVP) | Multi-machine Vagrant setup (Ubuntu 24.04 + Debian 12) for server/agent integration testing | ADR-001,002,008 |
 | **013** | Swamp Evaluation — System Initiative AI Automation CLI | ⏳ Proposed | Phase 0 (Spike) | Swamp not adopted (AGPL v3, TypeScript/Deno, single-machine CLI); Definition/CEL model noted as ADR-004 reference | ADR-003,004,007,010 |
+| **014** | Envoy Proxy Evaluation — Monitoring, Observability, and Service Mesh Integration | ⏳ Proposed | Phase 1 (Spike) | Server-side ingress recommended (Phase 1); per-agent sidecar and xDS control plane deferred to Phase 2 | ADR-002,003,005,010,012 |
 
 ---
 
@@ -58,6 +59,7 @@
 - **ADR-010**: Signal Protocol (signalapp) evaluation — NOT adopted; gRPC+mTLS confirmed as server↔agent security layer ✅ **Accepted**
 - **ADR-011**: Port assignment — 4426 (gRPC control), 4427 (gRPC telemetry), 443/80 (HTTP/HTTPS REST API)
 - **ADR-013**: Swamp (System Initiative) evaluation — NOT adopted; AGPL v3 licence + TypeScript/Deno mismatch; YAML/CEL Definition model noted as ADR-004 reference
+- **ADR-014**: Envoy Proxy evaluation — server-side ingress recommended (Phase 1); per-agent sidecar and xDS control plane deferred to Phase 2
 
 
 ### Should Review (Implementation Strategy)
@@ -92,6 +94,10 @@ ADR-001 (Foundation)
         ├─→ ADR-010 (Signal Protocol — mTLS confirmed) [proposed]
         │    └─→ ADR-011 (Post-Action Hooks — mTLS for webhook credential transport)
         └─→ ADR-011 (Post-Action Hooks — notification as post-reasoning-loop step)
+ADR-014 (Envoy Proxy Evaluation — monitoring, observability, service mesh)
+   ├─→ ADR-003 (gRPC Contracts — Envoy proxies existing services)
+   ├─→ ADR-010 (mTLS confirmed — Envoy can own TLS termination via SDS)
+   └─→ ADR-012 (Vagrant — Envoy added to server provisioning scripts)
 ```
 
 **Critical Path**: ADR-001 → ADR-007 → ADR-002 → ADR-003 → ADR-006 (affects implementation order)
@@ -114,8 +120,11 @@ Before ADR Acceptance, run these validation spikes:
 | ADR-011 | HTTP webhook dispatch at scale | Server dispatching hooks to 100 endpoints with 1000 simultaneous agent events | 6 hours |
 | ADR-011 | Agent direct notify resilience | Verify reasoning loop unblocked when notification destinations unreachable | 4 hours |
 | ADR-011 | HMAC webhook verification prototype | Signature generation/verification across Go agent and Python receiver | 2 hours |
+| ADR-014 | Envoy server-side ingress prototype | Add Envoy to docker-compose; validate gRPC traffic metrics and admin API | 4 hours |
+| ADR-014 | Per-agent sidecar RAM overhead spike | Measure `envoy:distroless` memory footprint on target managed instances | 4 hours |
+| ADR-014 | go-control-plane xDS server spike | Prototype Pheromone server as xDS control plane feeding agent registration into EDS | 12 hours |
 
-**Total Spike Effort**: ~62 hours (can run in parallel)
+**Total Spike Effort**: ~82 hours (can run in parallel; +20 hours added for ADR-014 Envoy spikes)
 
 ---
 
@@ -177,6 +186,14 @@ All GitHub issues required to process ADR material and unblock development are t
 | Review and Accept ADR-012 | ADR Review | ADR-012 | — |
 | Review and Accept ADR-013 | ADR Review | ADR-013 | — |
 | Review Swamp YAML/CEL Definition model as ADR-004 reference input | Research | ADR-013/004 | 2h |
+| Review and Accept ADR-014 | ADR Review | ADR-014 | — |
+| Add Envoy proxy to `docker-compose.yml` for server-side monitoring | Implementation | ADR-014 | 2h |
+| Create static Envoy config for Pheromone gRPC ingress | Implementation | ADR-014 | 3h |
+| Document Pheromone Prometheus/Envoy metric catalogue | Documentation | ADR-014 | 2h |
+| Add Envoy to Vagrant server provisioning scripts | Implementation | ADR-014 | 2h |
+| Spike: per-agent Envoy sidecar RAM overhead on target instances | Tech Spike | ADR-014 | 4h |
+| Spike: go-control-plane xDS server in Pheromone server process | Tech Spike | ADR-014 | 12h |
+| Spike: SDS certificate management via Envoy for agent mTLS | Tech Spike | ADR-014 | 8h |
 | Implement Vagrant provisioning scripts | Implementation | ADR-012 | 4h |
 | Implement gRPC proto definitions | Implementation | ADR-003 | 8h |
 
@@ -193,6 +210,6 @@ All GitHub issues required to process ADR material and unblock development are t
 
 ---
 
-**Status**: ✅ **ADRs 001, 002, 003, 007, 008, 009, 010, 011, 012 ACCEPTED — ADRs 004-006, 013 PROPOSED - READY FOR TEAM REVIEW**
-**Updated**: 2026-03-10 (ADR-011 accepted — Post-Action Hooks; all three spikes passed; HMAC signing, direct-notify resilience, and 100K webhook dispatch at scale validated)
+**Status**: ✅ **ADRs 001, 002, 003, 007, 008, 009, 010, 011, 012 ACCEPTED — ADRs 004-006, 013, 014 PROPOSED - READY FOR TEAM REVIEW**
+**Updated**: 2026-03-10 (ADR-014 proposed — Envoy Proxy evaluation; server-side ingress recommended for Phase 1)
 
