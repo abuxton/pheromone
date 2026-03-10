@@ -58,6 +58,16 @@ func GenerateSkillConfig(path string, format Format) error {
 	return writeConfig(path, format, cfg)
 }
 
+// GenerateUIConfig writes a default UI configuration fragment to path.
+func GenerateUIConfig(path string, format Format) error {
+	cfg := struct {
+		UI UIConfig `json:"ui" yaml:"ui"`
+	}{
+		UI: defaultUIConfig(),
+	}
+	return writeConfig(path, format, cfg)
+}
+
 // ParseFormat converts a user-supplied format string to a Format constant.
 // Recognised values (case-insensitive): "json", "yaml", "yml".
 // Returns an error for unrecognised values.
@@ -98,6 +108,7 @@ func defaultServerConfig() *ServerConfig {
 		},
 		Twins:     []TwinConfig{defaultTwinConfig()},
 		Listeners: []ListenerConfig{defaultListenerConfig()},
+		UI:        defaultUIConfig(),
 	}
 }
 
@@ -152,6 +163,33 @@ func defaultSkillConfig() SkillConfig {
 		Name:    "digital-twin",
 		Version: "1.0.0",
 		Options: map[string]string{},
+	}
+}
+
+func defaultUIConfig() UIConfig {
+	tokenTTL := 24 * time.Hour
+	return UIConfig{
+		Enabled:        true,
+		Address:        "0.0.0.0",
+		Port:           8081,
+		SecretKey:      "change-me-in-production",
+		TokenTTL:       tokenTTL,
+		AllowedOrigins: []string{"*"},
+		Users: []UIUser{
+			{
+				Username:     "admin",
+				PasswordHash: "sha256:changeme:8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918",
+				Role:         "admin",
+			},
+		},
+		// TLS is disabled by default. To enable HTTPS, set tls.enabled: true and
+		// provide the server certificate and private key in PEM format.
+		// Use tls.use_os_cert_store: true to verify client certificates against the
+		// platform trust store instead of an explicit ca_bundle_file.
+		TLS: UITLSConfig{
+			Enabled:        false,
+			UseOSCertStore: false,
+		},
 	}
 }
 

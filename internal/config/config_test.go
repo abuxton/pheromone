@@ -618,3 +618,104 @@ func writeFile(t *testing.T, dir, name, content string) {
 		t.Fatalf("writeFile %s: %v", name, err)
 	}
 }
+
+// ---- UITLSConfig validator tests -------------------------------------------
+
+func validUIConfig() config.UIConfig {
+	return config.UIConfig{
+		Enabled:   true,
+		Port:      8081,
+		SecretKey: "test-secret",
+	}
+}
+
+func TestValidateUIConfig_TLS_Disabled(t *testing.T) {
+	cfg := validUIConfig()
+	cfg.TLS = config.UITLSConfig{Enabled: false}
+	if err := config.ValidateUIConfig(&cfg); err != nil {
+		t.Errorf("expected valid when TLS disabled, got: %v", err)
+	}
+}
+
+func TestValidateUIConfig_TLS_ValidExplicitCerts(t *testing.T) {
+	cfg := validUIConfig()
+	cfg.TLS = config.UITLSConfig{
+		Enabled:  true,
+		CertFile: "/etc/pheromone/tls/server.crt",
+		KeyFile:  "/etc/pheromone/tls/server.key",
+	}
+	if err := config.ValidateUIConfig(&cfg); err != nil {
+		t.Errorf("expected valid with explicit cert+key, got: %v", err)
+	}
+}
+
+func TestValidateUIConfig_TLS_ValidWithCABundle(t *testing.T) {
+	cfg := validUIConfig()
+	cfg.TLS = config.UITLSConfig{
+		Enabled:      true,
+		CertFile:     "/etc/pheromone/tls/server.crt",
+		KeyFile:      "/etc/pheromone/tls/server.key",
+		CABundleFile: "/etc/pheromone/tls/ca-bundle.pem",
+	}
+	if err := config.ValidateUIConfig(&cfg); err != nil {
+		t.Errorf("expected valid with cert+key+ca_bundle, got: %v", err)
+	}
+}
+
+func TestValidateUIConfig_TLS_ValidOSCertStore(t *testing.T) {
+	cfg := validUIConfig()
+	cfg.TLS = config.UITLSConfig{
+		Enabled:        true,
+		CertFile:       "/etc/pheromone/tls/server.crt",
+		KeyFile:        "/etc/pheromone/tls/server.key",
+		UseOSCertStore: true,
+	}
+	if err := config.ValidateUIConfig(&cfg); err != nil {
+		t.Errorf("expected valid with OS cert store, got: %v", err)
+	}
+}
+
+func TestValidateUIConfig_TLS_MissingCert(t *testing.T) {
+	cfg := validUIConfig()
+	cfg.TLS = config.UITLSConfig{
+		Enabled: true,
+		KeyFile: "/etc/pheromone/tls/server.key",
+	}
+	if err := config.ValidateUIConfig(&cfg); err == nil {
+		t.Fatal("expected error for missing cert_file")
+	}
+}
+
+func TestValidateUIConfig_TLS_MissingKey(t *testing.T) {
+	cfg := validUIConfig()
+	cfg.TLS = config.UITLSConfig{
+		Enabled:  true,
+		CertFile: "/etc/pheromone/tls/server.crt",
+	}
+	if err := config.ValidateUIConfig(&cfg); err == nil {
+		t.Fatal("expected error for missing key_file")
+	}
+}
+
+func TestValidateUIConfig_TLS_MissingBoth(t *testing.T) {
+	cfg := validUIConfig()
+	cfg.TLS = config.UITLSConfig{Enabled: true}
+	err := config.ValidateUIConfig(&cfg)
+	if err == nil {
+		t.Fatal("expected error for missing cert_file and key_file")
+	}
+}
+
+func TestValidateUIConfig_TLS_OSCertStoreAndCABundle_Conflict(t *testing.T) {
+	cfg := validUIConfig()
+	cfg.TLS = config.UITLSConfig{
+		Enabled:        true,
+		CertFile:       "/etc/pheromone/tls/server.crt",
+		KeyFile:        "/etc/pheromone/tls/server.key",
+		UseOSCertStore: true,
+		CABundleFile:   "/etc/pheromone/tls/ca-bundle.pem",
+	}
+	if err := config.ValidateUIConfig(&cfg); err == nil {
+		t.Fatal("expected error when both use_os_cert_store and ca_bundle_file are set")
+	}
+}
