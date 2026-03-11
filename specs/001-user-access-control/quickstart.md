@@ -72,33 +72,55 @@ auth:
 
 ## Step 3: First-Run Bootstrap
 
-On first start, if no users exist in etcd, the server creates a default `owner` account
-with a random password and prints it **once** to stderr:
+On first start, when no users exist in etcd, the server auto-generates a single-use bootstrap
+token with the `ph::init::` prefix and **prints it once to stderr**.  It is not stored in
+plaintext — only a bcrypt hash is kept in etcd at `/pheromone/auth/bootstrap_token`.
 
 ```
-WARN[2026-03-24T12:00:00Z] First-run bootstrap: created owner account
-     username=admin password=Xk9mP2...  (CHANGE IMMEDIATELY)
+WARN[2026-03-24T12:00:00Z] First-run bootstrap: no users found
+WARN[2026-03-24T12:00:00Z] Bootstrap token (single-use — copy now, it will not be shown again):
+WARN[2026-03-24T12:00:00Z]   ph::init::aB3xK9mPqR7tYwZnVdXeJcFsGhLuI2oE4k6C8vN1yH5jM0bQ
 ```
 
-Immediately change the bootstrap password:
+Use this token to create the initial Owner account via the CLI:
 
 ```bash
-pheromone user set-password admin
-# Enter current password: <paste bootstrap password>
-# Enter new password: <your secure password>
-# Confirm new password: <repeat>
-# ✓ Password updated for user: admin
+pheromone bootstrap \
+  --server localhost:4426 \
+  --token "ph::init::aB3xK9mPqR7tYwZnVdXeJcFsGhLuI2oE4k6C8vN1yH5jM0bQ" \
+  --username admin \
+  --password "<your-strong-password>"
+# ✓ Owner account created: admin
+# ✓ Bootstrap sealed — AuthService.Bootstrap is no longer available
 ```
+
+Or via gRPC directly:
+
+```bash
+grpcurl -d '{
+  "bootstrap_token": "ph::init::aB3xK9...",
+  "username": "admin",
+  "password": "YourStr0ngP@ssword!"
+}' localhost:4426 pheromone.v1.AuthService/Bootstrap
+# {"message": "Owner account created. Bootstrap sealed."}
+```
+
+> **Security note**: The `ph::init::` prefix makes the bootstrap token detectable by secret
+> scanners (gitleaks, trufflehog).  If it appears in a log aggregator or git commit **before
+> bootstrap is complete**, invalidate it immediately by stopping the server, deleting the etcd
+> key `/pheromone/auth/bootstrap_token`, and restarting (the server will generate a fresh token).
+> If bootstrap has already been used successfully, the RPC is permanently sealed and any leaked
+> token is inert — no action required beyond rotating operator credentials if they were exposed.
 
 ---
 
 ## Step 4: Create Operator Accounts
 
 ```bash
-# Log in as admin (owner)
+# Log in as admin (owner) — using the password set during bootstrap
 pheromone login --server localhost:4426 --username admin
-# Password: <your password>
-# ✓ Logged in as admin (owner) — token valid until 2026-03-24T20:00:00Z
+# Password: <password set during bootstrap>
+# ✓ Logged in as admin (owner) — token: ph::jwt::eyJhbGc... (valid until 2026-03-24T20:00:00Z)
 
 # Create a read-only account
 pheromone user create alice --role viewer

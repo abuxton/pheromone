@@ -8,10 +8,13 @@ option go_package = "github.com/pheromone/pheromone/internal/gen/pheromone/v1;ph
 // for human operators of the Pheromone platform.
 //
 // Authentication flow:
-//   1. Client calls Login(username, password) → receives JWT bearer token
-//   2. Client includes token in all subsequent RPCs via gRPC metadata:
-//      key: "authorization", value: "Bearer <token>"
-//   3. Server interceptor validates token and enforces RBAC on every RPC
+//   1. On first start with no users, the server generates a ph::init::* bootstrap
+//      token and prints it to stderr. The operator calls Bootstrap() to create
+//      the first Owner account. Bootstrap is permanently sealed after first use.
+//   2. Client calls Login(username, password) → receives ph::jwt::* bearer token
+//   3. Client includes token in all subsequent RPCs via gRPC metadata:
+//      key: "authorization", value: "Bearer ph::jwt::<jwt>"
+//   4. Server interceptor strips the prefix, validates the JWT, and enforces RBAC
 //
 // Machine agents use mTLS certificates (ADR-014 D1) and are NOT subject to
 // this service. The interceptor distinguishes human JWT sessions from agent
@@ -19,8 +22,21 @@ option go_package = "github.com/pheromone/pheromone/internal/gen/pheromone/v1;ph
 //
 // ADR: ADR-015 — User Access Control & Identity Provider Integration
 service AuthService {
+  // Bootstrap creates the first Owner account using the server-generated
+  // single-use bootstrap token (ph::init::*).
+  //
+  // This RPC is ONLY available before any users exist. It is permanently
+  // sealed after first successful use. It is exempt from the authentication
+  // interceptor (no token required to call it).
+  //
+  // Errors:
+  //   FAILED_PRECONDITION — bootstrap already complete (users exist)
+  //   UNAUTHENTICATED     — invalid or expired bootstrap token
+  //   INVALID_ARGUMENT    — username invalid or password fails policy
+  rpc Bootstrap(BootstrapRequest) returns (BootstrapResponse);
+
   // Login authenticates a user with username and password.
-  // Returns a signed JWT bearer token on success.
+  // Returns a signed JWT bearer token (ph::jwt::*) on success.
   // This RPC is exempt from the authentication interceptor.
   //
   // Errors:
@@ -112,6 +128,30 @@ service AuthService {
 
 // ----- Request / Response Messages -----
 
+// BootstrapRequest creates the first Owner account.
+// Requires the server-generated ph::init::* bootstrap token from server startup logs.
+message BootstrapRequest {
+  // bootstrap_token is the single-use ph::init::* token printed to stderr at
+  // server startup.  Invalid after first successful use.
+  string bootstrap_token = 1;
+
+  // username for the initial Owner account.
+  // Max 64 bytes; alphanumeric + hyphens + underscores.
+  string username = 2;
+
+  // password for the initial Owner account (must pass minimum strength policy).
+  // Never logged or stored; the server stores a bcrypt hash.
+  string password = 3;
+}
+
+message BootstrapResponse {
+  // message is a human-readable confirmation that the Owner account was created.
+  string message = 1;
+
+  // user is the newly created Owner account summary.
+  UserSummary user = 2;
+}
+
 message LoginRequest {
   // username of the user to authenticate.
   // Max 64 bytes; alphanumeric + hyphens + underscores.
@@ -124,7 +164,7 @@ message LoginRequest {
 }
 
 message LoginResponse {
-  // token is a signed JWT bearer token.
+  // token is a ph::jwt::-prefixed signed bearer token.
   // Include in subsequent RPCs as: metadata["authorization"] = "Bearer <token>"
   string token = 1;
 

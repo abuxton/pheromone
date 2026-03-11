@@ -20,17 +20,18 @@ The feature must integrate with the interceptor hook points described in ADR-014
 
 ### User Story 1 — Platform Owner: Bootstrap Initial Admin Access (Priority: P1)
 
-When a Pheromone server is deployed for the first time, there are no user accounts. The platform owner (the person or automation responsible for initial deployment) needs to create the first privileged account using a username and password, from which all subsequent user management flows.
+When a Pheromone server is deployed for the first time, there are no user accounts. Rather than requiring the operator to supply a username and password at deployment time, the server auto-generates a single-use bootstrap token and writes it to its bootstrap token path. The platform owner retrieves this token from the server log or etcd and uses it to create the first privileged account (choosing username and password), from which all subsequent user management flows.
 
 **Why this priority**: Without a bootstrap path, no user can log in to perform any management task. This is the entry point for the entire access control model and must be delivered first.
 
-**Independent Test**: Deploy a fresh Pheromone server with no pre-existing accounts. Run the bootstrap command (or first-run wizard) with a chosen username and password. Verify the resulting account has the Owner role and can successfully authenticate and call a protected gRPC endpoint. All other stories depend on this working first.
+**Independent Test**: Deploy a fresh Pheromone server with no pre-existing accounts. Retrieve the auto-generated `ph::init::*` bootstrap token from server startup logs. Call `AuthService.Bootstrap` with the token and chosen owner credentials. Verify the resulting account has the Owner role and can successfully authenticate and call a protected gRPC endpoint. Verify that attempting to call `Bootstrap` a second time is rejected. All other stories depend on this working first.
 
 **Acceptance Scenarios**:
 
-1. **Given** a freshly deployed Pheromone server with no user accounts, **When** the operator runs the bootstrap command with a valid username and strong password, **Then** an Owner account is created, the bootstrap path is sealed (cannot be re-run), and the account can authenticate immediately
-2. **Given** an Owner account that exists, **When** someone attempts to re-run the bootstrap command, **Then** the system rejects it with a clear error explaining that bootstrapping is already complete
-3. **Given** a bootstrap attempt with a password that does not meet the minimum strength requirement, **When** the command is submitted, **Then** the system rejects it with an explanation of the unmet criteria, and no account is created
+1. **Given** a freshly deployed Pheromone server with no user accounts, **When** the server starts, **Then** it auto-generates a `ph::init::*` bootstrap token, stores it in etcd, and prints it once to stderr; the token is the only accepted credential for the `Bootstrap` RPC
+2. **Given** a valid bootstrap token, **When** the operator calls `AuthService.Bootstrap` with a valid username and strong password, **Then** an Owner account is created, the bootstrap token is deleted, and the bootstrap RPC is permanently sealed (cannot be re-invoked)
+3. **Given** an Owner account that exists, **When** someone attempts to call `AuthService.Bootstrap` again, **Then** the system rejects it with a clear error explaining that bootstrapping is already complete
+4. **Given** a bootstrap attempt with a password that does not meet the minimum strength requirement, **When** the request is submitted, **Then** the system rejects it with an explanation of the unmet criteria, and no account is created; the bootstrap token remains valid for the next attempt
 
 ---
 
@@ -146,7 +147,8 @@ A DevOps team manages multiple environments (development, staging, production) w
 - **FR-002**: System MUST enforce globally unique usernames within a deployment
 - **FR-003**: System MUST require passwords for local accounts to meet a configurable minimum strength policy; the out-of-the-box default MUST enforce at least 12 characters with mixed character classes
 - **FR-004**: System MUST store local passwords using an industry-standard adaptive hashing algorithm; plaintext or reversibly encrypted passwords MUST NOT be stored anywhere in the system
-- **FR-005**: System MUST provide a first-run bootstrap path that creates the initial Owner account; this path MUST be sealed after first use
+- **FR-005**: System MUST provide a first-run bootstrap path: on initial start with no users, the server auto-generates a single-use bootstrap token with the `ph::init::` prefix, stores it in etcd at `/pheromone/auth/bootstrap_token`, and prints it once to stderr; the operator uses this token to call `AuthService.Bootstrap` and create the first Owner account; the path MUST be sealed (token deleted, RPC rejected) after first successful use
+- **FR-005a**: System MUST prefix all platform-generated tokens with a type-specific recognisable pattern (`ph::init::` for bootstrap tokens, `ph::jwt::` for session tokens, `ph::key::` for API keys in Phase 3) to enable automated security scanning in storage, logs, and secret managers
 - **FR-006**: System MUST prevent the deactivation, deletion, or role-demotion of the last remaining Owner account
 - **FR-007**: System SHOULD support SCIM 2.0 for automated user provisioning and deprovisioning from external directories, so that account lifecycle follows the source-of-truth IdP without manual synchronisation
 

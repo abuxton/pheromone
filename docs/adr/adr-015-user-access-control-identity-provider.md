@@ -61,8 +61,14 @@ The management server implements a local credential store:
 - **Login RPC**: A new `AuthService.Login` unary RPC accepts `(username, password)` and returns a
   signed JWT or an `UNAUTHENTICATED` error.  It is the *only* RPC exempt from token validation in
   the interceptor chain.
-- **Bootstrap**: A single `owner`-role account is seeded during first-run initialisation; the
-  operator sets the password via the CLI (`pheromone user set-password`).
+- **Bootstrap**: On first start, when no users exist, the server auto-generates a single-use
+  **bootstrap token** in-memory, stores only its bcrypt hash in etcd at
+  `/pheromone/auth/bootstrap_token`, and prints the raw token **once** to stderr.  The operator
+  presents this token to `AuthService.Bootstrap` (a dedicated RPC exempt from normal auth) to
+  create the first `owner`-role account with a chosen username and password.  Once used, the
+  etcd record is deleted and the bootstrap RPC is permanently sealed.
+  The bootstrap token format is `ph::init::<random-base62-53+chars>` — the `ph::init::` prefix
+  enables automated security scanning to detect unexpired bootstrap tokens in storage or logs.
 - **Password policy**: Minimum 12 characters enforced server-side; no expiry in Phase 1
   (configurable expiry in Phase 3).
 - **Rate limiting**: Login endpoint rate-limited to 10 attempts per minute per source IP to
@@ -147,6 +153,19 @@ After successful `AuthService.Login`, the server issues a signed JWT:
   tokens added in Phase 3.
 - **gRPC transport**: Token carried in gRPC metadata key `authorization: Bearer <token>`.  HTTP/2
   header `Authorization: Bearer <token>` for future REST gateway.
+- **Token prefix convention**: All Pheromone-generated tokens carry a human-readable prefix that
+  identifies their type, enabling automated security scanning in storage, logs, and secrets
+  managers to detect leaked or unexpired tokens:
+
+  | Token type | Prefix | Example |
+  |-----------|--------|---------|
+  | Bootstrap (single-use, first-run) | `ph::init::` | `ph::init::aB3xK9...` |
+  | Regular session JWT | `ph::jwt::` | `ph::jwt::eyJhbGc...` |
+  | API key (Phase 3) | `ph::key::` | `ph::key::7fDqR2...` |
+
+  The prefix is stripped before JWT signature verification; the raw JWT is what gets signed and
+  validated.  Security scanners (e.g., `gitleaks`, `trufflehog`) can add rules matching `ph::`
+  to catch any Pheromone token type regardless of sub-type.
 
 ```go
 // internal/auth/jwt.go — token claims
@@ -154,11 +173,20 @@ type Claims struct {
     jwt.RegisteredClaims
     Role Role `json:"role"`
 }
+
+// Token prefix constants — used when encoding and decoding all platform-issued tokens.
+const (
+    TokenPrefixBootstrap = "ph::init::"
+    TokenPrefixJWT       = "ph::jwt::"
+    TokenPrefixAPIKey    = "ph::key::" // Phase 3
+)
 ```
 
 **Rationale**: Stateless JWTs require no server-side session store in Phase 1, scaling naturally
 to multi-server deployments.  RS256 decouples signing from verification, a prerequisite for Phase
-2 external IdP federation.
+2 external IdP federation.  The prefix convention follows the pattern used by platforms such as
+GitHub (`ghp_`), Stripe (`sk_live_`), and npm (`npm_`) to make token type unambiguous to both
+humans and automated scanners.
 
 ---
 
@@ -347,12 +375,14 @@ claim enables correlation across events for a single session without exposing th
 ### Phase 1 — Local Auth MVP (D1, D2, D3, D5, D6)
 
 Deliverables:
-- `internal/auth/` package: `store.go`, `jwt.go`, `interceptor.go`, `rbac.go`, `provider.go`
-- `proto/pheromone/v1/auth.proto`: `AuthService { Login, Logout, ChangePassword, ListUsers, CreateUser, DeleteUser }`
-- etcd keyspace `/pheromone/users/*` with bbolt fallback
+- `internal/auth/` package: `store.go`, `jwt.go`, `interceptor.go`, `rbac.go`, `provider.go`, `bootstrap.go`
+- `proto/pheromone/v1/auth.proto`: `AuthService { Bootstrap, Login, Logout, ChangePassword, ListUsers, CreateUser, DeleteUser }`
+- etcd keyspace `/pheromone/users/*` and `/pheromone/auth/bootstrap_token` with bbolt fallback
+- Bootstrap flow: server auto-generates `ph::init::*` token on first start; operator uses it to create the first Owner account via `AuthService.Bootstrap`
 - CLI: `pheromone user {create,delete,list,set-password,set-role}`
 - Unit tests ≥ 80% coverage on `internal/auth/`
 - Integration test: gRPC interceptor chain smoke test (valid token → 200; missing token → Unauthenticated; wrong role → PermissionDenied)
+- Integration test: bootstrap flow (generate token → create owner → seal bootstrap → reject re-bootstrap)
 - `auth.login_*` and `auth.access_*` audit events in structured logs
 
 ### Phase 2 — External IdP Integration (D4)
@@ -409,12 +439,14 @@ Deliverables (in priority order):
 ### Open Items
 
 - Implement gRPC server TLS wiring (ADR-014 D1 — prerequisite for mTLS agent path)
-- Define `AuthService` proto in `proto/pheromone/v1/auth.proto` and regenerate stubs
+- Define `AuthService` proto in `proto/pheromone/v1/auth.proto` including `Bootstrap` RPC and regenerate stubs
+- Implement `internal/auth/bootstrap.go`: auto-generate `ph::init::*` token on first start, store in etcd, seal after use
 - Integrate `internal/auth/interceptor.go` into `cmd/server/main.go` interceptor chain
 - Add `pheromone user` CLI subcommands to the existing `cmd/cli/` module
 - Decide bbolt version (currently used in etcd itself; verify licence and vulnerability posture)
 - Spike: measure bcrypt(cost=12) latency on target Raspberry Pi / resource-constrained instances
 - Phase 2 OIDC callback needs HTTP server — align with ADR-011 notification webhook listener
+- Add `ph::` token prefix rules to gitleaks/trufflehog config in the security CI workflow (ADR-014 D4)
 
 ---
 

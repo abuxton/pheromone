@@ -88,9 +88,76 @@ type UserRecord struct {
 
 ---
 
-### 2. `JWTClaims`
+### 2. `BootstrapToken`
+
+Single-use token generated at first server start.  Stored in etcd; deleted after successful
+`AuthService.Bootstrap` call.  **Never reusable.**
+
+**Storage**: etcd key `/pheromone/auth/bootstrap_token` → JSON-encoded `BootstrapToken`
+
+```go
+// internal/auth/bootstrap.go
+
+// TokenPrefix constants — applied to all platform-issued tokens so that automated
+// security scanners (gitleaks, trufflehog, etc.) can detect leaked tokens regardless
+// of type.  The prefix is stripped before JWT signature verification.
+const (
+    TokenPrefixBootstrap = "ph::init::" // single-use first-run bootstrap token
+    TokenPrefixJWT       = "ph::jwt::"  // regular session tokens issued by AuthService.Login
+    TokenPrefixAPIKey    = "ph::key::"  // Phase 3: long-lived API keys
+)
+
+// BootstrapToken is the single-use credential that authorises the first-run
+// AuthService.Bootstrap RPC.  It is auto-generated on startup when no users exist.
+type BootstrapToken struct {
+    // TokenHash is the bcrypt hash of the raw bootstrap token.
+    // The raw token value is generated in-memory, printed once to stderr,
+    // and NEVER persisted.  Only this hash is stored in etcd.
+    TokenHash string `json:"token_hash"`
+
+    // CreatedAt is the time the token was generated.
+    CreatedAt time.Time `json:"created_at"`
+
+    // Used indicates whether the Bootstrap RPC has been called successfully.
+    // Once true, the record is deleted from etcd and the RPC is permanently sealed.
+    Used bool `json:"used"`
+}
+```
+
+**Generation**:
+```go
+// internal/auth/bootstrap.go — token generation sketch
+import "crypto/rand"
+
+func generateBootstrapToken() (string, error) {
+    // 32 bytes of CSPRNG entropy → ceil(32*8/log2(62)) ≈ 43 base62 chars
+    // Using 40 bytes produces ≥53 base62 chars for comfortable margin.
+    b := make([]byte, 40)
+    if _, err := rand.Read(b); err != nil {
+        return "", err
+    }
+    return TokenPrefixBootstrap + base62Encode(b), nil
+}
+```
+
+**Lifecycle**:
+```
+[server start, no users] → generate ph::init::* → store hash in etcd → print raw value to stderr
+       ↓
+[operator calls Bootstrap with raw token]
+       ↓
+[server validates token (bcrypt compare), creates Owner account, deletes etcd key]
+       ↓
+[Bootstrap RPC sealed — any future call returns FAILED_PRECONDITION: "bootstrap already complete"]
+```
+
+---
+
+### 3. `JWTClaims`
 
 In-flight token representation — not persisted.  Validated by `JWTValidator` on every RPC.
+Session tokens are prefixed with `TokenPrefixJWT` (`ph::jwt::`) before delivery to the client;
+the prefix is stripped before JWT signature verification.
 
 ```go
 // internal/auth/jwt.go
@@ -114,7 +181,7 @@ type Claims struct {
 
 ---
 
-### 3. `Identity`
+### 4. `Identity`
 
 Runtime context object propagated through the gRPC interceptor chain.  Never persisted.
 
@@ -163,7 +230,7 @@ func identityFromContext(ctx context.Context) (Identity, bool) {
 
 ---
 
-### 4. `AuditEvent`
+### 5. `AuditEvent`
 
 Structured log record emitted for every authentication and authorisation event.  Not persisted
 in Phase 1 (written to stdout/structured log); Phase 3 adds etcd-backed audit trail.
@@ -210,7 +277,7 @@ type AuditEvent struct {
 
 ---
 
-### 5. `AuthConfig` (configuration schema)
+### 6. `AuthConfig` (configuration schema)
 
 The `auth` section added to the server YAML configuration file.
 
