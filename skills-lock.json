@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "agent-rules": {
+      "source": "netresearch/agent-rules-skill",
+      "sourceType": "github",
+      "computedHash": "150f17d67ab0a98e4955a1b54c3697942cd9b9487bb56ec6f0a111a5c8168171"
+    },
     "ai-prompt-engineering-safety-review": {
       "source": "github/awesome-copilot",
       "sourceType": "github",
@@ -71,6 +76,11 @@
       "sourceType": "github",
       "computedHash": "9d929bc6ed3e9f90576986628758c8c39b7c9f110cd7863f87fa2ae6003f74ac"
     },
+    "data-tools": {
+      "source": "netresearch/data-tools-skill",
+      "sourceType": "github",
+      "computedHash": "0bfe218856035781963a5c6ea7aff6435bc849c35957ca7e1788cbaf71d96926"
+    },
     "devops-rollout-plan": {
       "source": "github/awesome-copilot",
       "sourceType": "github",
@@ -80,6 +90,11 @@
       "source": "anthropics/skills",
       "sourceType": "github",
       "computedHash": "6962db07127ee540a56e4677f65576d0727668a1d67f7da8bc978f10791c2bfe"
+    },
+    "enterprise-readiness": {
+      "source": "netresearch/enterprise-readiness-skill",
+      "sourceType": "github",
+      "computedHash": "948858150270715715ff0e779ce426af73a6cec3efc093524676c1ffe966b60d"
     },
     "first-ask": {
       "source": "github/awesome-copilot",
@@ -120,6 +135,11 @@
       "source": "cxuu/golang-skills",
       "sourceType": "github",
       "computedHash": "eeae73802d2969e0956f185809b699ff5afa55f2ff41adb163b8b15a83f3db66"
+    },
+    "go-development": {
+      "source": "netresearch/go-development-skill",
+      "sourceType": "github",
+      "computedHash": "d13389319a5074d7ef6fc5ef48e73fe073651e16569b6d6ce1c30cb1d5be085e"
     },
     "go-documentation": {
       "source": "cxuu/golang-skills",
@@ -200,6 +220,16 @@
       "source": "01000001-01001110/agent-jira-skills",
       "sourceType": "github",
       "computedHash": "03d26a41e644f4dbae8cd2a12a3f7829480f2ad4e9e35ce5630a64aee115591a"
+    },
+    "makefile": {
+      "source": "itechmeat/llm-code",
+      "sourceType": "github",
+      "computedHash": "548231eb3e2c90365755d63464532eceb2468cc4c0a3cf91ef4132efe3467ea0"
+    },
+    "openspec": {
+      "source": "itechmeat/llm-code",
+      "sourceType": "github",
+      "computedHash": "2f9734a952cbec9682ba04c7f0d2b3957be00ed56f63ddf647010fccf9d873bc"
     },
     "openspec-apply": {
       "source": "partme-ai/openspec-skills",
@@ -286,6 +316,11 @@
       "sourceType": "github",
       "computedHash": "cfbc539377088ca7e44a813b30c306327385bbd973cd7a721e1743f60837dd62"
     },
+    "postgresql": {
+      "source": "itechmeat/llm-code",
+      "sourceType": "github",
+      "computedHash": "b86b6ee1964bfa1cd6a85b15d1c95f7600881dc642e1ab085627d1da6baa0a78"
+    },
     "pptx": {
       "source": "anthropics/skills",
       "sourceType": "github",
@@ -295,6 +330,16 @@
       "source": "anthropics/skills",
       "sourceType": "github",
       "computedHash": "b122f4d1e91aa1d83027e050b5b37c3156203ee85458d7b1360bc48167c9e02a"
+    },
+    "skill-master": {
+      "source": "itechmeat/llm-code",
+      "sourceType": "github",
+      "computedHash": "e094067829b847b9cae621c8fa3224526b59270898c40f8f178d986c64d20400"
+    },
+    "social-writer": {
+      "source": "itechmeat/llm-code",
+      "sourceType": "github",
+      "computedHash": "b9f05401ffa36ac2e723a0e060deec7fd9868b1b9cbcb78cb9f3fc25c17a5e44"
     },
     "template-skill": {
       "source": "anthropics/skills",

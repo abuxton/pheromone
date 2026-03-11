@@ -1,27 +1,46 @@
 # copilot-instructions.md
 
-This file provides guidance to Copilot Code when working with code in this repository.
+This file provides Copilot-specific guidance for working in this repository.
 
 ## Primary Reference
 
-See the root `./AGENTS.md` for the main project documentation and guidance.
+Use `./AGENTS.md` as the source of truth for project workflow, architecture, and quality expectations.
 
 @/workspace/AGENTS.md
 
-## Additional Component-Specific Guidance
+## Required Temporary Path Policy
 
-For detailed module-specific implementation guides, check for AGENTS.md files in subdirectories throughout the project.
+Use `./tmp/` for all temporary files created during development, tests, scripts, diagnostics, and generated scratch output.
 
-If you need to ask the user a question, use the tool AskUserQuestion (useful during the clarification phase).
+- Prefer paths such as `./tmp/<feature-or-task>/...`
+- Do not use `/tmp/...` for repository work
 
-## Updating AGENTS.md Files
+## Speckit Agent Usage
 
-When you discover new information that would be helpful for future development work:
+Prefer the local Speckit agent set in `.github/agents/` when work maps to artifact-driven flow:
 
-- **Update existing AGENTS.md files** when you learn implementation details, debugging insights, or architectural patterns specific to that component
-- **Create new AGENTS.md files** in relevant directories when working with areas that don't yet have documentation
-- **Add valuable insights** such as common pitfalls, debugging techniques, dependency relationships, or implementation patterns
+- `speckit.specify` -> `speckit.clarify` -> `speckit.plan` -> `speckit.tasks` -> `speckit.analyze` -> `speckit.implement`
 
-## Important use subagents liberally
+Use `speckit.checklist` for requirement-quality checks, `speckit.constitution` for constitution updates, and `speckit.taskstoissues` when turning tasks into GitHub issues.
 
-When performing any research concurrent opus subagents can be used for performance and isolation. Use parrallel tool calls and tasks where possible
+## Skill-Aware Workflow
+
+Use relevant local skills from `.agents/skills/` to improve implementation quality, especially:
+
+- Go quality skills (`go-*`) when editing Go packages
+- Architecture/spec skills for design and planning work
+- OpenSpec skills for lifecycle operations and artifact management
+
+## Clarifications And Research
+
+When clarification is needed, use `vscode_askQuestions` with focused questions.
+
+Use subagents and parallel read-only discovery when it improves speed and isolation, then summarize findings concisely before editing.
+
+## Maintaining Guidance
+
+When new stable patterns are discovered:
+
+- Update existing `AGENTS.md` files with concise, reusable guidance
+- Create scoped `AGENTS.md` files in subdirectories only when needed
+- Capture practical implementation notes, pitfalls, and dependency constraints

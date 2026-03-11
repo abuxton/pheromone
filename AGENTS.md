@@ -1,112 +1,100 @@
-# Copilot Instructions for Pheromone
+# AGENTS.md
 
-## Project Overview
+Agent operating guide for `pheromone`. Keep this file concise, executable, and pointer-based.
 
-Pheromone is a digital twin platform implementing a 1:Many model for managing operating system and workload configurations through **agentic AI-capable agents** and efficient protocols. It is inspired by pheromone-based communication used by the Aliens from Ridley Scott's franchise—decentralised, observable, and adaptive.
+## Operating Contract
 
-**Agents are agentic AI-capable agents**: each agent runs an autonomous AI reasoning loop on its managed instance and uses digital twin management as a core *skill* — reading, updating, and applying its twin model to the system under management (see ADR-007).
+| Rule | Requirement |
+|------|-------------|
+| Instruction order | Read: `./AGENTS.md` -> scoped `AGENTS.md` -> `./.github/copilot-instructions.md` -> `./.specify/memory/constitution.md` |
+| Temporary paths | ALWAYS use `./tmp/<task>/...` for temp files |
+| Forbidden temp paths | NEVER use `/tmp/...` for repository work |
+| Architecture authority | Align with ADRs in `./docs/adr/` and constitution in `./.specify/memory/constitution.md` |
+| Contracts | Keep gRPC/protobuf contract compatibility and observability requirements |
 
-This project follows the **Pheromone Constitution v2.1.0** (`.specify/memory/constitution.md`). All development MUST align with its five core principles.
+## Project Map
 
-## Core Principles (from Constitution v2.0.0)
+| Area | Path | Notes |
+|------|------|-------|
+| ADR index | `docs/adr/INDEX.md` | Architecture decisions and rationale |
+| Constitution | `.specify/memory/constitution.md` | Non-negotiable project principles |
+| Core Go code | `internal/` | Main implementation |
+| Entrypoints | `cmd/` | Binaries (`pheromone-agent`, `pheromone-server`) |
+| Speckit agents | `.github/agents/` | Feature lifecycle agent prompts |
+| Local skills | `.agents/skills/` | Reusable implementation guidance |
+| Temp workspace | `tmp/` | Required scratch/output location |
 
-### I. Layered Digital Twin Architecture
-Every component MUST align with the 1:Many digital twin model:
-- **OS-Level Twins**: OS configurations, infrastructure metrics, resource allocation
-- **Workload-Level Twins**: Application services and dependencies
-- **Management Layer**: Real-time orchestration across both twin levels
-- **Agentic AI Agents**: Each managed instance runs an AI-capable agent with a reasoning loop; digital twin management is a discrete agent *skill* (ADR-007)
+## Speckit Agent Routing (`.github/agents`)
 
-### II. ADR-Driven Decision Contracts & Observability
-- Every architecturally-significant decision MUST be captured in an ADR **before** implementation begins
-- ADRs live in `./docs/adr/` using present-tense imperative verb filenames (e.g., `choose-database.md`)
-- ADRs MUST include: Status (`Proposed`/`Accepted`/`Superseded`), Context, Decision, Consequences
-- ADRs are living documents — append dated updates, never delete old text
-- All agents MUST implement autonomous metric reporting; observability instrumentation is NOT optional
+| Stage | Agent | Use For | Key Output |
+|------|-------|---------|------------|
+| Specify | `speckit.specify` | Create/update feature specification | `spec.md` |
+| Clarify | `speckit.clarify` | Resolve ambiguity in active spec | Clarified `spec.md` |
+| Plan | `speckit.plan` | Technical planning and design artifacts | `plan.md`, design docs |
+| Tasks | `speckit.tasks` | Dependency-ordered implementation tasks | `tasks.md` |
+| Analyze | `speckit.analyze` | Read-only cross-artifact consistency check | Analysis report |
+| Implement | `speckit.implement` | Execute planned implementation tasks | Code and updated task state |
+| Checklist | `speckit.checklist` | Requirement-quality checklists | Checklist docs |
+| Constitution | `speckit.constitution` | Update constitution and template alignment | Updated constitution |
+| Tasks to issues | `speckit.taskstoissues` | Convert tasks into GitHub issues | GitHub issues |
 
-### III. Language-Agnostic Protocol Foundation
-- **Go**: Rapid prototyping, agent development, server implementation
-- **Rust**: Performance-critical components, memory-safe low-level control
-- All inter-component communication MUST use gRPC with Protocol Buffers
-- Protocol contracts MUST be version-managed and backward-compatible
+Preferred lifecycle:
 
-### IV. Smoke Tests & Quality Gates (NON-NEGOTIABLE)
-- Every PR MUST pass automated smoke tests before merge
-- Go: `go test ./... -v -race`; Rust: `cargo test --all`
-- Coverage targets: ≥70% new code (unit), ≥50% critical paths (integration)
-- Pre-commit hooks enforce linting and formatting on every local commit
+1. `speckit.specify`
+2. `speckit.clarify`
+3. `speckit.plan`
+4. `speckit.tasks`
+5. `speckit.analyze`
+6. `speckit.implement`
 
-### V. Git-Driven ADR Workflow & DevOps Toolchain
-- Significant decisions MUST be formalized as ADRs **before** feature branch creation
-- Branch naming: `feature/ADR-NNN-descriptive-name` or `bugfix/issue-NNN-description`
-- Commit message format: `feat(scope): description - ADR-NNN` (conventional commits)
-- Squash-merge to `develop`; merge `develop` → `main` only via release branches
+## Skill Routing (`.agents/skills`)
 
-## Repository Layout
+| Category | Skills |
+|----------|--------|
+| Agent rules | `agent-rules` |
+| Planning and architecture | `context-map`, `architecture-blueprint-generator`, `create-architectural-decision-record`, `create-specification`, `create-technical-spike`, `devops-rollout-plan` |
+| Go development and quality | `go-development`, `go-style-core`, `go-code-review`, `go-concurrency`, `go-context`, `go-control-flow`, `go-data-structures`, `go-defensive`, `go-documentation`, `go-error-handling`, `go-functional-options`, `go-interfaces`, `go-linting`, `go-naming`, `go-packages`, `go-performance`, `go-testing` |
+| OpenSpec workflow | `openspec-new`, `openspec-continue`, `openspec-ff`, `openspec-apply`, `openspec-verify`, `openspec-sync`, `openspec-archive`, `openspec-bulk-archive`, `openspec-config`, `openspec-schema`, `openspec-install`, `openspec-initial`, `openspec-onboard`, `openspec-update`, `openspec-explore` |
+| Documentation and delivery | `create-readme`, `create-agentsmd`, `create-github-action-workflow-specification`, `create-github-pull-request-from-specification`, `create-github-issue-feature-from-specification`, `create-github-issues-feature-from-implementation-plan`, `create-github-issues-for-unmet-specification-requirements`, `create-tldr-page`, `ai-prompt-engineering-safety-review` |
+| Data and enterprise checks | `data-tools`, `enterprise-readiness` |
+| Utility | `gh-cli`, `first-ask`, `skill-creator` |
+| File formats | `docx`, `pdf`, `pptx`, `xlsx` |
 
-```
-docs/adr/              Architectural Decision Records (primary location)
-specs/                 Feature specifications and the project constitution
-  constitution.md      Governing principles and development guidelines
-.specify/memory/       Speckit workflow artifacts (plans, specs, constitution)
-  constitution.md      Constitution v2.0.0 (authoritative)
-.github/
-  agents/              Custom Copilot coding-agent definitions
-  prompts/             Speckit workflow prompt templates
-speckit.yml            Speckit workflow configuration
-.pre-commit-config.yaml Pre-commit hooks
-```
+Placeholder-only skills (do not use as authoritative guidance):
 
-## Branching Strategy (GitFlow — MANDATORY)
+- `openspec-template`
+- `template-skill`
 
-| Branch | Purpose |
-|---|---|
-| `main` | Production; tagged on every release; commits via release/hotfix only |
-| `develop` | Integration; base for all feature work |
-| `feature/ADR-NNN-*` | Feature branches; merge back to `develop` via PR |
-| `release/vX.Y.Z` | Release prep; merges to both `main` and `develop` |
-| `hotfix/vX.Y.Z-*` | Emergency fixes from `main`; merges to both `main` and `develop` |
+## Verified Command Matrix (2026-03-11)
 
-## ADR-Driven Development Workflow
+| Command | Status | Notes |
+|--------|--------|-------|
+| `go test ./... -run '^$'` | Verified | Executes quickly and validates package compilation/test wiring |
+| `go test $(go list ./... | grep -v '^github.com/abuxton/pheromone/benchmark$') -v -race` | Verified | Practical race smoke-test excluding heavy benchmark package |
+| `pre-commit --version` | Verified | `pre-commit 4.5.1` present |
+| `cargo --version` | Verified | `cargo 1.94.0` present |
+| `pre-commit install` | Not run in this update | Use before local commits |
+| `pre-commit run --all-files` | Not run in this update | Use for full lint/format sweep |
 
-1. **Create ADR** in `./docs/adr/adr-NNN-descriptive-name.md` (Status: Proposed)
-2. **ADR Review** — minimum 2 approvals before Status → Accepted
-3. **Speckit Plan** — `plan` agent generates `.specify/memory/plan-NNN.md` from accepted ADR
-4. **Specify Feature** — `specify` agent generates `.specify/memory/spec-NNN.md`
-5. **Create Feature Branch** — named `feature/ADR-NNN-descriptive-name`
-6. **Implement** — `tasks` agent creates checklist; commits reference ADR-NNN
-7. **PR Submission** — include ADR link, spec link, coverage report; squash-merge with `feat: ADR-NNN description`
+## Development Workflow Rules
 
-## Technology Stack
+1. Map relevant code/docs before edits (`context-map` preferred for broad changes).
+2. Create or update ADRs before implementing material architecture or contract changes.
+3. Keep spec/plan/tasks synchronized with implementation for larger changes.
+4. Update tests and docs in the same change set.
+5. Write all temporary outputs to `./tmp` and keep them deterministic.
 
-- **Primary language**: Go (`gofmt`, `golangci-lint`, `go vet`)
-- **Performance-critical**: Rust (`rustfmt`, `clippy`, `cargo check`)
-- **Agent↔server protocol**: gRPC with Protocol Buffers (versioned packages, e.g., `pheromone.v1`)
-- **Event streaming**: Kafka (Phase 2); NATS (MVP)
-- **Distributed state store**: etcd or Consul
+## Branching And Commits
 
-## Pre-commit Hooks
+| Topic | Convention |
+|-------|------------|
+| Feature branch | `feature/ADR-NNN-descriptive-name` |
+| Bugfix branch | `bugfix/issue-NNN-description` |
+| Commit format | `feat(scope): description - ADR-NNN` |
 
-```bash
-pre-commit install          # install hooks once
-pre-commit run --all-files  # run manually across the whole repo
-```
+## Primary References
 
-Hooks enforce: YAML/JSON syntax, end-of-file newlines, large files (>500 KB), merge-conflict markers, private-key detection, ShellCheck, `gofmt`, `golangci-lint`, `rustfmt`, `clippy`.
-
-## Quality Gates (before merging to `main`)
-
-- [ ] All tests pass (Go + Rust smoke tests)
-- [ ] Code review approved (minimum 2 reviewers)
-- [ ] ADR created and accepted (if architecturally significant)
-- [ ] Documentation updated
-- [ ] Spec updated (if feature change)
-- [ ] No security vulnerabilities
-- [ ] Coverage ≥70% new code; ≥50% critical paths
-
-## Key References
-
-- [Constitution v2.0.0](.specify/memory/constitution.md)
-- [ADR Index](docs/adr/INDEX.md)
-- [Summary](summary.md)
-- [Speckit Config](speckit.yml)
+- `./.specify/memory/constitution.md`
+- `./docs/adr/INDEX.md`
+- `./summary.md`
+- `./speckit.yml`
