@@ -41,7 +41,7 @@ The current server (ADR-002) serves the management UI and REST API on a single H
 
 **Design**:
 - Endpoint: `GET /api/v1/events`
-- Authentication: Bearer token required (same auth middleware, token passed via `Authorization` header or `token` query parameter).
+- Authentication: Bearer token required via the `Authorization` header (same auth middleware as other `/api/v1` endpoints).
 - Content-Type: `text/event-stream`
 - Each **data event** is a JSON object serialised as an SSE `data:` line followed by a blank line.
 - Event schema: `{ "type": "<event-type>", "payload": <object> }` — JSON event types include `agent.status_changed`, `twin.state_changed`, `connection.status_changed`.
