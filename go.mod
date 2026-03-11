@@ -1,6 +1,6 @@
 module github.com/abuxton/pheromone
 
-go 1.24.13
+go 1.25.8
 
 require (
 	github.com/nats-io/nats.go v1.49.0
