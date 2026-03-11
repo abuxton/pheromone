@@ -1,6 +1,8 @@
+version: "2"
+
 run:
   timeout: 5m
-  go: "1.24"
+  go: "1.25"
 
 linters:
   enable:
@@ -40,35 +42,35 @@ linters:
     - unused
     - unparam
 
-linters-settings:
-  gocyclo:
-    min-complexity: 15
-  gocognit:
-    min-complexity: 20
-  funlen:
-    lines: 80
-    statements: 50
-  gosec:
-    excludes:
-      - G601  # implicit memory aliasing (fixed in Go 1.22)
-  revive:
-    rules:
-      - name: exported
-      - name: var-naming
-      - name: error-strings
-      - name: if-return
-      - name: increment-decrement
-      - name: var-declaration
-  wrapcheck:
-    ignoreSigs:
-      - .Errorf(
-      - errors.New(
-      - errors.Unwrap(
-      - .Wrap(
-      - .Wrapf(
-  errcheck:
-    check-type-assertions: true
-    check-blank: false
+  settings:
+    gocyclo:
+      min-complexity: 15
+    gocognit:
+      min-complexity: 20
+    funlen:
+      lines: 80
+      statements: 50
+    gosec:
+      excludes:
+        - G601  # implicit memory aliasing (fixed in Go 1.22)
+    revive:
+      rules:
+        - name: exported
+        - name: var-naming
+        - name: error-strings
+        - name: if-return
+        - name: increment-decrement
+        - name: var-declaration
+    wrapcheck:
+      ignoreSigs:
+        - .Errorf(
+        - errors.New(
+        - errors.Unwrap(
+        - .Wrap(
+        - .Wrapf(
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
 
 issues:
   exclude-rules:
