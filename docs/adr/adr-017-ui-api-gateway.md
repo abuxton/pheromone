@@ -43,9 +43,9 @@ The current server (ADR-002) serves the management UI and REST API on a single H
 - Endpoint: `GET /api/v1/events`
 - Authentication: Bearer token required (same auth middleware, token passed via `Authorization` header or `token` query parameter).
 - Content-Type: `text/event-stream`
-- Each event is a JSON object serialised as an SSE `data:` line followed by a blank line.
-- Event schema: `{ "type": "<event-type>", "payload": <object> }` — event types include `agent.status_changed`, `twin.state_changed`, `connection.status_changed`, `server.heartbeat`.
-- The server broadcasts a `server.heartbeat` comment every 30 seconds to keep idle connections alive through proxies.
+- Each **data event** is a JSON object serialised as an SSE `data:` line followed by a blank line.
+- Event schema: `{ "type": "<event-type>", "payload": <object> }` — JSON event types include `agent.status_changed`, `twin.state_changed`, `connection.status_changed`.
+- The server broadcasts an SSE **comment** line (`: heartbeat`) every 30 seconds to keep idle connections alive through proxies; this heartbeat is not a JSON `data:` event and does not use the `type`/`payload` schema.
 - Clients that disconnect are cleaned up immediately; no goroutine leak.
 
 ### 2. Kubernetes-compatible Health Probes
