@@ -7,9 +7,31 @@ on:
       - 'feature/**'
       - 'bugfix/**'
       - 'copilot/**'
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.proto/**'
+      - 'buf.gen.yaml'
+      - 'buf.yaml'
+      - '.golangci.yml'
+      - 'ui/**'
+      - 'twin-models/**'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches:
       - main
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.proto/**'
+      - 'buf.gen.yaml'
+      - 'buf.yaml'
+      - '.golangci.yml'
+      - 'ui/**'
+      - 'twin-models/**'
+      - '.github/workflows/ci.yml'
 
 permissions:
   contents: read

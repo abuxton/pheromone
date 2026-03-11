@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'docs/**'
+      - 'specs/**'
+      - 'twin-models/**'
+      - 'vagrant/**'
+      - '.specify/**'
+      - '.claude/**'
+      - '.devcontainer/**'
   schedule:
     - cron: '0 10 * * 1'
   workflow_dispatch:
