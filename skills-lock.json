@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "PostgreSQL Database Administration": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "a61b656b24173b72d46e0346004d3f0aa01c8bc42a24f04ccace8d38b182a167"
+    },
     "agent-rules": {
       "source": "netresearch/agent-rules-skill",
       "sourceType": "github",
@@ -81,15 +86,85 @@
       "sourceType": "github",
       "computedHash": "0bfe218856035781963a5c6ea7aff6435bc849c35957ca7e1788cbaf71d96926"
     },
+    "database-management-patterns": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "9a39062dabee59968b98bf9b5259135edec3a969790e07a0794f71e291af5e82"
+    },
     "devops-rollout-plan": {
       "source": "github/awesome-copilot",
       "sourceType": "github",
       "computedHash": "9c71bc5839febec1c42fdd6f5aed3beb3fa9df399460f0d20310124abd77cc31"
     },
+    "docker-compose-orchestration": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "f61af99ed5390638b98d40124bcb47837a6a2d8adcb17343a5be525989494eef"
+    },
+    "docker-compose-setup": {
+      "source": "pluginagentmarketplace/custom-plugin-docker",
+      "sourceType": "github",
+      "computedHash": "3634912ec73baff6cca69cc89753b6174705e1be0474805e0d57005fe41b9e58"
+    },
+    "docker-debugging": {
+      "source": "pluginagentmarketplace/custom-plugin-docker",
+      "sourceType": "github",
+      "computedHash": "80875df527bb3da9b0dd55302b9d7f7a4b3cbe8ff7abe22ac857eb20ae9c6784"
+    },
+    "docker-multi-stage": {
+      "source": "pluginagentmarketplace/custom-plugin-docker",
+      "sourceType": "github",
+      "computedHash": "5a963fe313f09583c77dd193450b6df4627c49b31a177ceeacf0ab21648f5fe3"
+    },
+    "docker-networking": {
+      "source": "pluginagentmarketplace/custom-plugin-docker",
+      "sourceType": "github",
+      "computedHash": "a5b2b942647c79b8aa637d142a5b5b5533d5d3d6274f6c80b9dde454ed8b517d"
+    },
+    "docker-optimization": {
+      "source": "pluginagentmarketplace/custom-plugin-docker",
+      "sourceType": "github",
+      "computedHash": "2a22167ec37d6023fda64c259fca3373785e679465ce20e85d19d2473fad2147"
+    },
+    "docker-production": {
+      "source": "pluginagentmarketplace/custom-plugin-docker",
+      "sourceType": "github",
+      "computedHash": "a1f19a23867ae26825f2fa54bb22b1d1f05776004e766cd894dec1758c64bca3"
+    },
+    "docker-registry": {
+      "source": "pluginagentmarketplace/custom-plugin-docker",
+      "sourceType": "github",
+      "computedHash": "9b39bd159a900e9c4aac4bc183de0fd47ce2dca6a2d7d8464f9077abef45cc3b"
+    },
+    "docker-security": {
+      "source": "pluginagentmarketplace/custom-plugin-docker",
+      "sourceType": "github",
+      "computedHash": "fa0ae31cc2cc41650325a517c643a91973cb015737248cd0277e37b294cfeacf"
+    },
+    "docker-swarm": {
+      "source": "pluginagentmarketplace/custom-plugin-docker",
+      "sourceType": "github",
+      "computedHash": "03125d60b286b1a2569f600ac8987ac11755185ed3b2504046df90c3a3da09d9"
+    },
+    "docker-volumes": {
+      "source": "pluginagentmarketplace/custom-plugin-docker",
+      "sourceType": "github",
+      "computedHash": "6b771239f2a148d03959c2c8c315057d7c85ea398f0de7f8144f552634f8f278"
+    },
+    "dockerfile-basics": {
+      "source": "pluginagentmarketplace/custom-plugin-docker",
+      "sourceType": "github",
+      "computedHash": "3861a1e1d7f076c5ba33c896ea3c2544358b3bcf113f645b6e155aa26eba2579"
+    },
     "docx": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "computedHash": "6962db07127ee540a56e4677f65576d0727668a1d67f7da8bc978f10791c2bfe"
+    },
+    "enterprise-architecture-patterns": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "9071bcf66a2264475be2460edac7fdcb5e1909a054fdc2ce11944f5bff16114e"
     },
     "enterprise-readiness": {
       "source": "netresearch/enterprise-readiness-skill",
@@ -100,6 +175,11 @@
       "source": "github/awesome-copilot",
       "sourceType": "github",
       "computedHash": "5131fd3d738563429409476b2e0062d160e81a315d18b42bdd1f5675848bbca5"
+    },
+    "frontend-architecture": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "b448e66cf8bd318b1f4835a55370cf2c57e61abbc8078ca81954eb5f7e4b08ff"
     },
     "gh-cli": {
       "source": "github/awesome-copilot",
@@ -191,6 +271,11 @@
       "sourceType": "github",
       "computedHash": "5313f27158ada59a570389197277cc09a238bdeaf23937c55b8e8323a8da688f"
     },
+    "golang-backend-development": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "807ea7b237d8caebfbe34be301b3898963567ae64d120888a82d0f8fe5d0fd23"
+    },
     "jira-auth": {
       "source": "01000001-01001110/agent-jira-skills",
       "sourceType": "github",
@@ -221,10 +306,25 @@
       "sourceType": "github",
       "computedHash": "03d26a41e644f4dbae8cd2a12a3f7829480f2ad4e9e35ce5630a64aee115591a"
     },
+    "kubernetes-orchestration": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "0c97c30ffe49366c996025a916c71e38c4dfbe212441ab2d3aba81e75c5f52f6"
+    },
     "makefile": {
       "source": "itechmeat/llm-code",
       "sourceType": "github",
       "computedHash": "548231eb3e2c90365755d63464532eceb2468cc4c0a3cf91ef4132efe3467ea0"
+    },
+    "microservices-patterns": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "84965ecbe30595bda2ac9d7f23c45135fb9c34775c0fa6f3c8123949c1dfd168"
+    },
+    "observability-monitoring": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "753d74b2769d316e0228ac051eb5437ae7dd1982cf3c835c8950c52ff05732af"
     },
     "openspec": {
       "source": "itechmeat/llm-code",
@@ -321,10 +421,30 @@
       "sourceType": "github",
       "computedHash": "b86b6ee1964bfa1cd6a85b15d1c95f7600881dc642e1ab085627d1da6baa0a78"
     },
+    "postgresql-database-engineering": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "e65de56cd6e2fdf8114f982dd71b3e7092c384a5ceaca3af7cecac8fcb6fef04"
+    },
     "pptx": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "computedHash": "6b8b859d26f93aa059c9870d1ab76b44ab69e3d6757ce4a03cc94cb760888073"
+    },
+    "responsive-design": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "e2a7008d468cf2e5705f7167ed1a6f40c02019c07054957e47513b5a37539184"
+    },
+    "rest-api-design-patterns": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "023328ae427b888dec798bc332d704e655a2b302d120793997f7be5c6af49b70"
+    },
+    "shell-testing-framework": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "1fa011b173990a23df3b13415f9112c182d6c11745baa5e387f157bb6f335468"
     },
     "skill-creator": {
       "source": "anthropics/skills",
@@ -345,6 +465,11 @@
       "source": "anthropics/skills",
       "sourceType": "github",
       "computedHash": "38c88f722b574a922311d334a70c2008a2a5b896f06eaa75516d716e5725b26f"
+    },
+    "ux-principles": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "computedHash": "de11ad890ffe93db296e13f42afea7ce7f7c18f12871f417b2b9b08f548f27af"
     },
     "xlsx": {
       "source": "anthropics/skills",
