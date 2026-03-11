@@ -155,3 +155,16 @@ type UpdateGroupRequest struct {
 	Description string   `json:"description,omitempty"`
 	Members     []string `json:"members,omitempty"`
 }
+
+// ProbeResponse is returned by GET /healthz and GET /readyz.
+type ProbeResponse struct {
+	Status string `json:"status"`
+}
+
+// Event is a real-time server-sent event pushed to /api/v1/events subscribers.
+// Type is a dot-separated namespaced event name (e.g. "agent.status_changed").
+// Payload contains the updated resource.
+type Event struct {
+	Type    string      `json:"type"`
+	Payload interface{} `json:"payload"`
+}

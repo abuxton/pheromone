@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -23,6 +24,7 @@ type Server struct {
 	log       *slog.Logger
 	httpSrv   *http.Server
 	startTime time.Time
+	ready     bool // true once the server has finished seeding/startup
 
 	mu          sync.RWMutex
 	users       map[string]*config.UIUser // keyed by lowercase username
@@ -32,6 +34,13 @@ type Server struct {
 	groups      map[string]*Group
 	changesets  map[string]*Changeset
 	connections map[string]*Connection
+
+	// SSE subscribers: each connected /api/v1/events client has a buffered channel.
+	eventMu      sync.RWMutex
+	eventClients map[chan []byte]struct{}
+
+	// Per-IP rate limit state for this server instance.
+	rateLimiters sync.Map // map[string]*ipRateLimiter
 }
 
 // New creates a new API Server with the given UIConfig and logger.
@@ -42,16 +51,17 @@ func New(cfg config.UIConfig, log *slog.Logger) *Server {
 		log = slog.Default()
 	}
 	s := &Server{
-		cfg:         cfg,
-		log:         log,
-		startTime:   time.Now(),
-		users:       make(map[string]*config.UIUser),
-		agents:      make(map[string]*Agent),
-		twins:       make(map[string]*Twin),
-		skills:      make(map[string]*Skill),
-		groups:      make(map[string]*Group),
-		changesets:  make(map[string]*Changeset),
-		connections: make(map[string]*Connection),
+		cfg:          cfg,
+		log:          log,
+		startTime:    time.Now(),
+		users:        make(map[string]*config.UIUser),
+		agents:       make(map[string]*Agent),
+		twins:        make(map[string]*Twin),
+		skills:       make(map[string]*Skill),
+		groups:       make(map[string]*Group),
+		changesets:   make(map[string]*Changeset),
+		connections:  make(map[string]*Connection),
+		eventClients: make(map[chan []byte]struct{}),
 	}
 
 	// Index configured users by lowercase username.
@@ -240,6 +250,30 @@ func (s *Server) Seed() {
 	for _, c := range connections {
 		s.connections[c.ID] = c
 	}
+	s.ready = true
+}
+
+// broadcast sends an Event to all active SSE subscribers.
+// It is safe to call concurrently.
+func (s *Server) broadcast(evt Event) {
+	data, err := json.Marshal(evt)
+	if err != nil {
+		s.log.Warn("broadcast: marshal event failed", "error", err)
+		return
+	}
+	// SSE frame: "data: <json>\n\n"
+	frame := append([]byte("data: "), data...)
+	frame = append(frame, '\n', '\n')
+
+	s.eventMu.RLock()
+	defer s.eventMu.RUnlock()
+	for ch := range s.eventClients {
+		// Non-blocking send; drop the frame if the client is slow.
+		select {
+		case ch <- frame:
+		default:
+		}
+	}
 }
 
 // buildTLSConfig constructs a *tls.Config from the UI TLS configuration.
@@ -291,12 +325,19 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 		addr = fmt.Sprintf(":%d", s.cfg.Port)
 	}
 
+	// Start the rate-limit eviction goroutine once per server lifetime.
+	s.startRateLimitEviction(ctx)
+
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
 
 	handler := s.corsMiddleware(
-		loggingMiddleware(s.log,
-			s.authMiddleware(mux),
+		s.rateLimitMiddleware(
+			requestSizeLimitMiddleware(
+				loggingMiddleware(s.log,
+					s.authMiddleware(mux),
+				),
+			),
 		),
 	)
 
@@ -347,9 +388,14 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 
 // registerRoutes wires all API and UI routes to the mux.
 func (s *Server) registerRoutes(mux *http.ServeMux) {
+	// k8s-compatible health probes (no authentication required).
+	mux.HandleFunc("/healthz", s.handleHealthz)
+	mux.HandleFunc("/readyz", s.handleReadyz)
+
 	// API routes
 	mux.HandleFunc("/api/v1/health", s.handleHealth)
 	mux.HandleFunc("/api/v1/stats", s.handleStats)
+	mux.HandleFunc("/api/v1/events", s.handleEvents)
 	mux.HandleFunc("/api/v1/auth/login", s.handleLogin)
 	mux.HandleFunc("/api/v1/auth/logout", s.handleLogout)
 	mux.HandleFunc("/api/v1/auth/whoami", s.handleWhoami)

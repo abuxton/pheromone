@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,9 +20,11 @@ const ctxUser contextKey = iota
 // health endpoints. On success the tokenPayload is stored in the request context.
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Allow unauthenticated access to login and health endpoints.
+		// Allow unauthenticated access to login, health, and k8s probe endpoints.
 		if r.URL.Path == "/api/v1/auth/login" ||
 			r.URL.Path == "/api/v1/health" ||
+			r.URL.Path == "/healthz" ||
+			r.URL.Path == "/readyz" ||
 			!strings.HasPrefix(r.URL.Path, "/api/") {
 			next.ServeHTTP(w, r)
 			return
@@ -143,4 +147,113 @@ func userFromContext(ctx context.Context) *tokenPayload {
 	}
 	p, _ := v.(*tokenPayload)
 	return p
+}
+
+// defaultMaxBodyBytes is the default maximum request body size (1 MiB).
+const defaultMaxBodyBytes = 1 << 20 // 1 MiB
+
+// requestSizeLimitMiddleware rejects request bodies that exceed defaultMaxBodyBytes.
+func requestSizeLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Body != nil && r.ContentLength > defaultMaxBodyBytes {
+			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return
+		}
+		if r.Body != nil {
+			r.Body = http.MaxBytesReader(w, r.Body, defaultMaxBodyBytes)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// ipRateLimiter is a simple per-IP token-bucket rate limiter backed by stdlib primitives.
+// A token is replenished every refillInterval up to a burst capacity of burstSize.
+type ipRateLimiter struct {
+	mu           sync.Mutex
+	tokens       float64
+	lastRefill   time.Time
+	burstSize    float64
+	refillPerSec float64
+	lastAccess   time.Time
+}
+
+func newIPRateLimiter(requestsPerMinute float64, burst float64) *ipRateLimiter {
+	return &ipRateLimiter{
+		tokens:       burst,
+		lastRefill:   time.Now(),
+		lastAccess:   time.Now(),
+		burstSize:    burst,
+		refillPerSec: requestsPerMinute / 60.0,
+	}
+}
+
+// allow reports whether a request should be permitted. It refills tokens based
+// on elapsed time and consumes one token per call.
+func (l *ipRateLimiter) allow() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	now := time.Now()
+	elapsed := now.Sub(l.lastRefill).Seconds()
+	l.tokens += elapsed * l.refillPerSec
+	if l.tokens > l.burstSize {
+		l.tokens = l.burstSize
+	}
+	l.lastRefill = now
+	l.lastAccess = now
+
+	if l.tokens >= 1 {
+		l.tokens--
+		return true
+	}
+	return false
+}
+
+// rateLimitMiddleware applies a per-IP token-bucket rate limit (60 req/min, burst 20)
+// using the per-server rate limiter map. Returns 429 Too Many Requests when exceeded.
+func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			ip = r.RemoteAddr
+		}
+
+		limiterI, _ := s.rateLimiters.LoadOrStore(ip, newIPRateLimiter(60, 20))
+		limiter := limiterI.(*ipRateLimiter)
+
+		if !limiter.allow() {
+			w.Header().Set("Retry-After", "1")
+			writeError(w, http.StatusTooManyRequests, "rate limit exceeded")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// startRateLimitEviction launches the background goroutine that evicts stale
+// per-IP rate limit buckets. It should be called exactly once per Server, from
+// ListenAndServe. The goroutine exits when ctx is cancelled.
+func (s *Server) startRateLimitEviction(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				expiry := time.Now().Add(-10 * time.Minute)
+				s.rateLimiters.Range(func(key, value interface{}) bool {
+					l := value.(*ipRateLimiter)
+					l.mu.Lock()
+					stale := l.lastAccess.Before(expiry)
+					l.mu.Unlock()
+					if stale {
+						s.rateLimiters.Delete(key)
+					}
+					return true
+				})
+			}
+		}
+	}()
 }

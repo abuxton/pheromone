@@ -1,0 +1,924 @@
+openapi: "3.1.0"
+info:
+  title: Pheromone Management API
+  version: "0.1.0"
+  description: |
+    REST API for the Pheromone digital-twin platform management server.
+
+    All endpoints under `/api/v1/` (except `/api/v1/auth/login` and
+    `/api/v1/health`) require a Bearer token obtained via
+    `POST /api/v1/auth/login`.
+
+    Real-time agent and twin state updates are available via the
+    Server-Sent Events stream at `GET /api/v1/events`.
+
+    Kubernetes liveness and readiness probes are at `/healthz` and
+    `/readyz` respectively (no authentication required).
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: http://localhost:8081
+    description: Local development server
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: health
+    description: Server health and Kubernetes probes
+  - name: auth
+    description: Authentication and session management
+  - name: agents
+    description: Registered agent management
+  - name: twins
+    description: Digital twin management
+  - name: skills
+    description: Available skill registry
+  - name: groups
+    description: Agent and twin group management
+  - name: changesets
+    description: Proposed and applied state changesets
+  - name: connections
+    description: Agent–twin connection state
+  - name: events
+    description: Real-time Server-Sent Events stream
+  - name: users
+    description: User management (admin only)
+
+paths:
+  /healthz:
+    get:
+      summary: Kubernetes liveness probe
+      description: |
+        Returns `200 OK` once the server process is alive and the HTTP
+        listener is responding. Requires no authentication.
+      operationId: getHealthz
+      tags: [health]
+      security: []
+      responses:
+        "200":
+          description: Server is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProbeResponse"
+              example:
+                status: ok
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /readyz:
+    get:
+      summary: Kubernetes readiness probe
+      description: |
+        Returns `200 OK` when the server has completed startup and is ready
+        to serve traffic. Returns `503 Service Unavailable` during startup.
+        Requires no authentication.
+      operationId: getReadyz
+      tags: [health]
+      security: []
+      responses:
+        "200":
+          description: Server is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProbeResponse"
+              example:
+                status: ok
+        "503":
+          description: Server is not yet ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProbeResponse"
+              example:
+                status: starting
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/health:
+    get:
+      summary: Server health status
+      description: |
+        Returns server status, version, uptime, and current timestamp.
+        Does not require authentication.
+      operationId: getHealth
+      tags: [health]
+      security: []
+      responses:
+        "200":
+          description: Server health information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/auth/login:
+    post:
+      summary: Authenticate and obtain a Bearer token
+      operationId: login
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Successful authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/auth/logout:
+    delete:
+      summary: Invalidate the current session (client discards token)
+      operationId: logout
+      tags: [auth]
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: logged out
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/auth/whoami:
+    get:
+      summary: Return information about the currently authenticated user
+      operationId: whoami
+      tags: [auth]
+      responses:
+        "200":
+          description: Current user information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/stats:
+    get:
+      summary: Server-wide aggregate statistics
+      operationId: getStats
+      tags: [agents]
+      responses:
+        "200":
+          description: Aggregate counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/agents:
+    get:
+      summary: List all registered agents
+      operationId: listAgents
+      tags: [agents]
+      responses:
+        "200":
+          description: Array of agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Agent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/agents/{id}:
+    get:
+      summary: Get a single agent by ID
+      operationId: getAgent
+      tags: [agents]
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Agent detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/twins:
+    get:
+      summary: List all digital twins
+      operationId: listTwins
+      tags: [twins]
+      responses:
+        "200":
+          description: Array of twins
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Twin"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/twins/{id}:
+    get:
+      summary: Get a single twin by ID
+      operationId: getTwin
+      tags: [twins]
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Twin detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Twin"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/twins/{id}/changesets:
+    get:
+      summary: List changesets for a specific twin
+      operationId: listTwinChangesets
+      tags: [twins, changesets]
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Array of changesets for the twin
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Changeset"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/skills:
+    get:
+      summary: List all skills in the registry
+      operationId: listSkills
+      tags: [skills]
+      responses:
+        "200":
+          description: Array of skills
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Skill"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/groups:
+    get:
+      summary: List all groups
+      operationId: listGroups
+      tags: [groups]
+      responses:
+        "200":
+          description: Array of groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Group"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+    post:
+      summary: Create a new group
+      operationId: createGroup
+      tags: [groups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGroupRequest"
+      responses:
+        "201":
+          description: Group created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/groups/{id}:
+    get:
+      summary: Get a single group by ID
+      operationId: getGroup
+      tags: [groups]
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Group detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+    put:
+      summary: Update a group
+      operationId: updateGroup
+      tags: [groups]
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGroupRequest"
+      responses:
+        "200":
+          description: Updated group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+    delete:
+      summary: Delete a group
+      operationId: deleteGroup
+      tags: [groups]
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "204":
+          description: Group deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/changesets:
+    get:
+      summary: List all changesets
+      operationId: listChangesets
+      tags: [changesets]
+      responses:
+        "200":
+          description: Array of changesets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Changeset"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/changesets/{id}:
+    get:
+      summary: Get a single changeset by ID
+      operationId: getChangeset
+      tags: [changesets]
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Changeset detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Changeset"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/connections:
+    get:
+      summary: List all agent–twin connections
+      operationId: listConnections
+      tags: [connections]
+      responses:
+        "200":
+          description: Array of connections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Connection"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+  /api/v1/events:
+    get:
+      summary: Real-time Server-Sent Events stream
+      description: |
+        Opens a long-lived HTTP connection that delivers real-time JSON events
+        for agent status changes, twin state changes, connection changes, and
+        server heartbeats.
+
+        Each event is a JSON object encoded as an SSE `data:` line:
+
+        ```
+        data: {"type":"agent.status_changed","payload":{...}}
+
+        ```
+
+        Event types:
+        - `agent.status_changed` — an agent's `status` field has changed
+        - `twin.state_changed` — a twin's `actual_state` or `desired_state` has changed
+        - `connection.status_changed` — a connection's `status` has changed
+        - `server.heartbeat` — periodic keepalive (no payload)
+
+        The connection is kept alive with SSE comment heartbeats every 30 s.
+      operationId: streamEvents
+      tags: [events]
+      responses:
+        "200":
+          description: SSE stream opened
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE formatted event stream
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/users:
+    get:
+      summary: List all users (admin only)
+      operationId: listUsers
+      tags: [users]
+      responses:
+        "200":
+          description: Array of users (passwords omitted)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "405":
+          $ref: "#/components/responses/MethodNotAllowed"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: HMAC-SHA256-signed token obtained from POST /api/v1/auth/login
+
+  parameters:
+    ID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Resource unique identifier
+
+  responses:
+    BadRequest:
+      description: Bad request — invalid or missing parameters
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing or invalid Bearer token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Authenticated user lacks required role
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    MethodNotAllowed:
+      description: HTTP method not supported for this endpoint
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    TooManyRequests:
+      description: Rate limit exceeded — retry after 1 second
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    ProbeResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, starting]
+          description: ok when healthy/ready; starting during server initialisation
+
+    HealthResponse:
+      type: object
+      required: [status, version, uptime, timestamp]
+      properties:
+        status:
+          type: string
+          example: ok
+        version:
+          type: string
+          example: "0.1.0"
+        uptime:
+          type: string
+          description: Human-readable uptime duration
+          example: "2h30m45s"
+        timestamp:
+          type: string
+          format: date-time
+
+    StatsResponse:
+      type: object
+      properties:
+        agent_count:
+          type: integer
+        twin_count:
+          type: integer
+        online_agents:
+          type: integer
+        active_twins:
+          type: integer
+        skill_count:
+          type: integer
+        group_count:
+          type: integer
+        pending_changes:
+          type: integer
+        connection_count:
+          type: integer
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+
+    LoginResponse:
+      type: object
+      required: [token, expires_at, user]
+      properties:
+        token:
+          type: string
+          description: Bearer token for subsequent requests
+        expires_at:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/UserInfo"
+
+    UserInfo:
+      type: object
+      required: [username, role]
+      properties:
+        username:
+          type: string
+        role:
+          type: string
+          enum: [admin, viewer]
+
+    AgentIdentity:
+      type: object
+      required: [type, value]
+      properties:
+        type:
+          type: string
+          example: tls-cert
+        value:
+          type: string
+        label:
+          type: string
+
+    Agent:
+      type: object
+      required: [id, name, type, status, last_seen, registered_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [os, workload]
+        status:
+          type: string
+          enum: [online, offline, stale]
+        hostname:
+          type: string
+        twin_ids:
+          type: array
+          items:
+            type: string
+        skills:
+          type: array
+          items:
+            type: string
+        identities:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentIdentity"
+        last_seen:
+          type: string
+          format: date-time
+        registered_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+
+    Twin:
+      type: object
+      required: [id, name, type, state, config_version, last_heartbeat, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [os, workload]
+        state:
+          type: string
+          enum: [active, stale, inactive]
+        agent_id:
+          type: string
+        config_version:
+          type: integer
+        last_heartbeat:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        actual_state:
+          type: object
+          additionalProperties: true
+        desired_state:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    FieldChange:
+      type: object
+      required: [field, old_value, new_value]
+      properties:
+        field:
+          type: string
+        old_value:
+          type: string
+        new_value:
+          type: string
+
+    Changeset:
+      type: object
+      required: [id, twin_id, agent_id, type, status, changes, created_at]
+      properties:
+        id:
+          type: string
+        twin_id:
+          type: string
+        agent_id:
+          type: string
+        type:
+          type: string
+          enum: [config, state]
+        status:
+          type: string
+          enum: [pending, applied, rejected]
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldChange"
+        approved_by:
+          type: string
+        applied_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    Skill:
+      type: object
+      required: [name, version, min_twin_level, agent_count]
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        min_twin_level:
+          type: string
+          enum: [os, workload]
+        description:
+          type: string
+        agent_count:
+          type: integer
+
+    Group:
+      type: object
+      required: [id, name, type, members, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [agents, twins, infrastructure]
+        description:
+          type: string
+        members:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateGroupRequest:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [agents, twins, infrastructure]
+        description:
+          type: string
+        members:
+          type: array
+          items:
+            type: string
+
+    UpdateGroupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        members:
+          type: array
+          items:
+            type: string
+
+    Connection:
+      type: object
+      required: [id, agent_id, twin_id, status, since, last_sync]
+      properties:
+        id:
+          type: string
+        agent_id:
+          type: string
+        twin_id:
+          type: string
+        status:
+          type: string
+          enum: [connected, disconnected]
+        since:
+          type: string
+          format: date-time
+        last_sync:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          description: HTTP status text
+        code:
+          type: integer
+          description: HTTP status code
+        message:
+          type: string
+          description: Human-readable error detail
