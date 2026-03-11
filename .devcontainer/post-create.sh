@@ -32,10 +32,8 @@ pre-commit install --install-hooks
 echo "==> Installing GitHub Copilot CLI extension..."
 gh extension install github/gh-copilot 2>/dev/null || gh extension upgrade gh-copilot 2>/dev/null || true
 
-echo "==> Installing Node.js (LTS)..."
-curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+echo "==> Installing Node.js from distro packages..."
 sudo apt-get install -y nodejs
-
 echo "==> Installing AI skills from skills-lock.json..."
 # -p: use the skills-lock.json in the current (project) directory
 # -y: non-interactive, accept all prompts automatically
