@@ -1,7 +1,7 @@
 # ADR 005: Message Queue Selection - Telemetry Aggregation & Export
 
 ## Status
-Proposed
+Accepted
 
 ## Context
 
@@ -61,9 +61,13 @@ Agent 3 ──┘                                    ↓
 
 ### Phase 1 Implementation
 
+> **Terminology Note (H1)**: The canonical JetStream stream name is `TELEMETRY`
+> (as used in `benchmark/nats_jetstream_spike_test.go`). The name `metricsStream`
+> appeared in earlier drafts of this ADR and is superseded by `TELEMETRY`.
+
 - **NATS Server**: Single instance with JetStream enabled
   - Subject: `metrics.{agent_id}.{metric_type}` (e.g., `metrics.agent-123.cpu`)
-  - Stream: `metricsStream` with 24-hour retention (tunable)
+  - Stream: `TELEMETRY` with 24-hour retention (tunable)
   - Ordering: Subjects preserve per-agent-id causality
 
 - **Agent Publishing** (via gRPC server):
@@ -137,13 +141,16 @@ When scaling beyond 1 server (Phase 2 ADR-TBD):
 
 ## Deployment
 
-- **Docker Compose** (dev/testing):
+- **Docker Compose** (dev/testing) — matches `docker-compose.yml` (H2):
   ```yaml
-  nats:
+  pheromone-nats:
     image: nats:latest
+    container_name: pheromone-nats
     ports:
       - "4222:4222"
-    command: "-js"  # Enable JetStream
+    command: ["-js"]
+    networks:
+      - pheromone-network
   ```
 
 - **Kubernetes** (Phase 2):
@@ -173,6 +180,27 @@ When scaling beyond 1 server (Phase 2 ADR-TBD):
 - Apache Kafka vs NATS comparison: https://kafka.apache.org/ (architecture pages)
 - Spec-001, FR-011, SC-008
 - Constitution Principle III (Protocol foundation), Principle IV (Smoke tests)
+
+## Spike Results
+
+> Spike implemented on branch `feature/ADR-005-nats-jetstream-spike` (Closes #4).
+> Run `go test -v -timeout 120s ./benchmark/... -run TestNATS` with a live NATS
+> server (`docker compose up pheromone-nats`) to populate this table.
+>
+> **Subject note (H3)**: The spike uses `metrics.test` for simplicity. Production
+> subjects follow the pattern `metrics.{agent_id}.{metric_type}`
+> (e.g., `metrics.agent-123.cpu`).
+>
+> Spike results will be written to `./tmp/nats_spike_results.txt` when tests are
+> executed.
+
+| Metric                        | Result | Threshold | Status  |
+|-------------------------------|--------|-----------|---------|
+| Throughput — 100K stage (msgs/s) | _TBD_ | ≥ 100,000 | pending |
+| P95 consumer latency (ms)     | _TBD_ | < 10 ms   | pending |
+| P99 consumer latency (ms)     | _TBD_ | < 50 ms   | pending |
+| Heap delta for 1M msgs (MB)   | _TBD_ | < 512 MB  | pending |
+| JetStream overhead vs core (%)| _TBD_ | < 20%     | pending |
 
 ---
 
