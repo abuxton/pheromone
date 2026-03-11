@@ -9,6 +9,7 @@ on:
       - 'go.mod'
       - 'go.sum'
       - '.proto/**'
+      - 'ui/**'
       - '.github/workflows/codeql.yml'
   pull_request:
     branches:
@@ -18,6 +19,7 @@ on:
       - 'go.mod'
       - 'go.sum'
       - '.proto/**'
+      - 'ui/**'
       - '.github/workflows/codeql.yml'
   schedule:
     - cron: '0 9 * * 1'
