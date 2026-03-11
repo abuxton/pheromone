@@ -13,6 +13,9 @@ on:
     # Run weekly on Monday at 08:00 UTC to catch newly published CVEs
     - cron: '0 8 * * 1'
 
+permissions:
+  contents: read
+
 jobs:
   govulncheck:
     name: Go Vulnerability Check
@@ -23,10 +26,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: go.mod
 
@@ -45,20 +48,20 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: go.mod
 
       - name: Run gosec
-        uses: securego/gosec@master
+        uses: securego/gosec@efe7343bd2dc861f9b56328903d02f870644fedd # v2.24.7
         with:
           args: '-fmt sarif -out gosec-results.sarif -exclude-dir=benchmark ./...'
 
       - name: Upload SARIF results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@e03543dad62555ecf6606aabe9724fd07e1cd632 # v3.32.6
         if: always()
         with:
           sarif_file: gosec-results.sarif
@@ -73,9 +76,9 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
         with:
           fail-on-severity: high

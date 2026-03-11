@@ -1,0 +1,88 @@
+run:
+  timeout: 5m
+  go: "1.24"
+
+linters:
+  enable:
+    # Bugs
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - typecheck
+    - bodyclose
+    - nilerr
+    - rowserrcheck
+
+    # Style
+    - gofmt
+    - goimports
+    - revive
+    - misspell
+
+    # Complexity
+    - gocyclo
+    - gocognit
+    - funlen
+
+    # Security
+    - gosec
+    - gocritic
+
+    # Performance
+    - prealloc
+
+    # Error handling
+    - errorlint
+    - wrapcheck
+
+    # Unused code
+    - unused
+    - unparam
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  gocognit:
+    min-complexity: 20
+  funlen:
+    lines: 80
+    statements: 50
+  gosec:
+    excludes:
+      - G601  # implicit memory aliasing (fixed in Go 1.22)
+  revive:
+    rules:
+      - name: exported
+      - name: var-naming
+      - name: error-strings
+      - name: if-return
+      - name: increment-decrement
+      - name: var-declaration
+  wrapcheck:
+    ignoreSigs:
+      - .Errorf(
+      - errors.New(
+      - errors.Unwrap(
+      - .Wrap(
+      - .Wrapf(
+  errcheck:
+    check-type-assertions: true
+    check-blank: false
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+        - wrapcheck
+        - funlen
+        - gocognit
+        - gocyclo
+    - path: benchmark/
+      linters:
+        - gosec
+        - wrapcheck
+  max-issues-per-linter: 50
+  max-same-issues: 10

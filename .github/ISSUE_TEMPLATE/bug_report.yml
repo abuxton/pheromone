@@ -1,0 +1,80 @@
+name: Bug Report
+description: Report a bug or unexpected behaviour
+labels: ["bug", "triage"]
+assignees:
+  - abuxton
+body:
+  - type: markdown
+    attributes:
+      value: "## Bug Report\nThank you for taking the time to report an issue."
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the bug.
+      placeholder: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal steps to reproduce the issue.
+      placeholder: |
+        1. Start with `docker compose up -d`
+        2. Run `./pheromone-agent ...`
+        3. Observe error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behaviour
+      placeholder: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behaviour
+      placeholder: What actually happened? Include error messages and stack traces.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / Commit
+      placeholder: "e.g. main@abc1234 or v0.1.0"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - pheromone-server
+        - pheromone-agent
+        - gRPC / API
+        - Digital Twin / Skill
+        - Observability / Telemetry
+        - CI/CD
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I have included reproduction steps
+          required: true

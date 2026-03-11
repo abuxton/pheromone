@@ -1,9 +1,14 @@
 # Pheromone Repository
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/abuxton/pheromone/performance-validation.yml)](https://github.com/abuxton/pheromone/actions)
-[![License](https://img.shields.io/github/license/abuxton/dbad)](LICENSE)
-[![Top Language](https://img.shields.io/github/languages/top/golang)](https://github.com/abuxton/pheromone)
-[![Docker Compose](https://img.shields.io/badge/docker-compose-blue?logo=docker)](docker-compose.yml)
+<!-- Row 1: CI/Quality -->
+[![CI](https://github.com/abuxton/pheromone/actions/workflows/ci.yml/badge.svg)](https://github.com/abuxton/pheromone/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/abuxton/pheromone/graph/badge.svg)](https://codecov.io/gh/abuxton/pheromone)
+[![License](https://img.shields.io/github/license/abuxton/pheromone)](LICENSE)
+
+<!-- Row 2: Security -->
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/abuxton/pheromone/badge)](https://securityscorecards.dev/viewer/?uri=github.com/abuxton/pheromone)
+[![Security Scan](https://github.com/abuxton/pheromone/actions/workflows/security-scan.yml/badge.svg)](https://github.com/abuxton/pheromone/actions/workflows/security-scan.yml)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/REPLACE_WITH_PROJECT_ID/badge)](https://www.bestpractices.dev/projects/REPLACE_WITH_PROJECT_ID)
 
 ## Overview
 Pheromone is a platform inspired by the pheromone-based communication system of the Alien species in Ridley Scott's franchise. The project explores the use of digital twins in a scalable 1:Many model to facilitate communication, observability, and alignment across nodes in a distributed system. It aims to leverage modular and hierarchical digital twins to manage server configurations and workloads effectively.

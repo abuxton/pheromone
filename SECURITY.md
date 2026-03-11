@@ -6,16 +6,25 @@ management.
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in this project, please **do not** open a
-public GitHub issue. Instead:
+**Please do NOT report security vulnerabilities through public GitHub issues.**
 
-1. Email the maintainers directly (see repository contacts).
-2. Include a description of the vulnerability, reproduction steps, and potential
-   impact.
-3. Allow a reasonable time for the issue to be assessed and patched before public
-   disclosure (coordinated disclosure).
+Instead, use [GitHub's private vulnerability reporting](https://github.com/abuxton/pheromone/security/advisories/new).
 
-We will acknowledge your report within 48 hours and provide a timeline for remediation.
+This ensures the report is handled confidentially and allows coordinated disclosure.
+
+**Response SLAs:**
+
+| Severity | Acknowledgment | Target Fix |
+|----------|---------------|------------|
+| Critical | 24 hours | 7 days |
+| High | 48 hours | 30 days |
+| Medium | 72 hours | 90 days |
+| Low | 1 week | 180 days |
+
+After a fix is released, we will:
+1. Publish a GitHub Security Advisory
+2. Credit the reporter (unless anonymity is requested)
+3. Include a CVE identifier if applicable
 
 ---
 

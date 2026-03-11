@@ -1,0 +1,21 @@
+# Code Owners
+# Each line is a file pattern followed by one or more owners.
+# Owners are automatically requested for review when someone opens a PR
+# that modifies matching files.
+
+# Default: all files
+*                               @abuxton
+
+# Architecture decisions
+/docs/adr/                      @abuxton
+
+# CI/CD and workflows
+/.github/                       @abuxton
+
+# Core implementation
+/internal/                      @abuxton
+/cmd/                           @abuxton
+
+# Security-sensitive paths
+/internal/api/                  @abuxton
+SECURITY.md                     @abuxton
