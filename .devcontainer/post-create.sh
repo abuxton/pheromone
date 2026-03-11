@@ -37,7 +37,7 @@ sudo apt-get install -y nodejs
 echo "==> Installing AI skills from skills-lock.json..."
 # -p: use the skills-lock.json in the current (project) directory
 # -y: non-interactive, accept all prompts automatically
-npx skills experimental_install -p -y
+npx --yes skills experimental_install -p -y
 
 echo "==> Installing Go module dependencies..."
 go mod download
