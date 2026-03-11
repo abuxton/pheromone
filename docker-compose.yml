@@ -38,5 +38,18 @@ services:
       - --initial-cluster-token=etcd-cluster
       - --initial-cluster-state=new
 
+  pheromone-nats:
+    image: nats:latest
+    container_name: pheromone-nats
+    ports:
+      - "4222:4222"
+    command: ["-js"]
+    networks:
+      - pheromone-network
+
 volumes:
   etcd-data:
+
+networks:
+  pheromone-network:
+    driver: bridge
