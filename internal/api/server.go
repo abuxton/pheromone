@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/abuxton/pheromone/internal/config"
@@ -24,7 +25,12 @@ type Server struct {
 	log       *slog.Logger
 	httpSrv   *http.Server
 	startTime time.Time
-	ready     bool // true once the server has finished seeding/startup
+	// ready is set to true by Seed() once demo/startup data has been loaded.
+	// In the current architecture Seed is called before ListenAndServe, so the
+	// server is always ready by the time the listener starts. The field is kept
+	// atomic to safely handle future architectures where seeding happens
+	// concurrently with the listener starting.
+	ready atomic.Bool
 
 	mu          sync.RWMutex
 	users       map[string]*config.UIUser // keyed by lowercase username
@@ -250,7 +256,7 @@ func (s *Server) Seed() {
 	for _, c := range connections {
 		s.connections[c.ID] = c
 	}
-	s.ready = true
+	s.ready.Store(true)
 }
 
 // broadcast sends an Event to all active SSE subscribers.

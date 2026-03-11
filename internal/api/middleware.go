@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net"
 	"net/http"
@@ -149,6 +150,22 @@ func userFromContext(ctx context.Context) *tokenPayload {
 	return p
 }
 
+// decodeJSON decodes JSON from r.Body into v.
+// If the body exceeds the limit set by requestSizeLimitMiddleware it returns
+// 413; any other decode failure returns 400. Returns true on success.
+func decodeJSON(w http.ResponseWriter, r *http.Request, v interface{}) bool {
+	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return false
+		}
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return false
+	}
+	return true
+}
+
 // defaultMaxBodyBytes is the default maximum request body size (1 MiB).
 const defaultMaxBodyBytes = 1 << 20 // 1 MiB
 
@@ -167,7 +184,8 @@ func requestSizeLimitMiddleware(next http.Handler) http.Handler {
 }
 
 // ipRateLimiter is a simple per-IP token-bucket rate limiter backed by stdlib primitives.
-// A token is replenished every refillInterval up to a burst capacity of burstSize.
+// Tokens are continuously replenished at refillPerSec tokens/second up to a
+// maximum of burstSize, calculated from elapsed wall-clock time on each call.
 type ipRateLimiter struct {
 	mu           sync.Mutex
 	tokens       float64
@@ -209,14 +227,33 @@ func (l *ipRateLimiter) allow() bool {
 	return false
 }
 
+// clientIP returns the originating client IP for rate-limiting purposes.
+// When an X-Forwarded-For header is present, the leftmost (originating) address
+// is used. This is only safe when the server runs behind a trusted reverse proxy
+// that sets and controls the X-Forwarded-For header. In direct-connection
+// deployments, or when the proxy is not trusted, X-Forwarded-For can be
+// spoofed — a future enhancement should gate this on a configured trusted-proxy
+// CIDR list (see ADR-017 follow-up actions).
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// XFF format: "client, proxy1, proxy2" — take the leftmost entry.
+		if i := strings.Index(xff, ","); i != -1 {
+			return strings.TrimSpace(xff[:i])
+		}
+		return strings.TrimSpace(xff)
+	}
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return ip
+}
+
 // rateLimitMiddleware applies a per-IP token-bucket rate limit (60 req/min, burst 20)
 // using the per-server rate limiter map. Returns 429 Too Many Requests when exceeded.
 func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			ip = r.RemoteAddr
-		}
+		ip := clientIP(r)
 
 		limiterI, _ := s.rateLimiters.LoadOrStore(ip, newIPRateLimiter(60, 20))
 		limiter := limiterI.(*ipRateLimiter)

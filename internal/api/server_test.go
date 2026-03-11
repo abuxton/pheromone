@@ -816,7 +816,7 @@ func TestHandleReadyz_Ready(t *testing.T) {
 
 func TestHandleReadyz_NotReady(t *testing.T) {
 	srv := newTestServer(t)
-	srv.ready = false // simulate pre-startup state
+	srv.ready.Store(false) // simulate pre-startup state
 	h := newHandler(srv)
 	rr := doJSON(t, h, http.MethodGet, "/readyz", nil, "")
 	if rr.Code != http.StatusServiceUnavailable {
@@ -917,6 +917,31 @@ func TestRequestSizeLimit_Rejected(t *testing.T) {
 	}
 }
 
+// TestDecodeJSON_MaxBytesError verifies that decodeJSON maps *http.MaxBytesError
+// to 413 (not 400) when the body exceeds the limit applied by MaxBytesReader.
+func TestDecodeJSON_MaxBytesError(t *testing.T) {
+	// Build a body that starts as a valid JSON object but exceeds the size
+	// limit while the decoder is still reading a string field value.
+	// A valid JSON prefix ensures the decoder doesn't fail with a syntax error
+	// before it reads past the MaxBytesReader limit.
+	prefix := []byte(`{"username":"`)
+	padding := bytes.Repeat([]byte("a"), defaultMaxBodyBytes) // enough to exceed limit
+	body := append(prefix, padding...)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(body))
+	r.ContentLength = -1 // unknown / chunked length
+	r.Body = http.MaxBytesReader(w, r.Body, defaultMaxBodyBytes)
+
+	var req LoginRequest
+	if decodeJSON(w, r, &req) {
+		t.Fatal("expected decodeJSON to return false for oversized body")
+	}
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected 413, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 /* ── Rate limit middleware ── */
 
 func TestRateLimitMiddleware_AllowsNormalTraffic(t *testing.T) {
@@ -936,6 +961,33 @@ func TestRateLimitMiddleware_BlocksWhenExhausted(t *testing.T) {
 	}
 	if l.allow() {
 		t.Error("expected rate limit to block after burst exhausted")
+	}
+}
+
+/* ── clientIP helper ── */
+
+func TestClientIP_RemoteAddr(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "192.0.2.1:12345"
+	if got := clientIP(req); got != "192.0.2.1" {
+		t.Errorf("expected 192.0.2.1, got %q", got)
+	}
+}
+
+func TestClientIP_XForwardedFor_Single(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Forwarded-For", "203.0.113.5")
+	if got := clientIP(req); got != "203.0.113.5" {
+		t.Errorf("expected 203.0.113.5, got %q", got)
+	}
+}
+
+func TestClientIP_XForwardedFor_Chain(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Forwarded-For", "203.0.113.5, 10.0.0.1, 10.0.0.2")
+	// leftmost entry is the originating client
+	if got := clientIP(req); got != "203.0.113.5" {
+		t.Errorf("expected 203.0.113.5, got %q", got)
 	}
 }
 

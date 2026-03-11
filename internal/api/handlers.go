@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -26,7 +25,7 @@ func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
-	if !s.ready {
+	if !s.ready.Load() {
 		writeJSON(w, http.StatusServiceUnavailable, ProbeResponse{Status: "starting"})
 		return
 	}
@@ -96,8 +95,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -305,8 +303,7 @@ func (s *Server) handleGroups(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		var req CreateGroupRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid request body")
+		if !decodeJSON(w, r, &req) {
 			return
 		}
 		if req.Name == "" {
@@ -369,8 +366,7 @@ func (s *Server) handleGroup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var req UpdateGroupRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid request body")
+		if !decodeJSON(w, r, &req) {
 			return
 		}
 		s.mu.Lock()

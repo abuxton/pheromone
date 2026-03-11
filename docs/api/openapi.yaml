@@ -68,6 +68,8 @@ paths:
                 status: ok
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /readyz:
     get:
@@ -98,6 +100,8 @@ paths:
                 status: starting
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/health:
     get:
@@ -117,6 +121,8 @@ paths:
                 $ref: "#/components/schemas/HealthResponse"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/auth/login:
     post:
@@ -143,6 +149,10 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/auth/logout:
     delete:
@@ -164,6 +174,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/auth/whoami:
     get:
@@ -181,6 +193,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/stats:
     get:
@@ -198,6 +212,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/agents:
     get:
@@ -217,6 +233,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/agents/{id}:
     get:
@@ -238,6 +256,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/twins:
     get:
@@ -257,6 +277,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/twins/{id}:
     get:
@@ -278,6 +300,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/twins/{id}/changesets:
     get:
@@ -301,6 +325,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/skills:
     get:
@@ -320,6 +346,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/groups:
     get:
@@ -339,6 +367,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
     post:
       summary: Create a new group
       operationId: createGroup
@@ -362,6 +392,10 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/groups/{id}:
     get:
@@ -383,6 +417,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
     put:
       summary: Update a group
       operationId: updateGroup
@@ -410,6 +446,10 @@ paths:
           $ref: "#/components/responses/NotFound"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
     delete:
       summary: Delete a group
       operationId: deleteGroup
@@ -425,6 +465,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/changesets:
     get:
@@ -444,6 +486,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/changesets/{id}:
     get:
@@ -465,6 +509,8 @@ paths:
           $ref: "#/components/responses/NotFound"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/connections:
     get:
@@ -484,14 +530,15 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /api/v1/events:
     get:
       summary: Real-time Server-Sent Events stream
       description: |
         Opens a long-lived HTTP connection that delivers real-time JSON events
-        for agent status changes, twin state changes, connection changes, and
-        server heartbeats.
+        for agent status changes, twin state changes, and connection changes.
 
         Each event is a JSON object encoded as an SSE `data:` line:
 
@@ -500,13 +547,14 @@ paths:
 
         ```
 
-        Event types:
+        JSON event types:
         - `agent.status_changed` — an agent's `status` field has changed
         - `twin.state_changed` — a twin's `actual_state` or `desired_state` has changed
         - `connection.status_changed` — a connection's `status` has changed
-        - `server.heartbeat` — periodic keepalive (no payload)
 
-        The connection is kept alive with SSE comment heartbeats every 30 s.
+        The connection is kept alive with SSE **comment** lines (`: heartbeat`)
+        every 30 s. These are not `data:` events and do not use the
+        `type`/`payload` schema; clients should ignore them.
       operationId: streamEvents
       tags: [events]
       responses:
@@ -521,6 +569,8 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -544,6 +594,8 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "405":
           $ref: "#/components/responses/MethodNotAllowed"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
 components:
   securitySchemes:
