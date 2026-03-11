@@ -5,7 +5,7 @@ go 1.24.13
 require (
 	github.com/nats-io/nats.go v1.49.0
 	go.etcd.io/etcd/client/v3 v3.6.8
-	google.golang.org/grpc v1.79.1
+	google.golang.org/grpc v1.79.2
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 )
