@@ -73,10 +73,10 @@ Two lightweight middleware functions are added to `internal/api/middleware.go`:
 
 | Middleware | Mechanism | Default limit |
 |---|---|---|
-| `requestSizeLimitMiddleware` | Wraps `r.Body` with `io.LimitReader`; returns `413 Request Entity Too Large` if the body exceeds the limit | 1 MiB |
+| `requestSizeLimitMiddleware` | Wraps `w`/`r.Body` with `http.MaxBytesReader`; downstream handlers treat `*http.MaxBytesError` as `413 Request Entity Too Large` when the body exceeds the limit | 1 MiB |
 | `rateLimitMiddleware` | Per-IP token-bucket rate limiter; returns `429 Too Many Requests` when a client exceeds the burst | 60 req/min, burst 20 |
 
-Both are implemented using only Go standard library primitives (`sync`, `time`, `io`). No new module dependencies are introduced.
+Both are implemented using only Go standard library primitives (`net/http`, `sync`, `time`, `io`). No new module dependencies are introduced.
 
 The rate limiter uses a lazy-initialised per-IP bucket stored in a `sync.Map`. Stale entries are evicted by a background goroutine that runs every 5 minutes, removing buckets not accessed in the last 10 minutes.
 
