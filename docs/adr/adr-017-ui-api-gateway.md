@@ -63,7 +63,7 @@ The existing `/api/v1/health` endpoint is retained unchanged for backwards compa
 
 ### 3. OpenAPI Specification
 
-A hand-maintained `docs/api/openapi.yaml` provides an OpenAPI 3.1 description of all `/api/v1/*` routes. It is committed to the repository and served statically from the embedded UI filesystem. The spec is the authoritative API contract for external consumers.
+A hand-maintained `docs/api/openapi.yaml` provides an OpenAPI 3.1 description of all `/api/v1/*` routes. It is committed to the repository and may be embedded into the UI build or served by the API process, but no specific public HTTP path is mandated by this ADR. The spec is the authoritative API contract for external consumers.
 
 Annotation-driven generation (e.g. `swaggo/swag`) is deferred to a later phase when the API surface stabilises; it would require a build-time code-generation step and a new dependency.
 
