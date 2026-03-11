@@ -44,14 +44,24 @@ func newTestServer(t *testing.T) *Server {
 	return srv
 }
 
+// newTestHandler is a convenience wrapper that creates a seeded test Server and
+// returns its full HTTP handler chain together with the server itself.
+func newTestHandler(t *testing.T) (*Server, http.Handler) {
+	t.Helper()
+	srv := newTestServer(t)
+	return srv, newHandler(srv)
+}
+
 // newHandler returns the full handler chain for use in httptest.
 func newHandler(srv *Server) http.Handler {
 	mux := http.NewServeMux()
 	srv.registerRoutes(mux)
 	return srv.corsMiddleware(
-		srv.rateLimitMiddleware(
-			requestSizeLimitMiddleware(
-				srv.authMiddleware(mux),
+		requestIDMiddleware(
+			srv.rateLimitMiddleware(
+				requestSizeLimitMiddleware(
+					srv.authMiddleware(mux),
+				),
 			),
 		),
 	)
@@ -1019,5 +1029,116 @@ func TestBroadcast(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("broadcast event not received within 1s")
+	}
+}
+
+/* ── Request ID middleware ── */
+
+// TestRequestIDMiddleware_GeneratesHeader verifies that a request without an
+// X-Request-ID gets one injected and echoed back in the response header.
+func TestRequestIDMiddleware_GeneratesHeader(t *testing.T) {
+	_, h := newTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	id := rr.Header().Get("X-Request-ID")
+	if id == "" {
+		t.Error("expected X-Request-ID response header to be set")
+	}
+}
+
+// TestRequestIDMiddleware_PreservesIncomingID verifies that when the caller
+// supplies X-Request-ID it is echoed back unchanged.
+func TestRequestIDMiddleware_PreservesIncomingID(t *testing.T) {
+	_, h := newTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req.Header.Set("X-Request-ID", "client-supplied-id")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if got := rr.Header().Get("X-Request-ID"); got != "client-supplied-id" {
+		t.Errorf("expected X-Request-ID=client-supplied-id, got %q", got)
+	}
+}
+
+/* ── Admin log-level endpoint ── */
+
+// TestHandleLogLevel_AdminCanSetLevel verifies that an admin user can change the
+// log level and receives the new level in the response body.
+func TestHandleLogLevel_AdminCanSetLevel(t *testing.T) {
+	_, h := newTestHandler(t)
+	tok := login(t, h, "admin", "admin")
+
+	for _, tc := range []struct {
+		input string
+		want  string
+	}{
+		{"debug", "DEBUG"},
+		{"info", "INFO"},
+		{"warn", "WARN"},
+		{"warning", "WARN"},
+		{"error", "ERROR"},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			rr := doJSON(t, h, http.MethodPost, "/api/v1/admin/log-level",
+				LogLevelRequest{Level: tc.input}, tok)
+			if rr.Code != http.StatusOK {
+				t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+			}
+			var resp LogLevelResponse
+			if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			if resp.Level != tc.want {
+				t.Errorf("expected level %q, got %q", tc.want, resp.Level)
+			}
+		})
+	}
+}
+
+// TestHandleLogLevel_InvalidLevel verifies that an invalid level string returns 400.
+func TestHandleLogLevel_InvalidLevel(t *testing.T) {
+	_, h := newTestHandler(t)
+	tok := login(t, h, "admin", "admin")
+
+	rr := doJSON(t, h, http.MethodPost, "/api/v1/admin/log-level",
+		LogLevelRequest{Level: "verbose"}, tok)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid level, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+// TestHandleLogLevel_NonAdminForbidden verifies that a viewer cannot change the log level.
+func TestHandleLogLevel_NonAdminForbidden(t *testing.T) {
+	_, h := newTestHandler(t)
+	tok := login(t, h, "viewer", "viewer123")
+
+	rr := doJSON(t, h, http.MethodPost, "/api/v1/admin/log-level",
+		LogLevelRequest{Level: "debug"}, tok)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for viewer, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+// TestHandleLogLevel_MethodNotAllowed verifies that non-POST methods return 405.
+func TestHandleLogLevel_MethodNotAllowed(t *testing.T) {
+	_, h := newTestHandler(t)
+	tok := login(t, h, "admin", "admin")
+
+	rr := doJSON(t, h, http.MethodGet, "/api/v1/admin/log-level", nil, tok)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", rr.Code)
+	}
+}
+
+// TestLogLevelVar_Accessor verifies that LogLevelVar returns the server's level var.
+func TestLogLevelVar_Accessor(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	lv := srv.LogLevelVar()
+	if lv == nil {
+		t.Fatal("LogLevelVar() returned nil")
 	}
 }

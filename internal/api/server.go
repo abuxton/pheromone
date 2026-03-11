@@ -23,6 +23,7 @@ import (
 type Server struct {
 	cfg       config.UIConfig
 	log       *slog.Logger
+	logLevel  *slog.LevelVar
 	httpSrv   *http.Server
 	startTime time.Time
 	// ready is set to true by Seed() once demo/startup data has been loaded.
@@ -52,6 +53,11 @@ type Server struct {
 // New creates a new API Server with the given UIConfig and logger.
 // Call Seed to populate demo data and ListenAndServe to start accepting requests.
 // If log is nil, slog.Default() is used.
+//
+// The server creates a slog.LevelVar that can be retrieved via LogLevelVar() to
+// build a logger whose level can be changed at runtime via the admin log-level
+// endpoint. If you supply a pre-built logger it will be used as-is; the level var
+// is still available for use in other handlers.
 func New(cfg config.UIConfig, log *slog.Logger) *Server {
 	if log == nil {
 		log = slog.Default()
@@ -59,6 +65,7 @@ func New(cfg config.UIConfig, log *slog.Logger) *Server {
 	s := &Server{
 		cfg:          cfg,
 		log:          log,
+		logLevel:     new(slog.LevelVar),
 		startTime:    time.Now(),
 		users:        make(map[string]*config.UIUser),
 		agents:       make(map[string]*Agent),
@@ -77,6 +84,13 @@ func New(cfg config.UIConfig, log *slog.Logger) *Server {
 	}
 
 	return s
+}
+
+// LogLevelVar returns the slog.LevelVar that controls this server's log level.
+// Pass this to slog.HandlerOptions.Level when constructing the logger so that
+// POST /api/v1/admin/log-level can change the level at runtime without a restart.
+func (s *Server) LogLevelVar() *slog.LevelVar {
+	return s.logLevel
 }
 
 // Seed populates the server with example data so the UI is immediately useful.
@@ -338,10 +352,12 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	s.registerRoutes(mux)
 
 	handler := s.corsMiddleware(
-		s.rateLimitMiddleware(
-			requestSizeLimitMiddleware(
-				loggingMiddleware(s.log,
-					s.authMiddleware(mux),
+		requestIDMiddleware(
+			s.rateLimitMiddleware(
+				requestSizeLimitMiddleware(
+					loggingMiddleware(s.log,
+						s.authMiddleware(mux),
+					),
 				),
 			),
 		),
@@ -416,6 +432,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/changesets/", s.handleChangeset)
 	mux.HandleFunc("/api/v1/connections", s.handleConnections)
 	mux.HandleFunc("/api/v1/users", adminMiddleware(http.HandlerFunc(s.handleUsers)).ServeHTTP)
+	mux.HandleFunc("/api/v1/admin/log-level", adminMiddleware(http.HandlerFunc(s.handleLogLevel)).ServeHTTP)
 
 	// Embedded UI: serve index.html for all non-API paths.
 	mux.Handle("/", http.FileServer(http.FS(uiassets.FS)))

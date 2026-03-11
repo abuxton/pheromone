@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -15,7 +17,10 @@ import (
 // contextKey is the unexported type for request context keys.
 type contextKey int
 
-const ctxUser contextKey = iota
+const (
+	ctxUser      contextKey = iota // authenticated user payload
+	ctxRequestID                   // unique request identifier
+)
 
 // authMiddleware validates Bearer tokens on every request except the auth and
 // health endpoints. On success the tokenPayload is stored in the request context.
@@ -97,7 +102,7 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// loggingMiddleware records request method, path, status, and duration.
+// loggingMiddleware records request method, path, status, duration, and request ID.
 func loggingMiddleware(log *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -107,10 +112,46 @@ func loggingMiddleware(log *slog.Logger, next http.Handler) http.Handler {
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", rw.statusCode,
-			"duration", time.Since(start).String(),
+			"duration_ms", time.Since(start).Milliseconds(),
 			"remote", r.RemoteAddr,
+			"request_id", requestIDFromContext(r.Context()),
+			"component", "api",
 		)
 	})
+}
+
+// requestIDMiddleware generates a unique request ID for each HTTP request,
+// stores it in the request context, and echoes it back via the X-Request-ID
+// response header. If the incoming request carries an X-Request-ID header its
+// value is used as-is, enabling end-to-end correlation across services.
+func requestIDMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := r.Header.Get("X-Request-ID")
+		if id == "" {
+			id = newRequestID()
+		}
+		w.Header().Set("X-Request-ID", id)
+		ctx := context.WithValue(r.Context(), ctxRequestID, id)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// requestIDFromContext retrieves the request ID from ctx, or "" if not set.
+func requestIDFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(ctxRequestID).(string)
+	return v
+}
+
+// newRequestID generates a random 8-byte hex identifier.
+// In the extremely unlikely event that crypto/rand fails, a fixed sentinel
+// value beginning with "errgen-" is returned so that operators can identify
+// entries where entropy was unavailable rather than mistaking them for real IDs.
+func newRequestID() string {
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		return "errgen-00000000"
+	}
+	return hex.EncodeToString(b)
 }
 
 // responseWriter wraps http.ResponseWriter to capture the status code.
