@@ -48,7 +48,13 @@ func newTestServer(t *testing.T) *Server {
 func newHandler(srv *Server) http.Handler {
 	mux := http.NewServeMux()
 	srv.registerRoutes(mux)
-	return srv.corsMiddleware(srv.authMiddleware(mux))
+	return srv.corsMiddleware(
+		srv.rateLimitMiddleware(
+			requestSizeLimitMiddleware(
+				srv.authMiddleware(mux),
+			),
+		),
+	)
 }
 
 func doJSON(t *testing.T, h http.Handler, method, path string, body interface{}, token string) *httptest.ResponseRecorder {
@@ -763,4 +769,255 @@ func TestBuildTLSConfig_Disabled(t *testing.T) {
 // itoa converts an int to string for use in test URLs.
 func itoa(n int) string {
 	return strconv.Itoa(n)
+}
+
+/* ── k8s health probes ── */
+
+func TestHandleHealthz(t *testing.T) {
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	rr := doJSON(t, h, http.MethodGet, "/healthz", nil, "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var resp ProbeResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Status != "ok" {
+		t.Errorf("expected status ok, got %q", resp.Status)
+	}
+}
+
+func TestHandleHealthz_MethodNotAllowed(t *testing.T) {
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	rr := doJSON(t, h, http.MethodPost, "/healthz", nil, "")
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", rr.Code)
+	}
+}
+
+func TestHandleReadyz_Ready(t *testing.T) {
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	rr := doJSON(t, h, http.MethodGet, "/readyz", nil, "")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var resp ProbeResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Status != "ok" {
+		t.Errorf("expected status ok, got %q", resp.Status)
+	}
+}
+
+func TestHandleReadyz_NotReady(t *testing.T) {
+	srv := newTestServer(t)
+	srv.ready.Store(false) // simulate pre-startup state
+	h := newHandler(srv)
+	rr := doJSON(t, h, http.MethodGet, "/readyz", nil, "")
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestHandleReadyz_MethodNotAllowed(t *testing.T) {
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	rr := doJSON(t, h, http.MethodPost, "/readyz", nil, "")
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", rr.Code)
+	}
+}
+
+// TestHandleHealthz_NoAuthRequired verifies probes are accessible without a token.
+func TestHandleHealthz_NoAuthRequired(t *testing.T) {
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	rr := doJSON(t, h, http.MethodGet, "/healthz", nil, "") // no token
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 without auth, got %d", rr.Code)
+	}
+}
+
+func TestHandleReadyz_NoAuthRequired(t *testing.T) {
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	rr := doJSON(t, h, http.MethodGet, "/readyz", nil, "") // no token
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200 without auth, got %d", rr.Code)
+	}
+}
+
+/* ── SSE events endpoint ── */
+
+func TestHandleEvents_MethodNotAllowed(t *testing.T) {
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	tok := login(t, h, "admin", "admin")
+	rr := doJSON(t, h, http.MethodPost, "/api/v1/events", nil, tok)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", rr.Code)
+	}
+}
+
+func TestHandleEvents_RequiresAuth(t *testing.T) {
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	rr := doJSON(t, h, http.MethodGet, "/api/v1/events", nil, "")
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 without token, got %d", rr.Code)
+	}
+}
+
+// TestHandleEvents_SSEHeaders verifies that the SSE endpoint sets the correct
+// Content-Type and that the initial ": connected" comment is written.
+func TestHandleEvents_SSEHeaders(t *testing.T) {
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	tok := login(t, h, "admin", "admin")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/events", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	ctx, cancel := context.WithTimeout(req.Context(), 100*time.Millisecond)
+	defer cancel()
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	ct := rr.Header().Get("Content-Type")
+	if ct != "text/event-stream" {
+		t.Errorf("expected Content-Type text/event-stream, got %q", ct)
+	}
+	body := rr.Body.String()
+	if len(body) == 0 {
+		t.Error("expected non-empty SSE body (at least the connected comment)")
+	}
+}
+
+/* ── Request size limit middleware ── */
+
+func TestRequestSizeLimit_Rejected(t *testing.T) {
+	srv := newTestServer(t)
+	h := newHandler(srv)
+
+	// Build a body larger than defaultMaxBodyBytes by setting Content-Length.
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login",
+		bytes.NewReader(make([]byte, defaultMaxBodyBytes+1)))
+	req.ContentLength = defaultMaxBodyBytes + 1
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected 413, got %d", rr.Code)
+	}
+}
+
+// TestDecodeJSON_MaxBytesError verifies that decodeJSON maps *http.MaxBytesError
+// to 413 (not 400) when the body exceeds the limit applied by MaxBytesReader.
+func TestDecodeJSON_MaxBytesError(t *testing.T) {
+	// Build a body that starts as a valid JSON object but exceeds the size
+	// limit while the decoder is still reading a string field value.
+	// A valid JSON prefix ensures the decoder doesn't fail with a syntax error
+	// before it reads past the MaxBytesReader limit.
+	prefix := []byte(`{"username":"`)
+	padding := bytes.Repeat([]byte("a"), defaultMaxBodyBytes) // enough to exceed limit
+	body := append(prefix, padding...)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(body))
+	r.ContentLength = -1 // unknown / chunked length
+	r.Body = http.MaxBytesReader(w, r.Body, defaultMaxBodyBytes)
+
+	var req LoginRequest
+	if decodeJSON(w, r, &req) {
+		t.Fatal("expected decodeJSON to return false for oversized body")
+	}
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected 413, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+/* ── Rate limit middleware ── */
+
+func TestRateLimitMiddleware_AllowsNormalTraffic(t *testing.T) {
+	// A fresh limiter allows up to burst requests immediately.
+	l := newIPRateLimiter(60, 20)
+	for i := 0; i < 20; i++ {
+		if !l.allow() {
+			t.Fatalf("request %d was unexpectedly rate-limited", i+1)
+		}
+	}
+}
+
+func TestRateLimitMiddleware_BlocksWhenExhausted(t *testing.T) {
+	l := newIPRateLimiter(60, 5)
+	for i := 0; i < 5; i++ {
+		l.allow()
+	}
+	if l.allow() {
+		t.Error("expected rate limit to block after burst exhausted")
+	}
+}
+
+/* ── clientIP helper ── */
+
+func TestClientIP_RemoteAddr(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "192.0.2.1:12345"
+	if got := clientIP(req); got != "192.0.2.1" {
+		t.Errorf("expected 192.0.2.1, got %q", got)
+	}
+}
+
+func TestClientIP_XForwardedFor_Single(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Forwarded-For", "203.0.113.5")
+	if got := clientIP(req); got != "203.0.113.5" {
+		t.Errorf("expected 203.0.113.5, got %q", got)
+	}
+}
+
+func TestClientIP_XForwardedFor_Chain(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Forwarded-For", "203.0.113.5, 10.0.0.1, 10.0.0.2")
+	// leftmost entry is the originating client
+	if got := clientIP(req); got != "203.0.113.5" {
+		t.Errorf("expected 203.0.113.5, got %q", got)
+	}
+}
+
+// TestBroadcast verifies that events published via broadcast reach SSE subscribers.
+func TestBroadcast(t *testing.T) {
+	srv := newTestServer(t)
+
+	ch := make(chan []byte, 4)
+	srv.eventMu.Lock()
+	srv.eventClients[ch] = struct{}{}
+	srv.eventMu.Unlock()
+	defer func() {
+		srv.eventMu.Lock()
+		delete(srv.eventClients, ch)
+		srv.eventMu.Unlock()
+	}()
+
+	srv.broadcast(Event{Type: "agent.status_changed", Payload: map[string]string{"id": "agent-os-01"}})
+
+	select {
+	case frame := <-ch:
+		if len(frame) == 0 {
+			t.Error("expected non-empty SSE frame")
+		}
+		// Frame must start with "data: "
+		s := string(frame)
+		if len(s) < 8 || s[:6] != "data: " {
+			t.Errorf("unexpected SSE frame prefix: %q", s[:min(len(s), 20)])
+		}
+	case <-time.After(time.Second):
+		t.Fatal("broadcast event not received within 1s")
+	}
 }

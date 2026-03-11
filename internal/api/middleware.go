@@ -3,9 +3,12 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,9 +21,11 @@ const ctxUser contextKey = iota
 // health endpoints. On success the tokenPayload is stored in the request context.
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Allow unauthenticated access to login and health endpoints.
+		// Allow unauthenticated access to login, health, and k8s probe endpoints.
 		if r.URL.Path == "/api/v1/auth/login" ||
 			r.URL.Path == "/api/v1/health" ||
+			r.URL.Path == "/healthz" ||
+			r.URL.Path == "/readyz" ||
 			!strings.HasPrefix(r.URL.Path, "/api/") {
 			next.ServeHTTP(w, r)
 			return
@@ -143,4 +148,149 @@ func userFromContext(ctx context.Context) *tokenPayload {
 	}
 	p, _ := v.(*tokenPayload)
 	return p
+}
+
+// decodeJSON decodes JSON from r.Body into v.
+// If the body exceeds the limit set by requestSizeLimitMiddleware it returns
+// 413; any other decode failure returns 400. Returns true on success.
+func decodeJSON(w http.ResponseWriter, r *http.Request, v interface{}) bool {
+	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return false
+		}
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return false
+	}
+	return true
+}
+
+// defaultMaxBodyBytes is the default maximum request body size (1 MiB).
+const defaultMaxBodyBytes = 1 << 20 // 1 MiB
+
+// requestSizeLimitMiddleware rejects request bodies that exceed defaultMaxBodyBytes.
+func requestSizeLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Body != nil && r.ContentLength > defaultMaxBodyBytes {
+			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return
+		}
+		if r.Body != nil {
+			r.Body = http.MaxBytesReader(w, r.Body, defaultMaxBodyBytes)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// ipRateLimiter is a simple per-IP token-bucket rate limiter backed by stdlib primitives.
+// Tokens are continuously replenished at refillPerSec tokens/second up to a
+// maximum of burstSize, calculated from elapsed wall-clock time on each call.
+type ipRateLimiter struct {
+	mu           sync.Mutex
+	tokens       float64
+	lastRefill   time.Time
+	burstSize    float64
+	refillPerSec float64
+	lastAccess   time.Time
+}
+
+func newIPRateLimiter(requestsPerMinute float64, burst float64) *ipRateLimiter {
+	return &ipRateLimiter{
+		tokens:       burst,
+		lastRefill:   time.Now(),
+		lastAccess:   time.Now(),
+		burstSize:    burst,
+		refillPerSec: requestsPerMinute / 60.0,
+	}
+}
+
+// allow reports whether a request should be permitted. It refills tokens based
+// on elapsed time and consumes one token per call.
+func (l *ipRateLimiter) allow() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	now := time.Now()
+	elapsed := now.Sub(l.lastRefill).Seconds()
+	l.tokens += elapsed * l.refillPerSec
+	if l.tokens > l.burstSize {
+		l.tokens = l.burstSize
+	}
+	l.lastRefill = now
+	l.lastAccess = now
+
+	if l.tokens >= 1 {
+		l.tokens--
+		return true
+	}
+	return false
+}
+
+// clientIP returns the originating client IP for rate-limiting purposes.
+// When an X-Forwarded-For header is present, the leftmost (originating) address
+// is used. This is only safe when the server runs behind a trusted reverse proxy
+// that sets and controls the X-Forwarded-For header. In direct-connection
+// deployments, or when the proxy is not trusted, X-Forwarded-For can be
+// spoofed — a future enhancement should gate this on a configured trusted-proxy
+// CIDR list (see ADR-017 follow-up actions).
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// XFF format: "client, proxy1, proxy2" — take the leftmost entry.
+		if i := strings.Index(xff, ","); i != -1 {
+			return strings.TrimSpace(xff[:i])
+		}
+		return strings.TrimSpace(xff)
+	}
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return ip
+}
+
+// rateLimitMiddleware applies a per-IP token-bucket rate limit (60 req/min, burst 20)
+// using the per-server rate limiter map. Returns 429 Too Many Requests when exceeded.
+func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip := clientIP(r)
+
+		limiterI, _ := s.rateLimiters.LoadOrStore(ip, newIPRateLimiter(60, 20))
+		limiter := limiterI.(*ipRateLimiter)
+
+		if !limiter.allow() {
+			w.Header().Set("Retry-After", "1")
+			writeError(w, http.StatusTooManyRequests, "rate limit exceeded")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// startRateLimitEviction launches the background goroutine that evicts stale
+// per-IP rate limit buckets. It should be called exactly once per Server, from
+// ListenAndServe. The goroutine exits when ctx is cancelled.
+func (s *Server) startRateLimitEviction(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				expiry := time.Now().Add(-10 * time.Minute)
+				s.rateLimiters.Range(func(key, value interface{}) bool {
+					l := value.(*ipRateLimiter)
+					l.mu.Lock()
+					stale := l.lastAccess.Before(expiry)
+					l.mu.Unlock()
+					if stale {
+						s.rateLimiters.Delete(key)
+					}
+					return true
+				})
+			}
+		}
+	}()
 }

@@ -1,12 +1,36 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 )
+
+// handleHealthz serves GET /healthz (Kubernetes liveness probe).
+// Always returns 200 OK once the process is alive and the listener is up.
+func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	writeJSON(w, http.StatusOK, ProbeResponse{Status: "ok"})
+}
+
+// handleReadyz serves GET /readyz (Kubernetes readiness probe).
+// Returns 200 OK when the server has finished startup/seeding and is ready
+// to serve traffic. Returns 503 Service Unavailable during startup.
+func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	if !s.ready.Load() {
+		writeJSON(w, http.StatusServiceUnavailable, ProbeResponse{Status: "starting"})
+		return
+	}
+	writeJSON(w, http.StatusOK, ProbeResponse{Status: "ok"})
+}
 
 // handleHealth serves GET /api/v1/health
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -71,8 +95,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -280,8 +303,7 @@ func (s *Server) handleGroups(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		var req CreateGroupRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid request body")
+		if !decodeJSON(w, r, &req) {
 			return
 		}
 		if req.Name == "" {
@@ -344,8 +366,7 @@ func (s *Server) handleGroup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var req UpdateGroupRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid request body")
+		if !decodeJSON(w, r, &req) {
 			return
 		}
 		s.mu.Lock()
@@ -459,4 +480,74 @@ func (s *Server) handleUsers(w http.ResponseWriter, r *http.Request) {
 		result = append(result, UserInfo{Username: u.Username, Role: u.Role})
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+// --- Server-Sent Events ---
+
+// handleEvents serves GET /api/v1/events as a Server-Sent Events (SSE) stream.
+// Authenticated clients receive real-time JSON events for agent/twin state changes.
+// The connection is kept open until the client disconnects.
+func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	// Verify the response writer supports flushing (required for SSE).
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "streaming not supported")
+		return
+	}
+
+	// SSE headers.
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no") // Disable nginx buffering.
+
+	// Register this client.
+	ch := make(chan []byte, 64)
+	s.eventMu.Lock()
+	s.eventClients[ch] = struct{}{}
+	s.eventMu.Unlock()
+
+	defer func() {
+		s.eventMu.Lock()
+		delete(s.eventClients, ch)
+		s.eventMu.Unlock()
+	}()
+
+	// Send an initial connection acknowledgement.
+	_, _ = fmt.Fprintf(w, ": connected\n\n")
+	flusher.Flush()
+
+	// Heartbeat ticker keeps the connection alive through proxies.
+	heartbeat := time.NewTicker(30 * time.Second)
+	defer heartbeat.Stop()
+
+	for {
+		select {
+		case frame, open := <-ch:
+			if !open {
+				return
+			}
+			_, err := w.Write(frame)
+			if err != nil {
+				return
+			}
+			flusher.Flush()
+
+		case <-heartbeat.C:
+			// SSE comment line — ignored by clients but prevents proxy timeouts.
+			_, err := fmt.Fprintf(w, ": heartbeat\n\n")
+			if err != nil {
+				return
+			}
+			flusher.Flush()
+
+		case <-r.Context().Done():
+			return
+		}
+	}
 }
