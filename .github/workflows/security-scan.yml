@@ -6,9 +6,19 @@ on:
       - main
       - 'copilot/**'
       - 'feature/**'
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/security-scan.yml'
   pull_request:
     branches:
       - main
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/security-scan.yml'
   schedule:
     # Run weekly on Monday at 08:00 UTC to catch newly published CVEs
     - cron: '0 8 * * 1'

@@ -4,9 +4,21 @@ on:
   push:
     branches:
       - main
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.proto/**'
+      - '.github/workflows/codeql.yml'
   pull_request:
     branches:
       - main
+    paths:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.proto/**'
+      - '.github/workflows/codeql.yml'
   schedule:
     - cron: '0 9 * * 1'
 
