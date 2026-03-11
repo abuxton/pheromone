@@ -21,7 +21,8 @@
 | **013** | Swamp Evaluation — System Initiative AI Automation CLI | ⏳ Proposed | Phase 0 (Spike) | Swamp not adopted (AGPL v3, TypeScript/Deno, single-machine CLI); Definition/CEL model noted as ADR-004 reference | ADR-003,004,007,010 |
 | **014** | Envoy Proxy Evaluation — Monitoring, Observability, and Service Mesh Integration | ⏳ Proposed | Phase 1 (Spike) | Server-side ingress recommended (Phase 1); per-agent sidecar and xDS control plane deferred to Phase 2 | ADR-002,003,005,010,012 |
 | **014** | Security Architecture | ✅ Accepted | Phase 1 (Security) | TLS enforcement, gRPC auth interceptors (Phase 2), config permissions hardened, vulnerability scanning in CI | ADR-003,007,010,011 |
-| **015** | Stateless Server — Dataplane Selection | ⏳ Proposed | Phase 2 (Scalability) | PostgreSQL as primary dataplane; etcd retained for control plane; server becomes stateless | ADR-002,003,014 |
+| **015** | User Access Control & Identity Provider Integration | ⏳ Proposed | Phase 1–3 (Auth/IAM) | Local auth (bcrypt/etcd), four-role RBAC, RS256 JWT, gRPC interceptor chain, IdP plugin adapter (LDAP/SAML/OIDC) | ADR-002,003,006,007,014; spec-002 |
+| **016** | Stateless Server — Dataplane Selection | ⏳ Proposed | Phase 2 (Scalability) | PostgreSQL as primary dataplane; etcd retained for control plane; server becomes stateless | ADR-002,003,014 |
 
 ---
 
@@ -48,6 +49,9 @@
 - ⏳ ADR-006: How developers extend platform (agent scaffold)
 - ⏳ ADR-011: Post-action hooks — Notification Skill + server-side hook service; webhooks, package delivery, direct end-user notification
 
+### Layer 4: Security & Identity (ADR-014, ADR-015)
+- ✅ ADR-014: Security posture — TLS enforcement, gRPC interceptors, config permissions, vulnerability scanning
+- ⏳ ADR-015: User identity & access control — local auth (bcrypt/etcd), four-role RBAC, RS256 JWT, gRPC interceptor chain, IdP plugin adapter (LDAP/SAML/OIDC)
 ### Layer 4: Scalability & Data Plane (ADR-016)
 - ⏳ ADR-016: Stateless server dataplane — PostgreSQL as primary durable store; etcd retained for control-plane coordination only
 
@@ -65,6 +69,7 @@
 - **ADR-011**: Port assignment — 4426 (gRPC control), 4427 (gRPC telemetry), 443/80 (HTTP/HTTPS REST API)
 - **ADR-013**: Swamp (System Initiative) evaluation — NOT adopted; AGPL v3 licence + TypeScript/Deno mismatch; YAML/CEL Definition model noted as ADR-004 reference
 - **ADR-014**: Envoy Proxy evaluation — server-side ingress recommended (Phase 1); per-agent sidecar and xDS control plane deferred to Phase 2
+- **ADR-015**: User Access Control — local auth + RBAC + JWT + gRPC interceptor chain; IdP adapter pattern (Phase 2)
 - **ADR-016**: Stateless server dataplane — PostgreSQL selected as primary durable store; etcd retained for control-plane coordination; server becomes crash-recoverable
 
 
@@ -104,13 +109,19 @@ ADR-014 (Envoy Proxy Evaluation — monitoring, observability, service mesh)
    ├─→ ADR-003 (gRPC Contracts — Envoy proxies existing services)
    ├─→ ADR-010 (mTLS confirmed — Envoy can own TLS termination via SDS)
    └─→ ADR-012 (Vagrant — Envoy added to server provisioning scripts)
+ADR-015 (User Access Control & Identity Provider Integration)
+   ├─→ ADR-002 (Server Architecture — etcd user record store)
+   ├─→ ADR-003 (gRPC Contracts — AuthService extends existing service patterns)
+   ├─→ ADR-006 (Agent Lifecycle — twin-level ACLs form fine-grained gate below RBAC)
+   ├─→ ADR-007 (Agentic AI Agent Model — agents use mTLS; unaffected by human auth)
+   └─→ ADR-014 (Security Architecture — interceptor chain extended; TLS prerequisite)
 ADR-016 (Stateless Server Dataplane — PostgreSQL selection)
    ├─→ ADR-002 (Server Architecture — Layer 2 durable state moves from etcd to PostgreSQL)
    ├─→ ADR-003 (gRPC Contracts — agents access dataplane via server only)
    └─→ ADR-014 (Security — mTLS and encryption-at-rest requirements drive candidate scoring)
 ```
 
-**Critical Path**: ADR-001 → ADR-007 → ADR-002 → ADR-003 → ADR-006 (affects implementation order)
+**Critical Path**: ADR-001 → ADR-007 → ADR-002 → ADR-003 → ADR-006 → ADR-014 → ADR-015 (auth layer sits atop all prior decisions)
 
 ---
 
@@ -133,6 +144,11 @@ Before ADR Acceptance, run these validation spikes:
 | ADR-014 | Envoy server-side ingress prototype | Add Envoy to docker-compose; validate gRPC traffic metrics and admin API | 4 hours |
 | ADR-014 | Per-agent sidecar RAM overhead spike | Measure `envoy:distroless` memory footprint on target managed instances | 4 hours |
 | ADR-014 | go-control-plane xDS server spike | Prototype Pheromone server as xDS control plane feeding agent registration into EDS | 12 hours |
+| ADR-015 | bcrypt cost=12 latency on arm64 (Raspberry Pi 4) | Verify login latency < 500 ms on resource-constrained hardware; evaluate cost=10 tradeoff | 2 hours |
+| ADR-015 | JWT RS256 interceptor hot-path benchmark | Measure per-RPC overhead of RSA public-key JWT validation under 1000 concurrent agents | 4 hours |
+| ADR-015 | LDAP adapter integration spike | Bind + group search against containerised OpenLDAP; validate group→role mapping | 6 hours |
+
+**Total Spike Effort**: ~94 hours (can run in parallel; +12 hours added for ADR-015 auth spikes)
 | ADR-016 | PostgreSQL throughput at 1 000 agents | Measure pgxpool read/write p99 with 1 000 twin blobs (≤64 KB each) | 6–8 hours |
 | ADR-016 | Server cold-start rehydration benchmark | Measure time to load 10 000 twin records from PostgreSQL into in-memory cache | 4 hours |
 

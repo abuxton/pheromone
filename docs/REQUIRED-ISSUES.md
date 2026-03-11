@@ -739,6 +739,381 @@ Create `.proto/pheromone/v1/`:
 
 ---
 
+## ADR-015: User Access Control & Identity Provider Integration
+
+> **Feature Branch**: `001-user-access-control`
+> **Tasks**: `specs/001-user-access-control/tasks.md` · `.specify/memory/tasks-002-user-access-control.md`
+> **Status**: ADR Proposed → implementation issues ready to open
+
+---
+
+### Issue Q: Tech Spike — JWT Library Selection and RS256 Key Management (ADR-015)
+
+**Title**: `spike(auth): JWT library selection and RS256 key-management strategy (ADR-015)`
+
+**Body**:
+```
+## Objective
+
+Validate the JWT library choice (`golang-jwt/jwt` v5) and RS256 key-management approach
+for ADR-015 Phase 1 local auth before implementation begins.
+
+## Background
+
+ADR-015 specifies RS256-signed JWTs as the session credential format for human operator
+authentication. Before writing production code, we need:
+1. Confirmation that `golang-jwt/jwt` v5 has no open CVEs
+2. A benchmark validating RS256 sign/verify latency on CI and arm64 target hardware
+3. A documented comparison against alternative libraries (`lestrrat-go/jwx` v2, `go-jose/go-jose`)
+4. A threat model covering the top 5 attack vectors for local auth (brute-force, token theft, bootstrap abuse, etc.)
+
+## Tasks
+
+1. Run `govulncheck` against `golang-jwt/jwt` v5 — record result
+2. Write a throwaway Go test: RS256 key load → sign token → verify → assert claims round-trip
+3. Benchmark RS256 sign + verify on:
+   - GitHub Actions runner (amd64)
+   - Raspberry Pi 4 target (arm64) if available; otherwise estimate from `golang-jwt` benchmarks
+4. Compare `golang-jwt/jwt` v5 vs `lestrrat-go/jwx` v2 vs `go-jose/go-jose` v3 on: API ergonomics, maintenance status, dependency footprint, CVE history
+5. Document top 5 threat vectors + mitigations in `research.md` §Threat Model
+6. Update `specs/001-user-access-control/research.md` §R1–R4 with final decisions and benchmark figures
+
+## Acceptance Criteria
+
+- `govulncheck` clean on `golang-jwt/jwt` v5
+- RS256 sign latency < 5 ms p95 on amd64 CI runner
+- Threat model documented with mitigations mapped to existing design controls
+- Library comparison table in research.md
+- Decision recorded: proceed with `golang-jwt/jwt` v5 (or documented alternative)
+
+## Related
+
+- ADR-015: `docs/adr/adr-015-user-access-control-identity-provider.md`
+- Research doc: `specs/001-user-access-control/research.md`
+- Tasks: T001, T002 in `specs/001-user-access-control/tasks.md`
+
+## Effort
+
+Estimated: 7 hours (T001 4h + T002 3h, parallelisable)
+
+## Labels
+
+`type:spike` `phase:1` `adr:015`
+```
+
+---
+
+### Issue R: feat(auth) — Proto Contract + Code Generation for AuthService (ADR-015)
+
+**Title**: `feat(auth): define auth.proto AuthService contract and generate Go stubs (ADR-015)`
+
+**Body**:
+```
+## Objective
+
+Define the `AuthService` gRPC contract in `proto/pheromone/v1/auth.proto` and generate the
+Go stubs required for Phase 1 local auth implementation.
+
+## Background
+
+ADR-015 Phase 1 introduces a new `AuthService` gRPC service with 7 RPCs. The proto file and
+generated stubs must exist before any service handler or interceptor can be implemented.
+The existing contract in `specs/001-user-access-control/contracts/auth.proto` is the source of truth.
+
+## Tasks
+
+1. Create `proto/pheromone/v1/auth.proto` matching `specs/001-user-access-control/contracts/auth.proto`
+   - Service: `AuthService` with RPCs: `Login`, `Logout`, `ChangePassword`, `ListUsers`, `CreateUser`, `UpdateUser`, `DeleteUser`
+   - All request/response message types with field numbers and proto comments
+2. Update `buf.gen.yaml` if needed; run `buf lint` and `buf breaking` (no regressions to existing services)
+3. Run `buf generate`; verify `internal/gen/pheromone/v1/auth_grpc.pb.go` and `auth.pb.go` created
+4. Add `AuthConfig` struct to `internal/config/config.go` (all fields from data-model.md §AuthConfig)
+5. Verify `go build ./...` succeeds with generated code
+
+## Acceptance Criteria
+
+- `buf lint` exits 0 on `auth.proto`
+- `buf breaking` exits 0 (no changes to existing `pheromone.v1` contracts)
+- Generated Go stubs compile: `go build ./...` exits 0
+- `AuthConfig` struct in `internal/config/config.go` with all required fields and default values
+
+## Related
+
+- ADR-015: `docs/adr/adr-015-user-access-control-identity-provider.md`
+- Contract source: `specs/001-user-access-control/contracts/auth.proto`
+- Data model: `specs/001-user-access-control/data-model.md`
+- Tasks: T003, T004, T005 in `specs/001-user-access-control/tasks.md`
+- Depends on: Issue Q (spike) complete
+
+## Effort
+
+Estimated: 7 hours (T003 4h + T004 1h + T005 2h)
+
+## Labels
+
+`type:feature` `phase:1` `adr:015`
+```
+
+---
+
+### Issue S: feat(auth) — Foundational Data Layer (UserRecord, UserStore, AuthProvider, AuditLogger) (ADR-015)
+
+**Title**: `feat(auth): implement UserRecord data layer, UserStore CRUD, AuthProvider interface, and AuditLogger (ADR-015)`
+
+**Body**:
+```
+## Objective
+
+Implement the foundational data structures and shared interfaces that all user-story phases
+depend on. This issue is a hard prerequisite for all auth implementation work.
+
+## Background
+
+ADR-015 Phase 1 requires:
+- `UserRecord` Go struct stored in etcd at `/pheromone/users/<username>`
+- `UserStore` interface with etcd (primary) and bbolt (fallback) backends
+- `AuthProvider` plugin interface for local, LDAP, OIDC, and SAML adapters
+- `AuditLogger` backed by logrus that emits structured JSON events
+
+All subsequent auth issues depend on these foundations being in place.
+
+## Tasks
+
+1. **T006** — `UserRecord` struct, `Role` type, `ValidateUsername()`, `ValidatePassword()` in `internal/auth/store.go`
+2. **T007** — etcd CRUD: `CreateUser`, `GetUser`, `UpdateUser`, `DeleteUser`, `ListUsers` in `internal/auth/store.go`
+3. **T008** — bbolt fallback `UserStore` (same interface, embedded DB) in `internal/auth/store.go`
+4. **T009** — `AuthProvider` interface + `UserAttributes` struct in `internal/auth/provider.go`
+5. **T010** — `AuditEvent` struct + `AuditLogger` + per-event-type helpers in `internal/auth/audit.go`
+
+## Acceptance Criteria
+
+- `UserRecord` exactly matches `specs/001-user-access-control/data-model.md` §UserRecord
+- `Role` hierarchy: `viewer < operator < admin < owner`
+- etcd store: atomic creates (compare-and-swap), correct `NotFound` / `AlreadyExists` gRPC codes
+- bbolt store: same interface, no live etcd required for `go test`
+- `AuditLogger.Emit()` invariant: never logs raw passwords, tokens, or key material
+- `go test ./internal/auth/... -run TestUserRecord` and `TestBboltStore` pass
+- `go vet ./internal/auth/...` clean
+
+## Related
+
+- ADR-015: `docs/adr/adr-015-user-access-control-identity-provider.md`
+- Data model: `specs/001-user-access-control/data-model.md`
+- Tasks: T006–T010 in `specs/001-user-access-control/tasks.md`
+- Depends on: Issue R (proto + config) complete
+
+## Effort
+
+Estimated: 16 hours (T006 3h + T007 5h + T008 3h + T009 2h + T010 3h; T008/T009/T010 parallelisable after T007)
+
+## Labels
+
+`type:feature` `phase:1` `adr:015`
+```
+
+---
+
+### Issue T: feat(auth) — Phase 1 MVP: Bootstrap, RBAC, JWT, Local Auth, Interceptors (ADR-015)
+
+**Title**: `feat(auth): Phase 1 MVP — bootstrap, RBAC policy, JWT service, local bcrypt auth, and gRPC interceptor chain (ADR-015)`
+
+**Body**:
+```
+## Objective
+
+Implement the complete Phase 1 local authentication MVP covering User Stories 1–3:
+- US1: First-run bootstrap (owner account seeding)
+- US2: User lifecycle management (CRUD + RBAC enforcement)
+- US3: JWT-based session authentication with gRPC interceptor chain
+
+## Background
+
+This is the core implementation issue for ADR-015 Phase 1. It depends on Issue S (data layer)
+being complete, and delivers a fully functional auth system: operators log in with username/password,
+receive an RS256-signed JWT, and present it on every gRPC call. The interceptor validates the token
+and enforces the four-role RBAC model before any handler runs.
+
+## User Stories
+
+### US1 — Bootstrap (T011–T014)
+
+1. **T011** — `Bootstrap()` function: detect zero users → seed owner account → print one-time password to stderr → emit audit event (`internal/auth/store.go`)
+2. **T012** — Bootstrap seal guard: reject re-run when users already exist (`internal/auth/store.go`)
+3. **T013** — `pheromone user set-password <username>` interactive CLI (`cmd/cli/user.go`)
+4. **T014** — Unit tests for bootstrap flow (`tests/unit/auth/bootstrap_test.go`)
+
+### US2 — User Management (T015–T022)
+
+5. **T015** — `RBACPolicy.Check(identity, method)` with static permission matrix (`internal/auth/rbac.go`)
+6. **T016** — `AuthService.CreateUser` with RBAC pre-check (`internal/auth/service.go`)
+7. **T017** — `AuthService.ListUsers` (admin/owner only) (`internal/auth/service.go`)
+8. **T018** — `AuthService.UpdateUser` with privilege-escalation guard (`internal/auth/service.go`)
+9. **T019** — `AuthService.DeleteUser` with last-owner guard (`internal/auth/service.go`)
+10. **T020** — CLI: `pheromone user create/list/delete/set-role` (`cmd/cli/user.go`)
+11. **T021** — Unit tests for RBAC permission matrix (`tests/unit/auth/rbac_test.go`)
+12. **T022** — Unit tests for user management service handlers (`tests/unit/auth/service_test.go`)
+
+### US3 — Authentication & Sessions (T023–T036)
+
+13. **T023** — JWT `Issuer`: RS256 key load + `IssueToken()` (`internal/auth/jwt.go`)
+14. **T024** — JWT `Validator`: `ValidateToken()` RS256 (`internal/auth/jwt.go`)
+15. **T025** — HS256 fallback signing/validation (`internal/auth/jwt.go`)
+16. **T026** — Local bcrypt `AuthProvider` (`internal/auth/local/local.go`)
+17. **T027** — Login rate limiter, token-bucket per source IP (`internal/auth/ratelimit.go`)
+18. **T028** — `AuthService.Login` handler (`internal/auth/service.go`)
+19. **T029** — `AuthService.Logout` Phase 1 audit-only (`internal/auth/service.go`)
+20. **T030** — `AuthService.ChangePassword` (`internal/auth/service.go`)
+21. **T031** — `AuthUnaryInterceptor` + `AuthStreamInterceptor` (`internal/auth/interceptor.go`)
+22. **T032** — Wire auth into `cmd/server/main.go` + `GET /auth/jwks` endpoint
+23. **T033** — `pheromone key generate` CLI (`cmd/cli/key.go`)
+24. **T034** — JWT unit tests (`tests/unit/auth/jwt_test.go`)
+25. **T035** — Interceptor unit tests (`tests/unit/auth/interceptor_test.go`)
+26. **T036** — Integration smoke tests (`tests/integration/auth_interceptor_test.go`)
+
+## Acceptance Criteria
+
+- AC-001: Unauthenticated gRPC client → `codes.Unauthenticated`
+- AC-002: Valid JWT bearer token grants access to permitted RPCs
+- AC-003: `viewer` role cannot call write RPCs → `codes.PermissionDenied`
+- AC-004: Agent mTLS flows unaffected by auth interceptor
+- AC-005: `auth.login_success` / `auth.login_failure` logged on each attempt
+- AC-006: `auth.access_denied` logged on each RBAC rejection
+- AC-007: Passwords never appear in log output
+- AC-008: JWT expired after configured TTL → `codes.Unauthenticated`
+- AC-009: First-run bootstrap creates `owner` account; re-run rejected
+- AC-010: `pheromone user create/list/delete` CLI works end-to-end
+- AC-011: `internal/auth/` unit test coverage ≥ 70% (target 80%)
+- AC-012: `govulncheck` clean on new dependencies
+- AC-013: `gosec` clean on `internal/auth/`
+
+## Related
+
+- ADR-015: `docs/adr/adr-015-user-access-control-identity-provider.md`
+- Tasks: T011–T049 in `specs/001-user-access-control/tasks.md`
+- Depends on: Issues Q (spike), R (proto), S (data layer)
+- Quickstart: `specs/001-user-access-control/quickstart.md`
+
+## Effort
+
+Estimated: ~95 hours total; ~42h critical path; ~53h parallelisable
+Recommended: 2 engineers working Phase 4 (US2) and Phase 5 (US3) in parallel after US1 complete
+
+## Labels
+
+`type:feature` `phase:1` `adr:015`
+```
+
+---
+
+### Issue U: feat(auth) — Phase 2: External IdP Adapters (LDAP, OIDC, SAML) (ADR-015)
+
+**Title**: `feat(auth): Phase 2 — LDAP, OIDC, and SAML 2.0 identity provider adapters (ADR-015)`
+
+**Body**:
+```
+## Objective
+
+Implement the three external identity provider adapters defined in ADR-015 D4, enabling
+enterprise users to authenticate with corporate credentials (AD/LDAP, OIDC, SAML 2.0).
+
+## Background
+
+Phase 1 delivers local bcrypt authentication. Phase 2 adds pluggable IdP adapters via
+the `AuthProvider` interface established in Issue S. Each adapter is a separate sub-package
+and can be reviewed/released independently.
+
+## Sub-issues (recommend one issue per adapter)
+
+### Phase 2a — LDAP Adapter (T037)
+- Implement `internal/auth/ldap/ldap.go` satisfying `AuthProvider`
+- LDAP bind auth, group search, group→role mapping via `LDAPConfig.GroupRoleMap`
+- `ldaps://` + STARTTLS; plain `ldap://` blocked by default
+- Shadow `UserRecord` created/synced in etcd on first login
+- Integration test against containerised OpenLDAP
+- Dependency: `go-ldap/ldap` v3 — run `govulncheck` before adding
+
+### Phase 2b — OIDC Adapter (T038)
+- Implement `internal/auth/oidc/oidc.go`
+- OIDC Discovery + JWKS auto-rotation via `coreos/go-oidc` v3
+- Authorization Code + PKCE + `state` CSRF
+- `GET /auth/oidc/callback` aligned with ADR-011 HTTP listener
+- Integration test against containerised Keycloak
+- Dependency: `coreos/go-oidc` v3 + `golang.org/x/oauth2`
+
+### Phase 2c — SAML 2.0 Adapter (T039)
+- Implement `internal/auth/saml/saml.go`
+- SP metadata + ACS endpoint
+- Library choice: evaluate `crewjam/saml` vs `russellhaering/gosaml2` (update research.md §R7)
+- Configuration examples: Okta, ADFS
+
+## Acceptance Criteria
+
+- Each adapter satisfies `AuthProvider` interface (compiles, passes unit tests)
+- Break-glass path: local owner account still works when any IdP is unreachable
+- `govulncheck` clean on all new dependencies
+- Integration tests green for each adapter
+
+## Related
+
+- ADR-015: `docs/adr/adr-015-user-access-control-identity-provider.md` §D4
+- Tasks: T037–T039 in `specs/001-user-access-control/tasks.md`
+- Depends on: Issue T (Phase 1 MVP) complete
+
+## Effort
+
+Estimated: 24 hours (T037 8h + T038 8h + T039 8h; all parallelisable)
+
+## Labels
+
+`type:feature` `phase:2` `adr:015`
+```
+
+---
+
+### Issue V: docs(auth) — Documentation Updates for ADR-015 Phase 1 (ADR-015)
+
+**Title**: `docs(auth): update SECURITY.md, README, ADR index, and quickstart for Phase 1 auth (ADR-015)`
+
+**Body**:
+```
+## Objective
+
+Update all documentation to reflect the Phase 1 auth implementation delivered in Issue T.
+
+## Tasks
+
+1. **T044** — Update `SECURITY.md`: close ADR-014 "open items", add sections for Credential Policy,
+   JWT Token Lifecycle, RBAC Model, Audit Events, Key Management
+2. **T045** — Update `docs/adr/INDEX.md`: add ADR-015 row (status, date, derived-from links)
+3. **T046** — Update `README.md`: add §Authentication with key generation, bootstrap, and login steps
+4. **T042** — Append audit log `jq` query examples to `specs/001-user-access-control/quickstart.md`
+5. **T043** — Commit RSA test key pair to `internal/auth/testdata/` with `DO NOT USE IN PRODUCTION` header
+
+## Acceptance Criteria
+
+- `SECURITY.md` no longer has ADR-014 "open items" referencing user auth
+- `docs/adr/INDEX.md` includes ADR-015 with correct status link
+- `README.md` §Authentication section links to quickstart.md and ADR-015
+- quickstart.md §Audit Logging includes verified `jq` examples
+- Test key files: private key mode 0600, clearly labelled as test-only
+
+## Related
+
+- ADR-015: `docs/adr/adr-015-user-access-control-identity-provider.md`
+- Tasks: T042–T046 in `specs/001-user-access-control/tasks.md`
+- Depends on: Issue T (Phase 1 MVP) complete
+
+## Effort
+
+Estimated: 9 hours (T042 2h + T043 1h + T044 2h + T045 0.5h + T046 1h; all parallelisable)
+
+## Labels
+
+`type:docs` `phase:1` `adr:015`
+```
+
+---
+
 ## Summary Table
 
 | Issue | Type | ADR | Effort | Blocking |
@@ -759,11 +1134,23 @@ Create `.proto/pheromone/v1/`:
 | N | ADR Review | ADR-012 | — | Issue O |
 | O | Implementation | ADR-012 | 4h | — |
 | P | Implementation | ADR-003 | 8h | Issue I |
+| Q | Tech Spike | ADR-015 | 7h | Issue T |
+| R | Implementation | ADR-015 | 7h | Issue Q |
+| S | Implementation | ADR-015 | 16h | Issue R |
+| T | Implementation | ADR-015 | ~95h | Issue S |
+| U | Implementation | ADR-015 | 24h | Issue T |
+| V | Documentation | ADR-015 | 9h | Issue T |
 
-**Total estimated effort**: ~56 hours (parallelisable)
+**Total estimated effort**: ~212 hours (parallelisable; ~56h pre-ADR-015 + ~156h ADR-015)
 
 **Critical path to MVP implementation start**:
 A → H → (server implementation begins)
 B → I → P → (gRPC service implementation begins)
 J → (twin model implementation begins)
 O → N → (Vagrant-based integration testing begins)
+
+**ADR-015 critical path (Phase 1 MVP)**:
+Q → R → S → T (US1) → T (US2 ∥ US3) → V → (ADR-015 Status: Accepted)
+
+**ADR-015 Phase 2 critical path**:
+T → U (LDAP ∥ OIDC ∥ SAML) → (enterprise IdP available)
