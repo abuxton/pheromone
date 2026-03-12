@@ -5,5 +5,5 @@ global:
 scrape_configs:
   - job_name: pheromone-server
     static_configs:
-      - targets: ["pheromone-server:8080"]
+      - targets: ["pheromone-server:8081"]
     metrics_path: /metrics

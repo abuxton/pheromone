@@ -1036,288 +1036,288 @@ func TestBroadcast(t *testing.T) {
 /* ── User CRUD ── */
 
 func TestHandleUsers_Create(t *testing.T) {
-srv := newTestServer(t)
-h := newHandler(srv)
-tok := login(t, h, "admin", "admin")
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	tok := login(t, h, "admin", "admin")
 
-req := CreateUserRequest{
-Username:    "newop",
-Password:    "securepassword123",
-Role:        "operator",
-DisplayName: "New Operator",
-Email:       "op@example.com",
-}
-rr := doJSON(t, h, http.MethodPost, "/api/v1/users", req, tok)
-if rr.Code != http.StatusCreated {
-t.Fatalf("expected 201, got %d: %s", rr.Code, rr.Body.String())
-}
-var info UserInfo
-if err := json.NewDecoder(rr.Body).Decode(&info); err != nil {
-t.Fatalf("decode: %v", err)
-}
-if info.Username != "newop" {
-t.Errorf("expected username newop, got %q", info.Username)
-}
-if info.Role != "operator" {
-t.Errorf("expected role operator, got %q", info.Role)
-}
+	req := CreateUserRequest{
+		Username:    "newop",
+		Password:    "securepassword123",
+		Role:        "operator",
+		DisplayName: "New Operator",
+		Email:       "op@example.com",
+	}
+	rr := doJSON(t, h, http.MethodPost, "/api/v1/users", req, tok)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var info UserInfo
+	if err := json.NewDecoder(rr.Body).Decode(&info); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if info.Username != "newop" {
+		t.Errorf("expected username newop, got %q", info.Username)
+	}
+	if info.Role != "operator" {
+		t.Errorf("expected role operator, got %q", info.Role)
+	}
 }
 
 func TestHandleUsers_Create_Duplicate(t *testing.T) {
-srv := newTestServer(t)
-h := newHandler(srv)
-tok := login(t, h, "admin", "admin")
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	tok := login(t, h, "admin", "admin")
 
-req := CreateUserRequest{Username: "admin", Password: "pass123", Role: "observer"}
-rr := doJSON(t, h, http.MethodPost, "/api/v1/users", req, tok)
-if rr.Code != http.StatusConflict {
-t.Fatalf("expected 409, got %d: %s", rr.Code, rr.Body.String())
-}
+	req := CreateUserRequest{Username: "admin", Password: "pass123", Role: "observer"}
+	rr := doJSON(t, h, http.MethodPost, "/api/v1/users", req, tok)
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", rr.Code, rr.Body.String())
+	}
 }
 
 func TestHandleUser_GetByUsername(t *testing.T) {
-srv := newTestServer(t)
-h := newHandler(srv)
-tok := login(t, h, "admin", "admin")
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	tok := login(t, h, "admin", "admin")
 
-rr := doJSON(t, h, http.MethodGet, "/api/v1/users/admin", nil, tok)
-if rr.Code != http.StatusOK {
-t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-}
-var info UserInfo
-if err := json.NewDecoder(rr.Body).Decode(&info); err != nil {
-t.Fatalf("decode: %v", err)
-}
-if info.Username != "admin" {
-t.Errorf("expected username admin, got %q", info.Username)
-}
+	rr := doJSON(t, h, http.MethodGet, "/api/v1/users/admin", nil, tok)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var info UserInfo
+	if err := json.NewDecoder(rr.Body).Decode(&info); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if info.Username != "admin" {
+		t.Errorf("expected username admin, got %q", info.Username)
+	}
 }
 
 func TestHandleUser_Update(t *testing.T) {
-srv := newTestServer(t)
-h := newHandler(srv)
-tok := login(t, h, "admin", "admin")
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	tok := login(t, h, "admin", "admin")
 
-// Create a user first
-req := CreateUserRequest{Username: "opuser", Password: "pass123!", Role: "operator"}
-rr := doJSON(t, h, http.MethodPost, "/api/v1/users", req, tok)
-if rr.Code != http.StatusCreated {
-t.Fatalf("create user: expected 201, got %d: %s", rr.Code, rr.Body.String())
-}
+	// Create a user first
+	req := CreateUserRequest{Username: "opuser", Password: "pass123!", Role: "operator"}
+	rr := doJSON(t, h, http.MethodPost, "/api/v1/users", req, tok)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("create user: expected 201, got %d: %s", rr.Code, rr.Body.String())
+	}
 
-// Update role
-disabled := false
-upd := UpdateUserRequest{Role: "observer", DisplayName: "Op User", Disabled: &disabled}
-rr = doJSON(t, h, http.MethodPut, "/api/v1/users/opuser", upd, tok)
-if rr.Code != http.StatusOK {
-t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-}
-var info UserInfo
-if err := json.NewDecoder(rr.Body).Decode(&info); err != nil {
-t.Fatalf("decode: %v", err)
-}
-if info.Role != "observer" {
-t.Errorf("expected role observer, got %q", info.Role)
-}
+	// Update role
+	disabled := false
+	upd := UpdateUserRequest{Role: "observer", DisplayName: "Op User", Disabled: &disabled}
+	rr = doJSON(t, h, http.MethodPut, "/api/v1/users/opuser", upd, tok)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var info UserInfo
+	if err := json.NewDecoder(rr.Body).Decode(&info); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if info.Role != "observer" {
+		t.Errorf("expected role observer, got %q", info.Role)
+	}
 }
 
 func TestHandleUser_Delete(t *testing.T) {
-srv := newTestServer(t)
-h := newHandler(srv)
-tok := login(t, h, "admin", "admin")
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	tok := login(t, h, "admin", "admin")
 
-// Create then delete
-req := CreateUserRequest{Username: "todelete", Password: "pass123!", Role: "observer"}
-rr := doJSON(t, h, http.MethodPost, "/api/v1/users", req, tok)
-if rr.Code != http.StatusCreated {
-t.Fatalf("create: expected 201, got %d: %s", rr.Code, rr.Body.String())
-}
+	// Create then delete
+	req := CreateUserRequest{Username: "todelete", Password: "pass123!", Role: "observer"}
+	rr := doJSON(t, h, http.MethodPost, "/api/v1/users", req, tok)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("create: expected 201, got %d: %s", rr.Code, rr.Body.String())
+	}
 
-rr = doJSON(t, h, http.MethodDelete, "/api/v1/users/todelete", nil, tok)
-if rr.Code != http.StatusNoContent {
-t.Fatalf("expected 204, got %d: %s", rr.Code, rr.Body.String())
-}
+	rr = doJSON(t, h, http.MethodDelete, "/api/v1/users/todelete", nil, tok)
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", rr.Code, rr.Body.String())
+	}
 
-// Verify gone
-rr = doJSON(t, h, http.MethodGet, "/api/v1/users/todelete", nil, tok)
-if rr.Code != http.StatusNotFound {
-t.Fatalf("expected 404 after delete, got %d", rr.Code)
-}
+	// Verify gone
+	rr = doJSON(t, h, http.MethodGet, "/api/v1/users/todelete", nil, tok)
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 after delete, got %d", rr.Code)
+	}
 }
 
 func TestHandleLogin_DisabledUser(t *testing.T) {
-srv := newTestServer(t)
-h := newHandler(srv)
-tok := login(t, h, "admin", "admin")
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	tok := login(t, h, "admin", "admin")
 
-// Create a user and disable them
-req := CreateUserRequest{Username: "disabled1", Password: "pass123!", Role: "observer"}
-rr := doJSON(t, h, http.MethodPost, "/api/v1/users", req, tok)
-if rr.Code != http.StatusCreated {
-t.Fatalf("create: expected 201, got %d: %s", rr.Code, rr.Body.String())
-}
+	// Create a user and disable them
+	req := CreateUserRequest{Username: "disabled1", Password: "pass123!", Role: "observer"}
+	rr := doJSON(t, h, http.MethodPost, "/api/v1/users", req, tok)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("create: expected 201, got %d: %s", rr.Code, rr.Body.String())
+	}
 
-disabled := true
-upd := UpdateUserRequest{Disabled: &disabled}
-rr = doJSON(t, h, http.MethodPut, "/api/v1/users/disabled1", upd, tok)
-if rr.Code != http.StatusOK {
-t.Fatalf("update: expected 200, got %d: %s", rr.Code, rr.Body.String())
-}
+	disabled := true
+	upd := UpdateUserRequest{Disabled: &disabled}
+	rr = doJSON(t, h, http.MethodPut, "/api/v1/users/disabled1", upd, tok)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("update: expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
 
-// Attempt login with disabled account
-rr = doJSON(t, h, http.MethodPost, "/api/v1/auth/login",
-LoginRequest{Username: "disabled1", Password: "pass123!"}, "")
-if rr.Code != http.StatusUnauthorized {
-t.Fatalf("expected 401 for disabled user, got %d: %s", rr.Code, rr.Body.String())
-}
+	// Attempt login with disabled account
+	rr = doJSON(t, h, http.MethodPost, "/api/v1/auth/login",
+		LoginRequest{Username: "disabled1", Password: "pass123!"}, "")
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for disabled user, got %d: %s", rr.Code, rr.Body.String())
+	}
 }
 
 /* ── API Keys ── */
 
 func TestHandleAPIKeys_CreateAndList(t *testing.T) {
-srv := newTestServer(t)
-h := newHandler(srv)
-tok := login(t, h, "admin", "admin")
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	tok := login(t, h, "admin", "admin")
 
-req := CreateAPIKeyRequest{Name: "ci-deploy-key"}
-rr := doJSON(t, h, http.MethodPost, "/api/v1/users/admin/api-keys", req, tok)
-if rr.Code != http.StatusCreated {
-t.Fatalf("expected 201, got %d: %s", rr.Code, rr.Body.String())
-}
-var resp CreateAPIKeyResponse
-if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
-t.Fatalf("decode: %v", err)
-}
-if resp.Key == "" {
-t.Error("expected non-empty key")
-}
-if !strings.HasPrefix(resp.Key, "ph::key::") {
-	preview := resp.Key
-	if len(preview) > 20 {
-		preview = preview[:20]
+	req := CreateAPIKeyRequest{Name: "ci-deploy-key"}
+	rr := doJSON(t, h, http.MethodPost, "/api/v1/users/admin/api-keys", req, tok)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rr.Code, rr.Body.String())
 	}
-	t.Errorf("expected key prefix ph::key::, got %q", preview)
-}
+	var resp CreateAPIKeyResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Key == "" {
+		t.Error("expected non-empty key")
+	}
+	if !strings.HasPrefix(resp.Key, "ph::key::") {
+		preview := resp.Key
+		if len(preview) > 20 {
+			preview = preview[:20]
+		}
+		t.Errorf("expected key prefix ph::key::, got %q", preview)
+	}
 
-// List keys
-rr = doJSON(t, h, http.MethodGet, "/api/v1/users/admin/api-keys", nil, tok)
-if rr.Code != http.StatusOK {
-t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-}
-var keys []APIKey
-if err := json.NewDecoder(rr.Body).Decode(&keys); err != nil {
-t.Fatalf("decode: %v", err)
-}
-if len(keys) == 0 {
-t.Error("expected at least one API key in list")
-}
+	// List keys
+	rr = doJSON(t, h, http.MethodGet, "/api/v1/users/admin/api-keys", nil, tok)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var keys []APIKey
+	if err := json.NewDecoder(rr.Body).Decode(&keys); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(keys) == 0 {
+		t.Error("expected at least one API key in list")
+	}
 }
 
 func TestHandleAPIKeys_Revoke(t *testing.T) {
-srv := newTestServer(t)
-h := newHandler(srv)
-tok := login(t, h, "admin", "admin")
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	tok := login(t, h, "admin", "admin")
 
-req := CreateAPIKeyRequest{Name: "to-revoke"}
-rr := doJSON(t, h, http.MethodPost, "/api/v1/users/admin/api-keys", req, tok)
-if rr.Code != http.StatusCreated {
-t.Fatalf("create: expected 201, got %d: %s", rr.Code, rr.Body.String())
-}
-var resp CreateAPIKeyResponse
-if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
-t.Fatalf("decode: %v", err)
-}
-keyID := resp.APIKey.ID
+	req := CreateAPIKeyRequest{Name: "to-revoke"}
+	rr := doJSON(t, h, http.MethodPost, "/api/v1/users/admin/api-keys", req, tok)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("create: expected 201, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var resp CreateAPIKeyResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	keyID := resp.APIKey.ID
 
-rr = doJSON(t, h, http.MethodDelete, "/api/v1/users/admin/api-keys/"+keyID, nil, tok)
-if rr.Code != http.StatusNoContent {
-t.Fatalf("expected 204, got %d: %s", rr.Code, rr.Body.String())
-}
+	rr = doJSON(t, h, http.MethodDelete, "/api/v1/users/admin/api-keys/"+keyID, nil, tok)
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", rr.Code, rr.Body.String())
+	}
 }
 
 /* ── Audit Log ── */
 
 func TestHandleAudit_AdminAccess(t *testing.T) {
-srv := newTestServer(t)
-h := newHandler(srv)
-tok := login(t, h, "admin", "admin")
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	tok := login(t, h, "admin", "admin")
 
-rr := doJSON(t, h, http.MethodGet, "/api/v1/audit", nil, tok)
-if rr.Code != http.StatusOK {
-t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-}
-var entries []*AuditEntry
-if err := json.NewDecoder(rr.Body).Decode(&entries); err != nil {
-t.Fatalf("decode: %v", err)
-}
-// Login above should have generated at least one audit entry
-if len(entries) == 0 {
-t.Error("expected at least one audit entry after login")
-}
+	rr := doJSON(t, h, http.MethodGet, "/api/v1/audit", nil, tok)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var entries []*AuditEntry
+	if err := json.NewDecoder(rr.Body).Decode(&entries); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	// Login above should have generated at least one audit entry
+	if len(entries) == 0 {
+		t.Error("expected at least one audit entry after login")
+	}
 }
 
 func TestHandleAudit_FilterByUser(t *testing.T) {
-srv := newTestServer(t)
-h := newHandler(srv)
-tok := login(t, h, "admin", "admin")
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	tok := login(t, h, "admin", "admin")
 
-rr := doJSON(t, h, http.MethodGet, "/api/v1/audit?user=admin", nil, tok)
-if rr.Code != http.StatusOK {
-t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-}
-var entries []*AuditEntry
-if err := json.NewDecoder(rr.Body).Decode(&entries); err != nil {
-t.Fatalf("decode: %v", err)
-}
-for _, e := range entries {
-if e.UserID != "admin" {
-t.Errorf("expected only admin entries, got user %q", e.UserID)
-}
-}
+	rr := doJSON(t, h, http.MethodGet, "/api/v1/audit?user=admin", nil, tok)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var entries []*AuditEntry
+	if err := json.NewDecoder(rr.Body).Decode(&entries); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	for _, e := range entries {
+		if e.UserID != "admin" {
+			t.Errorf("expected only admin entries, got user %q", e.UserID)
+		}
+	}
 }
 
 func TestHandleAudit_ViewerForbidden(t *testing.T) {
-srv := newTestServer(t)
-h := newHandler(srv)
-tok := login(t, h, "viewer", "viewer123")
-rr := doJSON(t, h, http.MethodGet, "/api/v1/audit", nil, tok)
-if rr.Code != http.StatusForbidden {
-t.Fatalf("expected 403, got %d", rr.Code)
-}
+	srv := newTestServer(t)
+	h := newHandler(srv)
+	tok := login(t, h, "viewer", "viewer123")
+	rr := doJSON(t, h, http.MethodGet, "/api/v1/audit", nil, tok)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", rr.Code)
+	}
 }
 
 /* ── RBAC role helpers ── */
 
 func TestRoleLevel(t *testing.T) {
-tests := []struct {
-role  string
-level int
-}{
-{"agent", 1},
-{"observer", 2},
-{"viewer", 2}, // legacy alias
-{"operator", 3},
-{"admin", 4},
-{"unknown", 0},
-}
-for _, tc := range tests {
-got := roleLevel(tc.role)
-if got != tc.level {
-t.Errorf("roleLevel(%q) = %d, want %d", tc.role, got, tc.level)
-}
-}
+	tests := []struct {
+		role  string
+		level int
+	}{
+		{"agent", 1},
+		{"observer", 2},
+		{"viewer", 2}, // legacy alias
+		{"operator", 3},
+		{"admin", 4},
+		{"unknown", 0},
+	}
+	for _, tc := range tests {
+		got := roleLevel(tc.role)
+		if got != tc.level {
+			t.Errorf("roleLevel(%q) = %d, want %d", tc.role, got, tc.level)
+		}
+	}
 }
 
 func TestHasRole(t *testing.T) {
-if !hasRole("admin", "operator") {
-t.Error("admin should have at least operator level")
-}
-if hasRole("observer", "operator") {
-t.Error("observer should not have operator level")
-}
-if !hasRole("observer", "observer") {
-t.Error("observer should have observer level")
-}
+	if !hasRole("admin", "operator") {
+		t.Error("admin should have at least operator level")
+	}
+	if hasRole("observer", "operator") {
+		t.Error("observer should not have operator level")
+	}
+	if !hasRole("observer", "observer") {
+		t.Error("observer should have observer level")
+	}
 }
 
 func TestCheckPassword_Bcrypt(t *testing.T) {
@@ -1343,22 +1343,22 @@ func TestCheckPassword_Bcrypt(t *testing.T) {
 // TestMetricsEndpoint verifies that GET /metrics returns HTTP 200 and a
 // Prometheus text-format body containing at least one pheromone_ metric.
 func TestMetricsEndpoint(t *testing.T) {
-t.Parallel()
-_, h := newTestHandler(t)
+	t.Parallel()
+	_, h := newTestHandler(t)
 
-req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
-rr := httptest.NewRecorder()
-h.ServeHTTP(rr, req)
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
 
-if rr.Code != http.StatusOK {
-t.Fatalf("GET /metrics: want 200, got %d; body: %s", rr.Code, rr.Body.String())
-}
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET /metrics: want 200, got %d; body: %s", rr.Code, rr.Body.String())
+	}
 
-body := rr.Body.String()
-if !strings.Contains(body, "pheromone_agents_total") {
-t.Errorf("GET /metrics: body missing pheromone_agents_total; got:\n%s", body)
-}
-if !strings.Contains(body, "pheromone_twins_total") {
-t.Errorf("GET /metrics: body missing pheromone_twins_total; got:\n%s", body)
-}
+	body := rr.Body.String()
+	if !strings.Contains(body, "pheromone_agents_total") {
+		t.Errorf("GET /metrics: body missing pheromone_agents_total; got:\n%s", body)
+	}
+	if !strings.Contains(body, "pheromone_twins_total") {
+		t.Errorf("GET /metrics: body missing pheromone_twins_total; got:\n%s", body)
+	}
 }

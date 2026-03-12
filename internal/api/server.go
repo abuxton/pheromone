@@ -293,13 +293,14 @@ func (s *Server) Seed() {
 // It must be called with at least a read lock held, or when no concurrent
 // mutations are occurring (e.g. during Seed before the server is live).
 func (s *Server) syncMetrics() {
-	// Count agents by status.
-	statusCounts := map[string]float64{}
-	for _, a := range s.agents {
-		statusCounts[a.Status]++
+	// Reset all known status label values to zero before recomputing, so that
+	// statuses that are no longer present do not retain stale non-zero values.
+	for _, status := range []string{"online", "offline", "stale", "unknown"} {
+		metrics.AgentsTotal.WithLabelValues(status).Set(0)
 	}
-	for status, count := range statusCounts {
-		metrics.AgentsTotal.WithLabelValues(status).Set(count)
+	// Count agents by current status and set the gauge.
+	for _, a := range s.agents {
+		metrics.AgentsTotal.WithLabelValues(a.Status).Add(1)
 	}
 	metrics.TwinsTotal.Set(float64(len(s.twins)))
 }
