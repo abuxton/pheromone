@@ -61,12 +61,13 @@ The package exposes:
 
 ### 4. Docker Compose observability stack
 
-Two new services added to `docker-compose.yml`:
+Three services added to `docker-compose.yml`:
 
-- **`prometheus`** (`prom/prometheus:v3.4.0`) scrapes the Pheromone server at `http://pheromone-server:8080/metrics` every 15 s, with 15-day TSDB retention.
-- **`grafana`** (`grafana/grafana:12.0.1`) is provisioned via `deploy/grafana/provisioning/` with the Prometheus datasource and a pre-built **Pheromone Overview** dashboard (`deploy/grafana/dashboards/pheromone-overview.json`).
+- **`pheromone-server`** — built from `Dockerfile` (multi-stage Go build, distroless runtime); exposes port 8081; joins `pheromone-network` with `depends_on: etcd, pheromone-nats`.
+- **`prometheus`** (`prom/prometheus:v3.4.0`) scrapes the Pheromone server at `http://pheromone-server:8081/metrics` every 15 s, with 15-day TSDB retention; `depends_on: pheromone-server`.
+- **`grafana`** (`grafana/grafana:12.0.1`) is provisioned via `deploy/grafana/provisioning/` with the Prometheus datasource and a pre-built **Pheromone Overview** dashboard (`deploy/grafana/dashboards/pheromone-overview.json`). Anonymous access is disabled by default and controlled via the `GRAFANA_ANONYMOUS_ENABLED` environment variable.
 
-Both services join the existing `pheromone-network` bridge network.
+All services join the `pheromone-network` bridge network.
 
 Prometheus config: `deploy/prometheus/prometheus.yml`
 
@@ -81,7 +82,7 @@ Full OTel trace propagation through gRPC interceptors is deferred to Phase 2, bl
 ### Positive
 
 - Operators can point Prometheus at the management server and immediately receive 6 key metrics.
-- `docker compose up` now starts Prometheus and Grafana with zero additional configuration.
+- `docker compose up` now starts the full observability stack (pheromone-server, Prometheus, Grafana) with zero additional configuration. The pheromone-server service is built from the project `Dockerfile`.
 - Pre-built dashboard covers agents, twins, gRPC RED, NATS throughput, and reasoning decisions.
 - Isolated registry design prevents test pollution and duplicate-registration panics.
 - No breaking changes to existing API surface or middleware chain.
@@ -107,13 +108,14 @@ Full OTel trace propagation through gRPC interceptors is deferred to Phase 2, bl
 
 ## Implementation Notes
 
+- `Dockerfile` — multi-stage Go build producing a minimal `distroless/static` image; used by the `pheromone-server` compose service.
 - `internal/metrics/metrics.go` — registry, metric descriptors, `NewRegistry()` factory.
 - `internal/metrics/metrics_test.go` — unit tests: no-panic on multiple `NewRegistry()` calls, all 6 metrics present, correct Prometheus types.
-- `internal/api/server.go` — imports `internal/metrics` and `promhttp`; `/metrics` route added in `registerRoutes`; `syncMetrics()` called from `Seed()`.
-- `deploy/prometheus/prometheus.yml` — Prometheus scrape config.
+- `internal/api/server.go` — imports `internal/metrics` and `promhttp`; `/metrics` route added in `registerRoutes`; `syncMetrics()` called from `Seed()` (resets known status labels to 0 before recomputing to prevent stale series).
+- `deploy/prometheus/prometheus.yml` — Prometheus scrape config targeting `pheromone-server:8081`.
 - `deploy/grafana/provisioning/` — Grafana datasource and dashboard provisioning.
 - `deploy/grafana/dashboards/pheromone-overview.json` — pre-built overview dashboard.
-- `docker-compose.yml` — Prometheus (port 9090) and Grafana (port 3000) services added.
+- `docker-compose.yml` — `pheromone-server` (port 8081), Prometheus (port 9090), and Grafana (port 3000) services; all on `pheromone-network`; Grafana anonymous auth disabled by default via `GRAFANA_ANONYMOUS_ENABLED` env var.
 - `docs/adr/INDEX.md` — ADR-018 entry added.
 
 ---
