@@ -41,7 +41,7 @@ func newOSTwinRef(id string) *skill.TwinRef {
 	return &skill.TwinRef{ID: id, Level: skill.TwinLevelOS}
 }
 
-func newWorkloadTwinRef(id string) *skill.TwinRef {
+func newWorkloadTwinRef(id string) *skill.TwinRef { //nolint:unused // reserved for future tests
 	return &skill.TwinRef{ID: id, Level: skill.TwinLevelWorkload}
 }
 

@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -44,14 +45,24 @@ func newTestServer(t *testing.T) *Server {
 	return srv
 }
 
+// newTestHandler is a convenience wrapper that creates a seeded test Server and
+// returns its full HTTP handler chain together with the server itself.
+func newTestHandler(t *testing.T) (*Server, http.Handler) {
+	t.Helper()
+	srv := newTestServer(t)
+	return srv, newHandler(srv)
+}
+
 // newHandler returns the full handler chain for use in httptest.
 func newHandler(srv *Server) http.Handler {
 	mux := http.NewServeMux()
 	srv.registerRoutes(mux)
 	return srv.corsMiddleware(
-		srv.rateLimitMiddleware(
-			requestSizeLimitMiddleware(
-				srv.authMiddleware(mux),
+		requestIDMiddleware(
+			srv.rateLimitMiddleware(
+				requestSizeLimitMiddleware(
+					srv.authMiddleware(mux),
+				),
 			),
 		),
 	)
@@ -926,7 +937,7 @@ func TestDecodeJSON_MaxBytesError(t *testing.T) {
 	// before it reads past the MaxBytesReader limit.
 	prefix := []byte(`{"username":"`)
 	padding := bytes.Repeat([]byte("a"), defaultMaxBodyBytes) // enough to exceed limit
-	body := append(prefix, padding...)
+	body := append(prefix, padding...)                        //nolint:gocritic // appendAssign: test helper; result used immediately
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(body))
@@ -1019,5 +1030,206 @@ func TestBroadcast(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("broadcast event not received within 1s")
+	}
+}
+
+/* ── Request ID middleware ── */
+
+// TestRequestIDMiddleware_GeneratesHeader verifies that a request without an
+// X-Request-ID gets one injected and echoed back in the response header.
+func TestRequestIDMiddleware_GeneratesHeader(t *testing.T) {
+	_, h := newTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	id := rr.Header().Get("X-Request-ID")
+	if id == "" {
+		t.Error("expected X-Request-ID response header to be set")
+	}
+}
+
+// TestRequestIDMiddleware_PreservesIncomingID verifies that when the caller
+// supplies X-Request-ID it is echoed back unchanged.
+func TestRequestIDMiddleware_PreservesIncomingID(t *testing.T) {
+	_, h := newTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req.Header.Set("X-Request-ID", "client-supplied-id")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if got := rr.Header().Get("X-Request-ID"); got != "client-supplied-id" {
+		t.Errorf("expected X-Request-ID=client-supplied-id, got %q", got)
+	}
+}
+
+/* ── Admin log-level endpoint ── */
+
+// TestHandleLogLevel_AdminCanSetLevel verifies that an admin user can change the
+// log level and receives the new level in the response body.
+func TestHandleLogLevel_AdminCanSetLevel(t *testing.T) {
+	_, h := newTestHandler(t)
+	tok := login(t, h, "admin", "admin")
+
+	for _, tc := range []struct {
+		input string
+		want  string
+	}{
+		{"debug", "DEBUG"},
+		{"info", "INFO"},
+		{"warn", "WARN"},
+		{"warning", "WARN"},
+		{"error", "ERROR"},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			rr := doJSON(t, h, http.MethodPost, "/api/v1/admin/log-level",
+				LogLevelRequest{Level: tc.input}, tok)
+			if rr.Code != http.StatusOK {
+				t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+			}
+			var resp LogLevelResponse
+			if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			if resp.Level != tc.want {
+				t.Errorf("expected level %q, got %q", tc.want, resp.Level)
+			}
+		})
+	}
+}
+
+// TestHandleLogLevel_InvalidLevel verifies that an invalid level string returns 400.
+func TestHandleLogLevel_InvalidLevel(t *testing.T) {
+	_, h := newTestHandler(t)
+	tok := login(t, h, "admin", "admin")
+
+	rr := doJSON(t, h, http.MethodPost, "/api/v1/admin/log-level",
+		LogLevelRequest{Level: "verbose"}, tok)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid level, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+// TestHandleLogLevel_NonAdminForbidden verifies that a viewer cannot change the log level.
+func TestHandleLogLevel_NonAdminForbidden(t *testing.T) {
+	_, h := newTestHandler(t)
+	tok := login(t, h, "viewer", "viewer123")
+
+	rr := doJSON(t, h, http.MethodPost, "/api/v1/admin/log-level",
+		LogLevelRequest{Level: "debug"}, tok)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for viewer, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+// TestHandleLogLevel_MethodNotAllowed verifies that non-POST methods return 405.
+func TestHandleLogLevel_MethodNotAllowed(t *testing.T) {
+	_, h := newTestHandler(t)
+	tok := login(t, h, "admin", "admin")
+
+	rr := doJSON(t, h, http.MethodGet, "/api/v1/admin/log-level", nil, tok)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", rr.Code)
+	}
+}
+
+// TestLogLevelVar_Accessor verifies that LogLevelVar returns the server's level var.
+func TestLogLevelVar_Accessor(t *testing.T) {
+	srv, _ := newTestHandler(t)
+	lv := srv.LogLevelVar()
+	if lv == nil {
+		t.Fatal("LogLevelVar() returned nil")
+	}
+}
+
+/* ── isValidRequestID helper ── */
+
+func TestIsValidRequestID_Valid(t *testing.T) {
+	validCases := []string{
+		"abc123",
+		"4b57843dda4b1fdf",
+		"req-001",
+		"A-Za-z0-9_-",
+	}
+	for _, c := range validCases {
+		if !isValidRequestID(c) {
+			t.Errorf("expected isValidRequestID(%q)=true", c)
+		}
+	}
+}
+
+func TestIsValidRequestID_Invalid(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"empty", ""},
+		{"spaces", "req id"},
+		{"tab", "req\tid"},
+		{"newline", "req\nid"},
+		{"too long", string(bytes.Repeat([]byte("a"), maxRequestIDLen+1))},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if isValidRequestID(tc.input) {
+				t.Errorf("expected isValidRequestID(%q)=false", tc.input)
+			}
+		})
+	}
+}
+
+// TestRequestIDMiddleware_InvalidIDIsReplaced verifies that an invalid
+// incoming X-Request-ID is replaced with a freshly generated one.
+func TestRequestIDMiddleware_InvalidIDIsReplaced(t *testing.T) {
+	_, h := newTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req.Header.Set("X-Request-ID", "bad id with spaces")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	got := rr.Header().Get("X-Request-ID")
+	if got == "bad id with spaces" {
+		t.Error("invalid X-Request-ID should have been replaced")
+	}
+	if got == "" {
+		t.Error("a generated X-Request-ID should be present")
+	}
+}
+
+// TestCORSExposeRequestIDHeader verifies that X-Request-ID is in
+// Access-Control-Expose-Headers so browser clients can read it.
+func TestCORSExposeRequestIDHeader(t *testing.T) {
+	_, h := newTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	expose := rr.Header().Get("Access-Control-Expose-Headers")
+	if expose == "" {
+		t.Error("expected Access-Control-Expose-Headers to be set")
+	}
+	if !strings.Contains(expose, "X-Request-ID") {
+		t.Errorf("expected X-Request-ID in Access-Control-Expose-Headers, got %q", expose)
+	}
+}
+
+// TestCORSAllowRequestIDHeader verifies that X-Request-ID is in
+// Access-Control-Allow-Headers so browser clients can send it.
+func TestCORSAllowRequestIDHeader(t *testing.T) {
+	_, h := newTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodOptions, "/healthz", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	allow := rr.Header().Get("Access-Control-Allow-Headers")
+	if !strings.Contains(allow, "X-Request-ID") {
+		t.Errorf("expected X-Request-ID in Access-Control-Allow-Headers, got %q", allow)
 	}
 }

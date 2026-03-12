@@ -92,7 +92,7 @@ func (n *NotificationSkillImpl) Execute(ctx context.Context, obs *skill.Observat
 
 	case "notify-server":
 		if err := n.NotifyServer(ctx, event); err != nil {
-			return &skill.SkillResult{Success: false, Detail: err.Error()}, nil
+			return &skill.SkillResult{Success: false, Detail: err.Error()}, err
 		}
 		return &skill.SkillResult{Success: true, Detail: "notify-server stub: queued"}, nil
 

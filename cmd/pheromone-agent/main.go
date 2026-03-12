@@ -8,6 +8,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -62,7 +63,7 @@ func run(args []string) int {
 	configPath := globalFlags.String("config-path", configPathFromEnv(), "directory containing agent configuration files")
 
 	if err := globalFlags.Parse(args); err != nil {
-		if err == flag.ErrHelp {
+		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 1
@@ -105,7 +106,7 @@ func runConfigValidate(args []string, globalConfigPath string) int {
 	configPath := fs.String("config-path", globalConfigPath, "directory containing agent configuration files")
 
 	if err := fs.Parse(args); err != nil {
-		if err == flag.ErrHelp {
+		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 1
@@ -143,7 +144,7 @@ func runConfigGenerate(args []string, globalConfigPath string) int {
 	output := fs.String("output", "", "explicit output file path (overrides config-path)")
 
 	if err := fs.Parse(args); err != nil {
-		if err == flag.ErrHelp {
+		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 1

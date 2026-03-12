@@ -23,6 +23,7 @@ import (
 type Server struct {
 	cfg       config.UIConfig
 	log       *slog.Logger
+	logLevel  *slog.LevelVar
 	httpSrv   *http.Server
 	startTime time.Time
 	// ready is set to true by Seed() once demo/startup data has been loaded.
@@ -51,14 +52,24 @@ type Server struct {
 
 // New creates a new API Server with the given UIConfig and logger.
 // Call Seed to populate demo data and ListenAndServe to start accepting requests.
-// If log is nil, slog.Default() is used.
+//
+// If log is nil, the server builds a default JSON logger that writes to stderr
+// with its minimum level wired to the server's slog.LevelVar. This means that
+// POST /api/v1/admin/log-level will immediately affect what the server emits
+// without a restart.
+//
+// If a pre-built logger is supplied, it is used as-is and the caller is
+// responsible for wiring LogLevelVar() into that logger's handler options if
+// runtime level control is required.
 func New(cfg config.UIConfig, log *slog.Logger) *Server {
+	lv := new(slog.LevelVar) // default level is Info
 	if log == nil {
-		log = slog.Default()
+		log = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: lv}))
 	}
 	s := &Server{
 		cfg:          cfg,
 		log:          log,
+		logLevel:     lv,
 		startTime:    time.Now(),
 		users:        make(map[string]*config.UIUser),
 		agents:       make(map[string]*Agent),
@@ -77,6 +88,13 @@ func New(cfg config.UIConfig, log *slog.Logger) *Server {
 	}
 
 	return s
+}
+
+// LogLevelVar returns the slog.LevelVar that controls this server's log level.
+// Pass this to slog.HandlerOptions.Level when constructing the logger so that
+// POST /api/v1/admin/log-level can change the level at runtime without a restart.
+func (s *Server) LogLevelVar() *slog.LevelVar {
+	return s.logLevel
 }
 
 // Seed populates the server with example data so the UI is immediately useful.
@@ -149,37 +167,37 @@ func (s *Server) Seed() {
 			ID: "twin-os-01", Name: "web-server-01 OS", Type: "os", State: "active",
 			AgentID: "agent-os-01", ConfigVersion: 5,
 			LastHeartbeat: now.Add(-5 * time.Second),
-			Metadata: map[string]string{"env": "production", "region": "us-east-1"},
-			ActualState:  map[string]interface{}{"os": "Ubuntu 24.04", "kernel": "6.8.0-50-generic", "uptime_hours": 720, "cpu_cores": 8, "memory_gb": 32},
-			DesiredState: map[string]interface{}{"os": "Ubuntu 24.04", "kernel": "6.8.0-50-generic", "cpu_cores": 8, "memory_gb": 32},
-			CreatedAt: now.Add(-72 * time.Hour), UpdatedAt: now.Add(-5 * time.Second),
+			Metadata:      map[string]string{"env": "production", "region": "us-east-1"},
+			ActualState:   map[string]interface{}{"os": "Ubuntu 24.04", "kernel": "6.8.0-50-generic", "uptime_hours": 720, "cpu_cores": 8, "memory_gb": 32},
+			DesiredState:  map[string]interface{}{"os": "Ubuntu 24.04", "kernel": "6.8.0-50-generic", "cpu_cores": 8, "memory_gb": 32},
+			CreatedAt:     now.Add(-72 * time.Hour), UpdatedAt: now.Add(-5 * time.Second),
 		},
 		{
 			ID: "twin-os-02", Name: "db-server-01 OS", Type: "os", State: "active",
 			AgentID: "agent-os-02", ConfigVersion: 3,
 			LastHeartbeat: now.Add(-12 * time.Second),
-			Metadata: map[string]string{"env": "production", "region": "us-east-1"},
-			ActualState:  map[string]interface{}{"os": "Debian 12", "kernel": "6.1.0-27-amd64", "uptime_hours": 500, "cpu_cores": 16, "memory_gb": 64},
-			DesiredState: map[string]interface{}{"os": "Debian 12", "kernel": "6.1.0-28-amd64", "cpu_cores": 16, "memory_gb": 64},
-			CreatedAt: now.Add(-72 * time.Hour), UpdatedAt: now.Add(-12 * time.Second),
+			Metadata:      map[string]string{"env": "production", "region": "us-east-1"},
+			ActualState:   map[string]interface{}{"os": "Debian 12", "kernel": "6.1.0-27-amd64", "uptime_hours": 500, "cpu_cores": 16, "memory_gb": 64},
+			DesiredState:  map[string]interface{}{"os": "Debian 12", "kernel": "6.1.0-28-amd64", "cpu_cores": 16, "memory_gb": 64},
+			CreatedAt:     now.Add(-72 * time.Hour), UpdatedAt: now.Add(-12 * time.Second),
 		},
 		{
 			ID: "twin-wl-01", Name: "nginx-service", Type: "workload", State: "active",
 			AgentID: "agent-wl-01", ConfigVersion: 12,
 			LastHeartbeat: now.Add(-2 * time.Second),
-			Metadata: map[string]string{"env": "production", "service": "nginx"},
-			ActualState:  map[string]interface{}{"nginx_version": "1.24.0", "worker_processes": "4", "connections_active": 128, "status": "running"},
-			DesiredState: map[string]interface{}{"nginx_version": "1.24.0", "worker_processes": "4", "status": "running"},
-			CreatedAt: now.Add(-48 * time.Hour), UpdatedAt: now.Add(-2 * time.Second),
+			Metadata:      map[string]string{"env": "production", "service": "nginx"},
+			ActualState:   map[string]interface{}{"nginx_version": "1.24.0", "worker_processes": "4", "connections_active": 128, "status": "running"},
+			DesiredState:  map[string]interface{}{"nginx_version": "1.24.0", "worker_processes": "4", "status": "running"},
+			CreatedAt:     now.Add(-48 * time.Hour), UpdatedAt: now.Add(-2 * time.Second),
 		},
 		{
 			ID: "twin-wl-02", Name: "postgresql-service", Type: "workload", State: "stale",
 			AgentID: "agent-wl-02", ConfigVersion: 7,
 			LastHeartbeat: now.Add(-5 * time.Minute),
-			Metadata: map[string]string{"env": "production", "service": "postgresql"},
-			ActualState:  map[string]interface{}{"pg_version": "16.4", "max_connections": "200", "status": "degraded"},
-			DesiredState: map[string]interface{}{"pg_version": "16.4", "max_connections": "200", "status": "running"},
-			CreatedAt: now.Add(-48 * time.Hour), UpdatedAt: now.Add(-5 * time.Minute),
+			Metadata:      map[string]string{"env": "production", "service": "postgresql"},
+			ActualState:   map[string]interface{}{"pg_version": "16.4", "max_connections": "200", "status": "degraded"},
+			DesiredState:  map[string]interface{}{"pg_version": "16.4", "max_connections": "200", "status": "running"},
+			CreatedAt:     now.Add(-48 * time.Hour), UpdatedAt: now.Add(-5 * time.Minute),
 		},
 	}
 	for _, t := range twins {
@@ -227,19 +245,19 @@ func (s *Server) Seed() {
 			ID: "grp-001", Name: "Production Servers", Type: "infrastructure",
 			Description: "All production infrastructure nodes",
 			Members:     []string{"web-server-01.internal", "db-server-01.internal"},
-			CreatedAt: now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
+			CreatedAt:   now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
 		},
 		{
 			ID: "grp-002", Name: "OS Agents", Type: "agents",
 			Description: "All OS-level agents",
 			Members:     []string{"agent-os-01", "agent-os-02"},
-			CreatedAt: now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
+			CreatedAt:   now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
 		},
 		{
 			ID: "grp-003", Name: "Workload Twins", Type: "twins",
 			Description: "All workload-level digital twins",
 			Members:     []string{"twin-wl-01", "twin-wl-02"},
-			CreatedAt: now.Add(-48 * time.Hour), UpdatedAt: now.Add(-48 * time.Hour),
+			CreatedAt:   now.Add(-48 * time.Hour), UpdatedAt: now.Add(-48 * time.Hour),
 		},
 	}
 	for _, g := range groups {
@@ -338,10 +356,12 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	s.registerRoutes(mux)
 
 	handler := s.corsMiddleware(
-		s.rateLimitMiddleware(
-			requestSizeLimitMiddleware(
-				loggingMiddleware(s.log,
-					s.authMiddleware(mux),
+		requestIDMiddleware(
+			s.rateLimitMiddleware(
+				requestSizeLimitMiddleware(
+					loggingMiddleware(s.log,
+						s.authMiddleware(mux),
+					),
 				),
 			),
 		),
@@ -386,7 +406,7 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	case <-ctx.Done():
 		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		return s.httpSrv.Shutdown(shutCtx)
+		return fmt.Errorf("server shutdown: %w", s.httpSrv.Shutdown(shutCtx))
 	case err := <-errCh:
 		return err
 	}
@@ -416,6 +436,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/changesets/", s.handleChangeset)
 	mux.HandleFunc("/api/v1/connections", s.handleConnections)
 	mux.HandleFunc("/api/v1/users", adminMiddleware(http.HandlerFunc(s.handleUsers)).ServeHTTP)
+	mux.HandleFunc("/api/v1/admin/log-level", adminMiddleware(http.HandlerFunc(s.handleLogLevel)).ServeHTTP)
 
 	// Embedded UI: serve index.html for all non-API paths.
 	mux.Handle("/", http.FileServer(http.FS(uiassets.FS)))
