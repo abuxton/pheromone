@@ -480,9 +480,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 
 	// Prometheus metrics scrape endpoint (no authentication required so that
 	// Prometheus can scrape without credentials; restrict via network policy).
-	mux.Handle("/metrics", promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{
-		Registry: metrics.Registry,
-	}))
+	mux.Handle("/metrics", promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{}))
 
 	// API routes
 	mux.HandleFunc("/api/v1/health", s.handleHealth)

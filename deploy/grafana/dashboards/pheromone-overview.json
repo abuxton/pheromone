@@ -48,7 +48,7 @@
       "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, rate(pheromone_grpc_duration_seconds_bucket[1m]))",
+          "expr": "histogram_quantile(0.99, sum by (le, service, method) (rate(pheromone_grpc_duration_seconds_bucket[1m])))",
           "legendFormat": "p99 {{service}}/{{method}}"
         }
       ]
