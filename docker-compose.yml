@@ -7,6 +7,8 @@ version: '3.8'
 #   80   - HTTP REST API (redirect to 443 in production)
 #   2379 - etcd client
 #   2380 - etcd peer
+#   9090 - Prometheus
+#   3000 - Grafana
 
 services:
   etcd:
@@ -47,8 +49,39 @@ services:
     networks:
       - pheromone-network
 
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    container_name: pheromone-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    networks:
+      - pheromone-network
+
+  grafana:
+    image: grafana/grafana:12.0.1
+    container_name: pheromone-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - pheromone-network
+    depends_on:
+      - prometheus
+
 volumes:
   etcd-data:
+  grafana-data:
 
 networks:
   pheromone-network:

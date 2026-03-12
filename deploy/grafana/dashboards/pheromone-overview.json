@@ -1,0 +1,81 @@
+{
+  "title": "Pheromone Overview",
+  "uid": "pheromone-overview",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Agents by Status",
+      "type": "stat",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "targets": [
+        {
+          "expr": "pheromone_agents_total",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Digital Twins Total",
+      "type": "stat",
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "targets": [
+        {
+          "expr": "pheromone_twins_total",
+          "legendFormat": "Twins"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "gRPC Requests/sec",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "rate(pheromone_grpc_requests_total[1m])",
+          "legendFormat": "{{service}}/{{method}} ({{code}})"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "gRPC Request Latency (p99)",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, rate(pheromone_grpc_duration_seconds_bucket[1m]))",
+          "legendFormat": "p99 {{service}}/{{method}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "NATS Messages/sec",
+      "type": "timeseries",
+      "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "rate(pheromone_nats_messages_total[1m])",
+          "legendFormat": "{{subject}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Reasoning Decisions/sec",
+      "type": "timeseries",
+      "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+      "targets": [
+        {
+          "expr": "rate(pheromone_reasoning_decisions_total[1m])",
+          "legendFormat": "{{reasoner}} ({{outcome}})"
+        }
+      ]
+    }
+  ]
+}

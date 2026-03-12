@@ -1339,3 +1339,26 @@ func TestCheckPassword_Bcrypt(t *testing.T) {
 		t.Error("checkPassword returned true for bcrypt hash with wrong password")
 	}
 }
+
+// TestMetricsEndpoint verifies that GET /metrics returns HTTP 200 and a
+// Prometheus text-format body containing at least one pheromone_ metric.
+func TestMetricsEndpoint(t *testing.T) {
+t.Parallel()
+_, h := newTestHandler(t)
+
+req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+rr := httptest.NewRecorder()
+h.ServeHTTP(rr, req)
+
+if rr.Code != http.StatusOK {
+t.Fatalf("GET /metrics: want 200, got %d; body: %s", rr.Code, rr.Body.String())
+}
+
+body := rr.Body.String()
+if !strings.Contains(body, "pheromone_agents_total") {
+t.Errorf("GET /metrics: body missing pheromone_agents_total; got:\n%s", body)
+}
+if !strings.Contains(body, "pheromone_twins_total") {
+t.Errorf("GET /metrics: body missing pheromone_twins_total; got:\n%s", body)
+}
+}
