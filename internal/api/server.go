@@ -477,6 +477,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/users", adminMiddleware(http.HandlerFunc(s.handleUsers)).ServeHTTP)
 	mux.HandleFunc("/api/v1/users/", adminMiddleware(http.HandlerFunc(s.routeUser)).ServeHTTP)
 	mux.HandleFunc("/api/v1/audit", adminMiddleware(http.HandlerFunc(s.handleAudit)).ServeHTTP)
+	mux.HandleFunc("/api/v1/admin/log-level", adminMiddleware(http.HandlerFunc(s.handleLogLevel)).ServeHTTP)
 
 	// Embedded UI: serve index.html for all non-API paths.
 	mux.Handle("/", http.FileServer(http.FS(uiassets.FS)))

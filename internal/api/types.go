@@ -228,3 +228,14 @@ type CreateAPIKeyResponse struct {
 	Key    string `json:"key"`
 	APIKey APIKey `json:"api_key"`
 }
+
+// LogLevelRequest is the payload for POST /api/v1/admin/log-level.
+type LogLevelRequest struct {
+	// Level is the desired log level: "debug", "info", "warn", or "error".
+	Level string `json:"level"`
+}
+
+// LogLevelResponse is returned by POST /api/v1/admin/log-level on success.
+type LogLevelResponse struct {
+	Level string `json:"level"`
+}
