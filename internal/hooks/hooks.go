@@ -271,6 +271,8 @@ func (s *PostActionHookService) Dispatch(event notification.ActionEvent) {
 
 // dispatchWithRetry attempts to POST payload to dest with exponential backoff.
 // Intended for callers that can tolerate retries outside the hot path.
+//
+//nolint:unused // reserved for future callers that need retry-capable dispatch
 func (s *PostActionHookService) dispatchWithRetry(ctx context.Context, dest notification.NotificationDestination, payload []byte) error {
 	maxRetries := dest.MaxRetries
 	if maxRetries <= 0 {

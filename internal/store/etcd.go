@@ -36,7 +36,10 @@ func NewEtcdStore(endpoints []string) (*EtcdStore, error) {
 
 // Close closes the etcd connection
 func (e *EtcdStore) Close() error {
-	return e.client.Close()
+	if err := e.client.Close(); err != nil {
+		return fmt.Errorf("close etcd client: %w", err)
+	}
+	return nil
 }
 
 // Set stores a twin in etcd

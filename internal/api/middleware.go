@@ -321,7 +321,12 @@ func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
 		ip := clientIP(r)
 
 		limiterI, _ := s.rateLimiters.LoadOrStore(ip, newIPRateLimiter(60, 20))
-		limiter := limiterI.(*ipRateLimiter)
+		limiter, ok := limiterI.(*ipRateLimiter)
+		if !ok || limiter == nil {
+			// This should never happen; all values stored in the map are *ipRateLimiter.
+			next.ServeHTTP(w, r)
+			return
+		}
 
 		if !limiter.allow() {
 			w.Header().Set("Retry-After", "1")
@@ -346,7 +351,10 @@ func (s *Server) startRateLimitEviction(ctx context.Context) {
 			case <-ticker.C:
 				expiry := time.Now().Add(-10 * time.Minute)
 				s.rateLimiters.Range(func(key, value interface{}) bool {
-					l := value.(*ipRateLimiter)
+					l, ok := value.(*ipRateLimiter)
+					if !ok || l == nil {
+						return true
+					}
 					l.mu.Lock()
 					stale := l.lastAccess.Before(expiry)
 					l.mu.Unlock()

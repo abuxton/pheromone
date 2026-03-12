@@ -167,37 +167,37 @@ func (s *Server) Seed() {
 			ID: "twin-os-01", Name: "web-server-01 OS", Type: "os", State: "active",
 			AgentID: "agent-os-01", ConfigVersion: 5,
 			LastHeartbeat: now.Add(-5 * time.Second),
-			Metadata: map[string]string{"env": "production", "region": "us-east-1"},
-			ActualState:  map[string]interface{}{"os": "Ubuntu 24.04", "kernel": "6.8.0-50-generic", "uptime_hours": 720, "cpu_cores": 8, "memory_gb": 32},
-			DesiredState: map[string]interface{}{"os": "Ubuntu 24.04", "kernel": "6.8.0-50-generic", "cpu_cores": 8, "memory_gb": 32},
-			CreatedAt: now.Add(-72 * time.Hour), UpdatedAt: now.Add(-5 * time.Second),
+			Metadata:      map[string]string{"env": "production", "region": "us-east-1"},
+			ActualState:   map[string]interface{}{"os": "Ubuntu 24.04", "kernel": "6.8.0-50-generic", "uptime_hours": 720, "cpu_cores": 8, "memory_gb": 32},
+			DesiredState:  map[string]interface{}{"os": "Ubuntu 24.04", "kernel": "6.8.0-50-generic", "cpu_cores": 8, "memory_gb": 32},
+			CreatedAt:     now.Add(-72 * time.Hour), UpdatedAt: now.Add(-5 * time.Second),
 		},
 		{
 			ID: "twin-os-02", Name: "db-server-01 OS", Type: "os", State: "active",
 			AgentID: "agent-os-02", ConfigVersion: 3,
 			LastHeartbeat: now.Add(-12 * time.Second),
-			Metadata: map[string]string{"env": "production", "region": "us-east-1"},
-			ActualState:  map[string]interface{}{"os": "Debian 12", "kernel": "6.1.0-27-amd64", "uptime_hours": 500, "cpu_cores": 16, "memory_gb": 64},
-			DesiredState: map[string]interface{}{"os": "Debian 12", "kernel": "6.1.0-28-amd64", "cpu_cores": 16, "memory_gb": 64},
-			CreatedAt: now.Add(-72 * time.Hour), UpdatedAt: now.Add(-12 * time.Second),
+			Metadata:      map[string]string{"env": "production", "region": "us-east-1"},
+			ActualState:   map[string]interface{}{"os": "Debian 12", "kernel": "6.1.0-27-amd64", "uptime_hours": 500, "cpu_cores": 16, "memory_gb": 64},
+			DesiredState:  map[string]interface{}{"os": "Debian 12", "kernel": "6.1.0-28-amd64", "cpu_cores": 16, "memory_gb": 64},
+			CreatedAt:     now.Add(-72 * time.Hour), UpdatedAt: now.Add(-12 * time.Second),
 		},
 		{
 			ID: "twin-wl-01", Name: "nginx-service", Type: "workload", State: "active",
 			AgentID: "agent-wl-01", ConfigVersion: 12,
 			LastHeartbeat: now.Add(-2 * time.Second),
-			Metadata: map[string]string{"env": "production", "service": "nginx"},
-			ActualState:  map[string]interface{}{"nginx_version": "1.24.0", "worker_processes": "4", "connections_active": 128, "status": "running"},
-			DesiredState: map[string]interface{}{"nginx_version": "1.24.0", "worker_processes": "4", "status": "running"},
-			CreatedAt: now.Add(-48 * time.Hour), UpdatedAt: now.Add(-2 * time.Second),
+			Metadata:      map[string]string{"env": "production", "service": "nginx"},
+			ActualState:   map[string]interface{}{"nginx_version": "1.24.0", "worker_processes": "4", "connections_active": 128, "status": "running"},
+			DesiredState:  map[string]interface{}{"nginx_version": "1.24.0", "worker_processes": "4", "status": "running"},
+			CreatedAt:     now.Add(-48 * time.Hour), UpdatedAt: now.Add(-2 * time.Second),
 		},
 		{
 			ID: "twin-wl-02", Name: "postgresql-service", Type: "workload", State: "stale",
 			AgentID: "agent-wl-02", ConfigVersion: 7,
 			LastHeartbeat: now.Add(-5 * time.Minute),
-			Metadata: map[string]string{"env": "production", "service": "postgresql"},
-			ActualState:  map[string]interface{}{"pg_version": "16.4", "max_connections": "200", "status": "degraded"},
-			DesiredState: map[string]interface{}{"pg_version": "16.4", "max_connections": "200", "status": "running"},
-			CreatedAt: now.Add(-48 * time.Hour), UpdatedAt: now.Add(-5 * time.Minute),
+			Metadata:      map[string]string{"env": "production", "service": "postgresql"},
+			ActualState:   map[string]interface{}{"pg_version": "16.4", "max_connections": "200", "status": "degraded"},
+			DesiredState:  map[string]interface{}{"pg_version": "16.4", "max_connections": "200", "status": "running"},
+			CreatedAt:     now.Add(-48 * time.Hour), UpdatedAt: now.Add(-5 * time.Minute),
 		},
 	}
 	for _, t := range twins {
@@ -245,19 +245,19 @@ func (s *Server) Seed() {
 			ID: "grp-001", Name: "Production Servers", Type: "infrastructure",
 			Description: "All production infrastructure nodes",
 			Members:     []string{"web-server-01.internal", "db-server-01.internal"},
-			CreatedAt: now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
+			CreatedAt:   now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
 		},
 		{
 			ID: "grp-002", Name: "OS Agents", Type: "agents",
 			Description: "All OS-level agents",
 			Members:     []string{"agent-os-01", "agent-os-02"},
-			CreatedAt: now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
+			CreatedAt:   now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
 		},
 		{
 			ID: "grp-003", Name: "Workload Twins", Type: "twins",
 			Description: "All workload-level digital twins",
 			Members:     []string{"twin-wl-01", "twin-wl-02"},
-			CreatedAt: now.Add(-48 * time.Hour), UpdatedAt: now.Add(-48 * time.Hour),
+			CreatedAt:   now.Add(-48 * time.Hour), UpdatedAt: now.Add(-48 * time.Hour),
 		},
 	}
 	for _, g := range groups {
@@ -406,7 +406,7 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 	case <-ctx.Done():
 		shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		return s.httpSrv.Shutdown(shutCtx)
+		return fmt.Errorf("server shutdown: %w", s.httpSrv.Shutdown(shutCtx))
 	case err := <-errCh:
 		return err
 	}

@@ -2,6 +2,7 @@ package twin
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -22,15 +23,18 @@ type Twin struct {
 
 // ToJSON serializes the twin to JSON
 func (t *Twin) ToJSON() ([]byte, error) {
-	return json.Marshal(t)
+	data, err := json.Marshal(t)
+	if err != nil {
+		return nil, fmt.Errorf("marshal twin: %w", err)
+	}
+	return data, nil
 }
 
 // FromJSON deserializes JSON to a twin
 func FromJSON(data []byte) (*Twin, error) {
 	var t Twin
-	err := json.Unmarshal(data, &t)
-	if err != nil {
-		return nil, err
+	if err := json.Unmarshal(data, &t); err != nil {
+		return nil, fmt.Errorf("unmarshal twin: %w", err)
 	}
 	return &t, nil
 }

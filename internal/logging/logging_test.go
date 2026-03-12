@@ -133,7 +133,10 @@ func TestNATSHandler_Clone_isolation(t *testing.T) {
 	h := NewNATSHandler(nil, "agent-01", nil)
 	h.attrs = append(h.attrs, slog.String("existing", "val"))
 
-	h2 := h.WithAttrs([]slog.Attr{slog.String("new", "v2")}).(*NATSHandler)
+	h2, ok := h.WithAttrs([]slog.Attr{slog.String("new", "v2")}).(*NATSHandler)
+	if !ok {
+		t.Fatal("WithAttrs should return *NATSHandler")
+	}
 	// Modifying original attrs slice should not affect clone.
 	h.attrs[0] = slog.String("existing", "modified")
 	if h2.attrs[0].Value.String() != "val" {

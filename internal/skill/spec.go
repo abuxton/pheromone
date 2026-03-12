@@ -299,12 +299,12 @@ func (s *LocalSource) GetSpec(ctx context.Context, name, version string) (*Skill
 func parseSpecFile(path string) (*SkillSpec, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open spec file %s: %w", path, err)
 	}
 	defer f.Close()
 	var spec SkillSpec
 	if err := json.NewDecoder(f).Decode(&spec); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode spec file %s: %w", path, err)
 	}
 	return &spec, nil
 }

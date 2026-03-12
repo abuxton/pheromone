@@ -48,7 +48,9 @@ func (h *HybridStore) Set(ctx context.Context, t *twin.Twin) error {
 	// Write to etcd (durable path)
 	if err := h.etcd.Set(ctx, t); err != nil {
 		// Rollback memory write on etcd failure
-		h.memory.Delete(t.ID)
+		if delErr := h.memory.Delete(t.ID); delErr != nil {
+			return fmt.Errorf("etcd write failed (rollback error: %w): %w", delErr, err)
+		}
 		return fmt.Errorf("etcd write failed, rolled back: %w", err)
 	}
 
@@ -83,15 +85,11 @@ func (h *HybridStore) Delete(ctx context.Context, id string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	// Delete from memory
-	h.memory.Delete(id)
+	// Delete from memory (ignore error: etcd is authoritative)
+	_ = h.memory.Delete(id)
 
 	// Delete from etcd
-	if err := h.etcd.Delete(ctx, id); err != nil {
-		return err
-	}
-
-	return nil
+	return h.etcd.Delete(ctx, id)
 }
 
 // List returns all twins from memory
@@ -135,10 +133,10 @@ func (h *HybridStore) SyncFromWatch(ctx context.Context) error {
 				case clientv3.EventTypePut:
 					t, err := twin.FromJSON(event.Kv.Value)
 					if err == nil {
-						h.memory.Set(t)
+						_ = h.memory.Set(t) // best-effort cache populate; etcd is authoritative
 					}
 				case clientv3.EventTypeDelete:
-					h.memory.Delete(twinID)
+					_ = h.memory.Delete(twinID) // best-effort cache eviction
 				}
 			}
 		}

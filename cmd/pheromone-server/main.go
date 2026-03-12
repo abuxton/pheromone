@@ -11,6 +11,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -104,7 +105,7 @@ func run(args []string) int {
 
 	// Parse up to the first non-flag argument (the subcommand).
 	if err := globalFlags.Parse(args); err != nil {
-		if err == flag.ErrHelp {
+		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 1
@@ -151,7 +152,7 @@ func runConfigValidate(args []string, globalConfigPath string) int {
 	configPath := fs.String("config-path", globalConfigPath, "directory containing server configuration files")
 
 	if err := fs.Parse(args); err != nil {
-		if err == flag.ErrHelp {
+		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 1
@@ -188,7 +189,7 @@ func runConfigGenerate(args []string, globalConfigPath string) int {
 	output := fs.String("output", "", "explicit output file path (overrides config-path)")
 
 	if err := fs.Parse(args); err != nil {
-		if err == flag.ErrHelp {
+		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 1
@@ -267,7 +268,7 @@ func runServe(args []string, globalConfigPath string) int {
 	uiTLSOSCertStore := fs.Bool("ui-tls-os-cert-store", false, "use the platform (OS) certificate store for client cert verification")
 
 	if err := fs.Parse(args); err != nil {
-		if err == flag.ErrHelp {
+		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 1
@@ -293,11 +294,12 @@ func runServe(args []string, globalConfigPath string) int {
 	if uiCfg.Port == 0 {
 		uiCfg.Port = 8081
 	}
-	if uiCfg.SecretKey == "" {
+	switch uiCfg.SecretKey {
+	case "":
 		bootstrapLog.Warn("SECURITY WARNING: ui.secret_key is not set; using insecure default. " +
 			"Set a strong random secret in your configuration before deploying to production.")
 		uiCfg.SecretKey = "pheromone-default-secret-change-in-production"
-	} else if uiCfg.SecretKey == "change-me-in-production" {
+	case "change-me-in-production":
 		bootstrapLog.Warn("SECURITY WARNING: ui.secret_key is set to the default placeholder. " +
 			"Replace it with a strong random secret before deploying to production.")
 	}
