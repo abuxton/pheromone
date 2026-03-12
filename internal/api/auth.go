@@ -149,7 +149,8 @@ func hasRole(userRole, requiredRole string) bool {
 
 // hashAPIKey returns the SHA-256 hex digest of key.
 // API keys are high-entropy random tokens, so SHA-256 is appropriate
-// (unlike passwords where bcrypt is required).
+// (unlike passwords where bcrypt is required). bcrypt's computational cost
+// is unnecessary for random tokens and would impact performance.
 func hashAPIKey(key string) string {
 	h := sha256.Sum256([]byte(key))
 	return fmt.Sprintf("%x", h)

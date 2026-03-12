@@ -1182,7 +1182,11 @@ if resp.Key == "" {
 t.Error("expected non-empty key")
 }
 if !strings.HasPrefix(resp.Key, "ph::key::") {
-t.Errorf("expected key prefix ph::key::, got %q", resp.Key[:min(len(resp.Key), 20)])
+	preview := resp.Key
+	if len(preview) > 20 {
+		preview = preview[:20]
+	}
+	t.Errorf("expected key prefix ph::key::, got %q", preview)
 }
 
 // List keys
@@ -1307,17 +1311,21 @@ t.Error("observer should have observer level")
 }
 
 func TestCheckPassword_Bcrypt(t *testing.T) {
-hash, err := GeneratePasswordHash("bcrypt-test-password")
-if err != nil {
-t.Fatalf("GeneratePasswordHash: %v", err)
-}
-if !strings.HasPrefix(hash, "$2") {
-t.Errorf("expected bcrypt hash prefix $2, got %q", hash[:min(len(hash), 10)])
-}
-if !checkPassword("bcrypt-test-password", hash) {
-t.Error("checkPassword returned false for bcrypt hash with correct password")
-}
-if checkPassword("wrong", hash) {
-t.Error("checkPassword returned true for bcrypt hash with wrong password")
-}
+	hash, err := GeneratePasswordHash("bcrypt-test-password")
+	if err != nil {
+		t.Fatalf("GeneratePasswordHash: %v", err)
+	}
+	if !strings.HasPrefix(hash, "$2") {
+		preview := hash
+		if len(preview) > 10 {
+			preview = preview[:10]
+		}
+		t.Errorf("expected bcrypt hash prefix $2, got %q", preview)
+	}
+	if !checkPassword("bcrypt-test-password", hash) {
+		t.Error("checkPassword returned false for bcrypt hash with correct password")
+	}
+	if checkPassword("wrong", hash) {
+		t.Error("checkPassword returned true for bcrypt hash with wrong password")
+	}
 }

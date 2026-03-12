@@ -1302,7 +1302,7 @@ async function createGroup() {
   const ns   = document.getElementById('grp-namespace').value.trim();
   if (!name) { toast('Name is required','error'); return; }
   try {
-    const g = await api('/groups', {method:'POST', body: JSON.stringify({name,type,description:desc,twin_namespace:ns||undefined})});
+    const g = await api('/groups', {method:'POST', body: JSON.stringify({name, type, description: desc, ...(ns && {twin_namespace: ns})})});
     closeModal('modal-create-group');
     toast('Group created','success');
     state.groups.push(g);
@@ -1362,9 +1362,9 @@ async function fetchUsers() {
         <td>${statusBadge(u.role)}</td>
         <td>${u.disabled ? '<span class="badge badge-offline"><span class="badge-dot"></span>disabled</span>' : '<span class="badge badge-online"><span class="badge-dot"></span>active</span>'}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-secondary" onclick="openEditUserModal('${esc(u.username)}','${esc(u.role)}','${esc(u.display_name||'')}','${esc(u.email||'')}',${!!u.disabled})" style="font-size:12px;padding:4px 10px">Edit</button>
-          <button class="btn btn-secondary" onclick="toggleUserDisabled('${esc(u.username)}',${!u.disabled})" style="font-size:12px;padding:4px 10px">${u.disabled?'Enable':'Disable'}</button>
-          <button class="btn btn-secondary" onclick="deleteUser('${esc(u.username)}')" style="font-size:12px;padding:4px 10px;color:var(--color-error, #f87171)">Delete</button>
+          <button class="btn btn-secondary user-edit-btn" data-username="${esc(u.username)}" data-role="${esc(u.role)}" data-display="${esc(u.display_name||'')}" data-email="${esc(u.email||'')}" data-disabled="${u.disabled?'1':''}" style="font-size:12px;padding:4px 10px">Edit</button>
+          <button class="btn btn-secondary user-toggle-btn" data-username="${esc(u.username)}" data-disabled="${u.disabled?'1':''}" style="font-size:12px;padding:4px 10px">${u.disabled?'Enable':'Disable'}</button>
+          <button class="btn btn-secondary user-del-btn" data-username="${esc(u.username)}" style="font-size:12px;padding:4px 10px;color:var(--color-error, #f87171)">Delete</button>
         </td>
       </tr>
     `).join('');
@@ -1430,7 +1430,7 @@ async function toggleUserDisabled(username, disabled) {
 }
 
 async function deleteUser(username) {
-  if (!confirm(`Delete user "${username}"? This cannot be undone.`)) return;
+  if (!confirm('Delete user "' + esc(username) + '"? This cannot be undone.')) return;
   try {
     await api('/users/'+encodeURIComponent(username), {method:'DELETE'});
     toast(`User ${username} deleted`,'success');
@@ -1492,6 +1492,26 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(m=>m.classList.add('hidden'));
+  }
+});
+
+// Event delegation for user table actions (avoids inline onclick with user data)
+document.addEventListener('click', (e) => {
+  const editBtn   = e.target.closest('.user-edit-btn');
+  const toggleBtn = e.target.closest('.user-toggle-btn');
+  const delBtn    = e.target.closest('.user-del-btn');
+  if (editBtn) {
+    openEditUserModal(
+      editBtn.dataset.username,
+      editBtn.dataset.role,
+      editBtn.dataset.display,
+      editBtn.dataset.email,
+      editBtn.dataset.disabled === '1'
+    );
+  } else if (toggleBtn) {
+    toggleUserDisabled(toggleBtn.dataset.username, toggleBtn.dataset.disabled !== '1');
+  } else if (delBtn) {
+    deleteUser(delBtn.dataset.username);
   }
 });
 </script>
