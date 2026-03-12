@@ -64,7 +64,7 @@ type TwinDefinitionMeta struct {
 
 // RolloutConfig controls how configuration changes are applied to agents.
 type RolloutConfig struct {
-	Strategy        string `yaml:"strategy"`          // "rolling", "canary", "blue-green"
+	Strategy        string `yaml:"strategy"` // "rolling", "canary", "blue-green"
 	MaxUnavailable  string `yaml:"max_unavailable,omitempty"`
 	WaitBeforeApply string `yaml:"wait_before_apply,omitempty"`
 }

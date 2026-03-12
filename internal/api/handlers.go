@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -914,4 +915,42 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// handleLogLevel serves POST /api/v1/admin/log-level (admin-only).
+// It accepts a JSON body {"level":"debug|info|warn|error"} and updates the
+// server's runtime log level without requiring a restart.
+func (s *Server) handleLogLevel(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	var req LogLevelRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+
+	var level slog.Level
+	switch strings.ToLower(req.Level) {
+	case "debug":
+		level = slog.LevelDebug
+	case "info":
+		level = slog.LevelInfo
+	case "warn", "warning":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		writeError(w, http.StatusBadRequest, "invalid log level: must be debug, info, warn, or error")
+		return
+	}
+
+	s.logLevel.Set(level)
+	s.log.Info("log level updated",
+		"level", level.String(),
+		"component", "api",
+		"request_id", requestIDFromContext(r.Context()),
+	)
+	writeJSON(w, http.StatusOK, LogLevelResponse{Level: level.String()})
 }

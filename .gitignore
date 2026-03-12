@@ -283,3 +283,7 @@ zsdoc/data
 
 # End of https://www.toptal.com/developers/gitignore/api/archives,cmake,git,go,jekyll,macos,osx,rust,vagrant,venv,xcode,zsh
 **/skills
+
+# Build artifacts
+pheromone-agent
+pheromone-server

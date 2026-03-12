@@ -83,7 +83,7 @@ func configFiles(dir string) ([]string, error) {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("read config dir %s: %w", dir, err)
 	}
 
 	var files []string
@@ -104,7 +104,7 @@ func configFiles(dir string) ([]string, error) {
 func parseServerConfig(path string) (*ServerConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read server config %s: %w", path, err)
 	}
 	var cfg ServerConfig
 	if err := decode(path, data, &cfg); err != nil {
@@ -117,7 +117,7 @@ func parseServerConfig(path string) (*ServerConfig, error) {
 func parseAgentConfig(path string) (*AgentConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read agent config %s: %w", path, err)
 	}
 	var cfg AgentConfig
 	if err := decode(path, data, &cfg); err != nil {

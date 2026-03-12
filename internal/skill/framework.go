@@ -120,7 +120,7 @@ func (f *AgentFramework) Run(ctx context.Context, agent Agent) error {
 				f.log.Error("shutdown error", slog.String("error", serr.Error()))
 			}
 			f.log.Info("agent stopped", slog.String("agent_id", f.agentID))
-			return ctx.Err()
+			return fmt.Errorf("agent stopped: %w", ctx.Err())
 
 		case <-ticker.C:
 			if err := f.tick(ctx, agent, twins, bundle); err != nil {
@@ -184,7 +184,7 @@ func (f *AgentFramework) tick(ctx context.Context, agent Agent, twins []*TwinRef
 func (f *AgentFramework) observe(ctx context.Context, agent Agent, twins []*TwinRef) (*Observations, error) {
 	metrics, err := agent.CollectMetrics(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("collect metrics: %w", err)
 	}
 
 	var actual, desired []*TwinModel
@@ -218,7 +218,7 @@ func (f *AgentFramework) observe(ctx context.Context, agent Agent, twins []*Twin
 }
 
 // executeAction dispatches an action to the appropriate skill.
-func (f *AgentFramework) executeAction(ctx context.Context, agent Agent, obs *Observations, a Action) error {
+func (f *AgentFramework) executeAction(ctx context.Context, _ Agent, obs *Observations, a Action) error {
 	s, err := f.registry.Get(a.SkillName)
 	if err != nil {
 		return fmt.Errorf("skill %q not found: %w", a.SkillName, err)
@@ -226,7 +226,7 @@ func (f *AgentFramework) executeAction(ctx context.Context, agent Agent, obs *Ob
 
 	result, err := s.Execute(ctx, obs, &a)
 	if err != nil {
-		return err
+		return fmt.Errorf("execute skill %q: %w", a.SkillName, err)
 	}
 
 	if !result.Success {

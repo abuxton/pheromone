@@ -155,11 +155,11 @@ func TestRuleBasedReasoner_ContextCancellationRespected(t *testing.T) {
 func TestRuleBasedReasoner_ResourceUsage_100Cycles(t *testing.T) {
 	const (
 		cycles         = 100
-		maxRAMDeltaMiB = 50                    // success criterion from ADR-007 spike
-		maxCycleMs     = 1                     // well within 5% CPU on a 2-core instance
-		twinCount      = 10                    // 10 managed twins per agent
-		metricCount    = 20                    // 20 metrics per observation
-		fieldCount     = 5                     // 5 state fields per twin
+		maxRAMDeltaMiB = 50 // success criterion from ADR-007 spike
+		maxCycleMs     = 1  // well within 5% CPU on a 2-core instance
+		twinCount      = 10 // 10 managed twins per agent
+		metricCount    = 20 // 20 metrics per observation
+		fieldCount     = 5  // 5 state fields per twin
 	)
 
 	r := skill.NewRuleBasedReasoner()
@@ -267,9 +267,9 @@ func TestRuleBasedReasoner_ResourceUsage_100Cycles(t *testing.T) {
 // in a time consistent with the baseline (no significant overhead added by Plan()).
 func TestRuleBasedReasoner_MetricThroughput(t *testing.T) {
 	const (
-		cycles     = 100
+		cycles      = 100
 		metricCount = 50
-		twinCount  = 5
+		twinCount   = 5
 	)
 
 	r := skill.NewRuleBasedReasoner()

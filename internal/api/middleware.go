@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -15,7 +17,10 @@ import (
 // contextKey is the unexported type for request context keys.
 type contextKey int
 
-const ctxUser contextKey = iota
+const (
+	ctxUser      contextKey = iota // authenticated user payload
+	ctxRequestID                   // unique request identifier
+)
 
 // authMiddleware validates Bearer tokens on every request except the auth and
 // health endpoints. On success the tokenPayload is stored in the request context.
@@ -100,7 +105,8 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-ID")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -109,7 +115,7 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// loggingMiddleware records request method, path, status, and duration.
+// loggingMiddleware records request method, path, status, duration, and request ID.
 func loggingMiddleware(log *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -119,10 +125,69 @@ func loggingMiddleware(log *slog.Logger, next http.Handler) http.Handler {
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", rw.statusCode,
-			"duration", time.Since(start).String(),
+			"duration_ms", time.Since(start).Milliseconds(),
 			"remote", r.RemoteAddr,
+			"request_id", requestIDFromContext(r.Context()),
+			"component", "api",
 		)
 	})
+}
+
+// requestIDMiddleware generates a unique request ID for each HTTP request,
+// stores it in the request context, and echoes it back via the X-Request-ID
+// response header. If the incoming request carries a valid X-Request-ID header
+// (ASCII printable, max 128 chars) its value is used as-is, enabling end-to-end
+// correlation across services. Invalid or oversized header values are replaced
+// with a freshly generated ID to prevent log injection and unbounded cardinality.
+func requestIDMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := r.Header.Get("X-Request-ID")
+		if !isValidRequestID(id) {
+			id = newRequestID()
+		}
+		w.Header().Set("X-Request-ID", id)
+		ctx := context.WithValue(r.Context(), ctxRequestID, id)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// maxRequestIDLen is the maximum permitted length for an incoming X-Request-ID header.
+const maxRequestIDLen = 128
+
+// isValidRequestID returns true when id is non-empty, at most maxRequestIDLen bytes,
+// and every byte is an ASCII printable character (0x21–0x7E, i.e. no spaces,
+// control characters, or multi-byte UTF-8 sequences). The byte-level check is
+// intentional: it ensures IDs are safe for use in HTTP headers and log lines
+// without any encoding ambiguity.
+func isValidRequestID(id string) bool {
+	if id == "" || len(id) > maxRequestIDLen {
+		return false
+	}
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		if c < 0x21 || c > 0x7E {
+			return false
+		}
+	}
+	return true
+}
+
+// requestIDFromContext retrieves the request ID from ctx, or "" if not set.
+func requestIDFromContext(ctx context.Context) string {
+	v, _ := ctx.Value(ctxRequestID).(string)
+	return v
+}
+
+// newRequestID generates a random 8-byte hex identifier.
+// In the extremely unlikely event that crypto/rand fails, a fixed sentinel
+// value beginning with "errgen-" is returned so that operators can identify
+// entries where entropy was unavailable rather than mistaking them for real IDs.
+func newRequestID() string {
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		return "errgen-00000000"
+	}
+	return hex.EncodeToString(b)
 }
 
 // responseWriter wraps http.ResponseWriter to capture the status code.
@@ -268,7 +333,12 @@ func (s *Server) rateLimitMiddleware(next http.Handler) http.Handler {
 		ip := clientIP(r)
 
 		limiterI, _ := s.rateLimiters.LoadOrStore(ip, newIPRateLimiter(60, 20))
-		limiter := limiterI.(*ipRateLimiter)
+		limiter, ok := limiterI.(*ipRateLimiter)
+		if !ok || limiter == nil {
+			// This should never happen; all values stored in the map are *ipRateLimiter.
+			next.ServeHTTP(w, r)
+			return
+		}
 
 		if !limiter.allow() {
 			w.Header().Set("Retry-After", "1")
@@ -293,7 +363,10 @@ func (s *Server) startRateLimitEviction(ctx context.Context) {
 			case <-ticker.C:
 				expiry := time.Now().Add(-10 * time.Minute)
 				s.rateLimiters.Range(func(key, value interface{}) bool {
-					l := value.(*ipRateLimiter)
+					l, ok := value.(*ipRateLimiter)
+					if !ok || l == nil {
+						return true
+					}
 					l.mu.Lock()
 					stale := l.lastAccess.Before(expiry)
 					l.mu.Unlock()

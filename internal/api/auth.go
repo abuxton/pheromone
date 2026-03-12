@@ -160,7 +160,7 @@ func hashAPIKey(key string) string {
 func randomHex(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
-		return "", err
+		return "", fmt.Errorf("crypto/rand.Read: %w", err)
 	}
 	return fmt.Sprintf("%x", b), nil
 }

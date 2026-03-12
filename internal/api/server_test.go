@@ -45,14 +45,24 @@ func newTestServer(t *testing.T) *Server {
 	return srv
 }
 
+// newTestHandler is a convenience wrapper that creates a seeded test Server and
+// returns its full HTTP handler chain together with the server itself.
+func newTestHandler(t *testing.T) (*Server, http.Handler) {
+	t.Helper()
+	srv := newTestServer(t)
+	return srv, newHandler(srv)
+}
+
 // newHandler returns the full handler chain for use in httptest.
 func newHandler(srv *Server) http.Handler {
 	mux := http.NewServeMux()
 	srv.registerRoutes(mux)
 	return srv.corsMiddleware(
-		srv.rateLimitMiddleware(
-			requestSizeLimitMiddleware(
-				srv.authMiddleware(mux),
+		requestIDMiddleware(
+			srv.rateLimitMiddleware(
+				requestSizeLimitMiddleware(
+					srv.authMiddleware(mux),
+				),
 			),
 		),
 	)
@@ -927,7 +937,7 @@ func TestDecodeJSON_MaxBytesError(t *testing.T) {
 	// before it reads past the MaxBytesReader limit.
 	prefix := []byte(`{"username":"`)
 	padding := bytes.Repeat([]byte("a"), defaultMaxBodyBytes) // enough to exceed limit
-	body := append(prefix, padding...)
+	body := append(prefix, padding...)                        //nolint:gocritic // appendAssign: test helper; result used immediately
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(body))
