@@ -73,21 +73,7 @@ linters:
         - name: var-declaration
         # Note: 'exported' stutter check omitted — many existing types use
         # package-qualified names intentionally (e.g. skill.SkillResult).
-    wrapcheck:
-      ignoreSigs:
-        - .Errorf(
-        - errors.New(
-        - errors.Unwrap(
-        - .Wrap(
-        - .Wrapf(
-      ignorePackageGlobs:
-        # Standard library packages — wrapping every stdlib error is too noisy.
-        - "os"
-        - "encoding/json"
-        - "encoding/pem"
-        - "context"
-        - "net/http"
-        - "go.etcd.io/etcd/*"
+    wrapcheck: {}
     errcheck:
       # Type assertions via ok-form don't need error checking; sync.Map values
       # are typed at the call site.

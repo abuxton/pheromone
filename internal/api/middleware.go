@@ -63,8 +63,20 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 func adminMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := userFromContext(r.Context())
-		if user == nil || user.Role != "admin" {
+		if user == nil || !hasRole(user.Role, "admin") {
 			writeError(w, http.StatusForbidden, "admin role required")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// requireRole returns middleware that rejects requests from users without the minimum role.
+func requireRole(minRole string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := userFromContext(r.Context())
+		if user == nil || !hasRole(user.Role, minRole) {
+			writeError(w, http.StatusForbidden, minRole+" role required")
 			return
 		}
 		next.ServeHTTP(w, r)

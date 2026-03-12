@@ -247,10 +247,26 @@ type UIUser struct {
 	// Username is the login name, e.g. "admin".
 	Username string `json:"username" yaml:"username"`
 
-	// PasswordHash is the stored credential in the format "sha256:<salt>:<hex-hash>".
+	// PasswordHash is the stored credential.
+	// Supported formats:
+	//   "$2a$…" / "$2b$…"          — bcrypt hash (cost ≥12), preferred for new installs
+	//   "sha256:<salt>:<hex-hash>"  — legacy SHA-256 format (backward compat only)
 	// Generate with: pheromone-server ui hash-password <password>
+	// (The command always produces a bcrypt hash.)
 	PasswordHash string `json:"password_hash" yaml:"password_hash"`
 
-	// Role controls the user's permissions: "admin" (full access) or "viewer" (read-only).
+	// Role controls the user's permissions.
+	// Valid values: "admin" (full access), "operator" (manage agents/twins),
+	// "observer" (read-only), "agent" (automated agent identity).
+	// The legacy value "viewer" is accepted as an alias for "observer".
 	Role string `json:"role" yaml:"role"`
+
+	// DisplayName is an optional human-readable name for the user.
+	DisplayName string `json:"display_name,omitempty" yaml:"display_name,omitempty"`
+
+	// Email is an optional email address for the user.
+	Email string `json:"email,omitempty" yaml:"email,omitempty"`
+
+	// Disabled prevents this user from authenticating when set to true.
+	Disabled bool `json:"disabled,omitempty" yaml:"disabled,omitempty"`
 }
