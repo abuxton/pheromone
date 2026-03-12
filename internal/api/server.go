@@ -40,6 +40,8 @@ type Server struct {
 	groups      map[string]*Group
 	changesets  map[string]*Changeset
 	connections map[string]*Connection
+	apiKeys     map[string]*apiKeyRecord // keyed by key ID
+	auditLog    []*AuditEntry
 
 	// SSE subscribers: each connected /api/v1/events client has a buffered channel.
 	eventMu      sync.RWMutex
@@ -67,6 +69,7 @@ func New(cfg config.UIConfig, log *slog.Logger) *Server {
 		groups:       make(map[string]*Group),
 		changesets:   make(map[string]*Changeset),
 		connections:  make(map[string]*Connection),
+		apiKeys:      make(map[string]*apiKeyRecord),
 		eventClients: make(map[chan []byte]struct{}),
 	}
 
@@ -227,18 +230,21 @@ func (s *Server) Seed() {
 			ID: "grp-001", Name: "Production Servers", Type: "infrastructure",
 			Description: "All production infrastructure nodes",
 			Members:     []string{"web-server-01.internal", "db-server-01.internal"},
+			TwinNamespace: "prod",
 			CreatedAt: now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
 		},
 		{
 			ID: "grp-002", Name: "OS Agents", Type: "agents",
 			Description: "All OS-level agents",
 			Members:     []string{"agent-os-01", "agent-os-02"},
+			TwinNamespace: "prod",
 			CreatedAt: now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
 		},
 		{
 			ID: "grp-003", Name: "Workload Twins", Type: "twins",
 			Description: "All workload-level digital twins",
 			Members:     []string{"twin-wl-01", "twin-wl-02"},
+			TwinNamespace: "prod",
 			CreatedAt: now.Add(-48 * time.Hour), UpdatedAt: now.Add(-48 * time.Hour),
 		},
 	}
@@ -257,6 +263,39 @@ func (s *Server) Seed() {
 		s.connections[c.ID] = c
 	}
 	s.ready.Store(true)
+}
+
+// apiKeyRecord is the internal representation of an API key.
+// The KeyHash stores a bcrypt hash of the raw key; the raw key is only
+// available when the key is first created.
+type apiKeyRecord struct {
+	APIKey
+	KeyHash string
+}
+
+// addAuditEntry appends an audit entry to the in-memory audit log.
+// It is safe to call concurrently.
+func (s *Server) addAuditEntry(userID, role, operation, resourceID, remoteAddr, result, message string) {
+	id, _ := randomHex(8)
+	entry := &AuditEntry{
+		ID:         id,
+		Timestamp:  time.Now().UTC(),
+		UserID:     userID,
+		Role:       role,
+		Operation:  operation,
+		ResourceID: resourceID,
+		RemoteAddr: remoteAddr,
+		Result:     result,
+		Message:    message,
+	}
+	s.mu.Lock()
+	s.auditLog = append(s.auditLog, entry)
+	s.mu.Unlock()
+	s.log.Info("audit",
+		"user", userID, "role", role,
+		"op", operation, "resource", resourceID,
+		"result", result,
+	)
 }
 
 // broadcast sends an Event to all active SSE subscribers.
@@ -416,6 +455,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/changesets/", s.handleChangeset)
 	mux.HandleFunc("/api/v1/connections", s.handleConnections)
 	mux.HandleFunc("/api/v1/users", adminMiddleware(http.HandlerFunc(s.handleUsers)).ServeHTTP)
+	mux.HandleFunc("/api/v1/users/", adminMiddleware(http.HandlerFunc(s.routeUser)).ServeHTTP)
+	mux.HandleFunc("/api/v1/audit", adminMiddleware(http.HandlerFunc(s.handleAudit)).ServeHTTP)
 
 	// Embedded UI: serve index.html for all non-API paths.
 	mux.Handle("/", http.FileServer(http.FS(uiassets.FS)))

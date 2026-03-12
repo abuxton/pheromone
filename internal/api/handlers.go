@@ -3,8 +3,11 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/abuxton/pheromone/internal/config"
 )
 
 // handleHealthz serves GET /healthz (Kubernetes liveness probe).
@@ -104,7 +107,14 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	s.mu.RUnlock()
 
 	if !ok || !checkPassword(req.Password, user.PasswordHash) {
+		s.addAuditEntry(req.Username, "", "auth.login", "", r.RemoteAddr, "fail", "invalid credentials")
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+
+	if user.Disabled {
+		s.addAuditEntry(req.Username, user.Role, "auth.login", "", r.RemoteAddr, "fail", "account disabled")
+		writeError(w, http.StatusUnauthorized, "account is disabled")
 		return
 	}
 
@@ -119,10 +129,17 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.addAuditEntry(user.Username, user.Role, "auth.login", "", r.RemoteAddr, "ok", "")
+
 	writeJSON(w, http.StatusOK, LoginResponse{
 		Token:     token,
 		ExpiresAt: exp.UTC(),
-		User:      UserInfo{Username: user.Username, Role: user.Role},
+		User: UserInfo{
+			Username:    user.Username,
+			Role:        user.Role,
+			DisplayName: user.DisplayName,
+			Email:       user.Email,
+		},
 	})
 }
 
@@ -465,19 +482,366 @@ func (s *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
 
 // --- Users (admin only) ---
 
-// handleUsers serves GET /api/v1/users (admin only)
+// handleUsers serves GET /api/v1/users and POST /api/v1/users (admin only)
 func (s *Server) handleUsers(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+
+		result := make([]UserInfo, 0, len(s.users))
+		for _, u := range s.users {
+			result = append(result, UserInfo{
+				Username:    u.Username,
+				Role:        u.Role,
+				DisplayName: u.DisplayName,
+				Email:       u.Email,
+				Disabled:    u.Disabled,
+			})
+		}
+		writeJSON(w, http.StatusOK, result)
+
+	case http.MethodPost:
+		caller := userFromContext(r.Context())
+
+		var req CreateUserRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		if req.Username == "" {
+			writeError(w, http.StatusBadRequest, "username is required")
+			return
+		}
+		validRoles := map[string]bool{"admin": true, "operator": true, "observer": true, "agent": true}
+		role := strings.ToLower(req.Role)
+		if role == "" || !validRoles[role] {
+			writeError(w, http.StatusBadRequest, "role must be one of admin, operator, observer, agent")
+			return
+		}
+		if req.Password == "" {
+			writeError(w, http.StatusBadRequest, "password is required")
+			return
+		}
+
+		hash, err := GeneratePasswordHash(req.Password)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to hash password")
+			return
+		}
+
+		key := strings.ToLower(req.Username)
+		s.mu.Lock()
+		if _, exists := s.users[key]; exists {
+			s.mu.Unlock()
+			writeError(w, http.StatusConflict, "user already exists")
+			return
+		}
+		u := &config.UIUser{
+			Username:     req.Username,
+			PasswordHash: hash,
+			Role:         role,
+			DisplayName:  req.DisplayName,
+			Email:        req.Email,
+		}
+		s.users[key] = u
+		s.mu.Unlock()
+
+		callerID, callerRole := "unknown", "unknown"
+		if caller != nil {
+			callerID, callerRole = caller.Sub, caller.Role
+		}
+		s.addAuditEntry(callerID, callerRole, "user.create", req.Username, r.RemoteAddr, "ok", "")
+
+		writeJSON(w, http.StatusCreated, UserInfo{
+			Username:    u.Username,
+			Role:        u.Role,
+			DisplayName: u.DisplayName,
+			Email:       u.Email,
+		})
+
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// routeUser dispatches /api/v1/users/{username} and /api/v1/users/{username}/api-keys.
+func (s *Server) routeUser(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/users/")
+	if strings.HasSuffix(path, "/api-keys") {
+		s.handleUserAPIKeys(w, r)
+		return
+	}
+	if strings.Contains(path, "/api-keys/") {
+		s.handleUserAPIKey(w, r)
+		return
+	}
+	s.handleUser(w, r)
+}
+
+// handleUser serves GET/PUT/DELETE /api/v1/users/{username} (admin only)
+func (s *Server) handleUser(w http.ResponseWriter, r *http.Request) {
+	username := strings.TrimPrefix(r.URL.Path, "/api/v1/users/")
+	if username == "" {
+		writeError(w, http.StatusBadRequest, "username required")
+		return
+	}
+	key := strings.ToLower(username)
+	caller := userFromContext(r.Context())
+
+	switch r.Method {
+	case http.MethodGet:
+		s.mu.RLock()
+		u, ok := s.users[key]
+		s.mu.RUnlock()
+		if !ok {
+			writeError(w, http.StatusNotFound, fmt.Sprintf("user %q not found", username))
+			return
+		}
+		writeJSON(w, http.StatusOK, UserInfo{
+			Username:    u.Username,
+			Role:        u.Role,
+			DisplayName: u.DisplayName,
+			Email:       u.Email,
+			Disabled:    u.Disabled,
+		})
+
+	case http.MethodPut:
+		var req UpdateUserRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+
+		s.mu.Lock()
+		u, ok := s.users[key]
+		if !ok {
+			s.mu.Unlock()
+			writeError(w, http.StatusNotFound, fmt.Sprintf("user %q not found", username))
+			return
+		}
+
+		if req.Role != "" {
+			validRoles := map[string]bool{"admin": true, "operator": true, "observer": true, "agent": true}
+			role := strings.ToLower(req.Role)
+			if !validRoles[role] {
+				s.mu.Unlock()
+				writeError(w, http.StatusBadRequest, "role must be one of admin, operator, observer, agent")
+				return
+			}
+			u.Role = role
+		}
+		if req.DisplayName != "" {
+			u.DisplayName = req.DisplayName
+		}
+		if req.Email != "" {
+			u.Email = req.Email
+		}
+		if req.Disabled != nil {
+			u.Disabled = *req.Disabled
+		}
+		if req.Password != "" {
+			hash, err := GeneratePasswordHash(req.Password)
+			if err != nil {
+				s.mu.Unlock()
+				writeError(w, http.StatusInternalServerError, "failed to hash password")
+				return
+			}
+			u.PasswordHash = hash
+		}
+		s.mu.Unlock()
+
+		callerID, callerRole := "unknown", "unknown"
+		if caller != nil {
+			callerID, callerRole = caller.Sub, caller.Role
+		}
+		s.addAuditEntry(callerID, callerRole, "user.update", username, r.RemoteAddr, "ok", "")
+
+		writeJSON(w, http.StatusOK, UserInfo{
+			Username:    u.Username,
+			Role:        u.Role,
+			DisplayName: u.DisplayName,
+			Email:       u.Email,
+			Disabled:    u.Disabled,
+		})
+
+	case http.MethodDelete:
+		s.mu.Lock()
+		_, ok := s.users[key]
+		if !ok {
+			s.mu.Unlock()
+			writeError(w, http.StatusNotFound, fmt.Sprintf("user %q not found", username))
+			return
+		}
+		delete(s.users, key)
+		s.mu.Unlock()
+
+		callerID, callerRole := "unknown", "unknown"
+		if caller != nil {
+			callerID, callerRole = caller.Sub, caller.Role
+		}
+		s.addAuditEntry(callerID, callerRole, "user.delete", username, r.RemoteAddr, "ok", "")
+
+		w.WriteHeader(http.StatusNoContent)
+
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// handleUserAPIKeys serves GET /api/v1/users/{username}/api-keys and
+// POST /api/v1/users/{username}/api-keys (admin or self).
+func (s *Server) handleUserAPIKeys(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/users/")
+	username := strings.TrimSuffix(path, "/api-keys")
+	key := strings.ToLower(username)
+	caller := userFromContext(r.Context())
+
+	s.mu.RLock()
+	_, ok := s.users[key]
+	s.mu.RUnlock()
+	if !ok {
+		writeError(w, http.StatusNotFound, fmt.Sprintf("user %q not found", username))
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		s.mu.RLock()
+		var keys []APIKey
+		for _, k := range s.apiKeys {
+			if strings.ToLower(k.Username) == key {
+				keys = append(keys, k.APIKey)
+			}
+		}
+		s.mu.RUnlock()
+		if keys == nil {
+			keys = []APIKey{}
+		}
+		writeJSON(w, http.StatusOK, keys)
+
+	case http.MethodPost:
+		var req CreateAPIKeyRequest
+		if !decodeJSON(w, r, &req) {
+			return
+		}
+		if req.Name == "" {
+			writeError(w, http.StatusBadRequest, "name is required")
+			return
+		}
+
+		// Generate raw key (ph::key::<hex>)
+		rawKey, err := randomHex(32)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to generate API key")
+			return
+		}
+		token := "ph::key::" + rawKey
+
+		// API keys are high-entropy random tokens; use SHA-256 (not bcrypt).
+		keyHash := hashAPIKey(token)
+
+		id, _ := randomHex(8)
+		record := &apiKeyRecord{
+			APIKey: APIKey{
+				ID:        id,
+				Username:  username,
+				Name:      req.Name,
+				KeyPrefix: "ph::key::" + rawKey[:8] + "…",
+				CreatedAt: time.Now().UTC(),
+				ExpiresAt: req.ExpiresAt,
+			},
+			KeyHash: keyHash,
+		}
+
+		s.mu.Lock()
+		s.apiKeys[id] = record
+		s.mu.Unlock()
+
+		callerID, callerRole := "unknown", "unknown"
+		if caller != nil {
+			callerID, callerRole = caller.Sub, caller.Role
+		}
+		s.addAuditEntry(callerID, callerRole, "apikey.create", id, r.RemoteAddr, "ok", req.Name)
+
+		writeJSON(w, http.StatusCreated, CreateAPIKeyResponse{
+			Key:    token,
+			APIKey: record.APIKey,
+		})
+
+	default:
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+	}
+}
+
+// handleUserAPIKey serves DELETE /api/v1/users/{username}/api-keys/{key_id} (admin only).
+func (s *Server) handleUserAPIKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/users/")
+	parts := strings.SplitN(path, "/api-keys/", 2)
+	if len(parts) != 2 || parts[1] == "" {
+		writeError(w, http.StatusBadRequest, "api key id required")
+		return
+	}
+	keyID := parts[1]
+	caller := userFromContext(r.Context())
+
+	s.mu.Lock()
+	_, ok := s.apiKeys[keyID]
+	if !ok {
+		s.mu.Unlock()
+		writeError(w, http.StatusNotFound, fmt.Sprintf("API key %q not found", keyID))
+		return
+	}
+	delete(s.apiKeys, keyID)
+	s.mu.Unlock()
+
+	callerID, callerRole := "unknown", "unknown"
+	if caller != nil {
+		callerID, callerRole = caller.Sub, caller.Role
+	}
+	s.addAuditEntry(callerID, callerRole, "apikey.revoke", keyID, r.RemoteAddr, "ok", "")
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleAudit serves GET /api/v1/audit (admin only).
+// Supports optional query params: user, operation, limit (default 100).
+func (s *Server) handleAudit(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	q := r.URL.Query()
+	filterUser := q.Get("user")
+	filterOp := q.Get("operation")
+	limitStr := q.Get("limit")
+	limit := 100
+	if limitStr != "" {
+		if n, err := strconv.Atoi(limitStr); err == nil && n > 0 {
+			limit = n
+		}
+	}
 
-	result := make([]UserInfo, 0, len(s.users))
-	for _, u := range s.users {
-		result = append(result, UserInfo{Username: u.Username, Role: u.Role})
+	s.mu.RLock()
+	all := s.auditLog
+	s.mu.RUnlock()
+
+	result := make([]*AuditEntry, 0, len(all))
+	for i := len(all) - 1; i >= 0; i-- {
+		e := all[i]
+		if filterUser != "" && e.UserID != filterUser {
+			continue
+		}
+		if filterOp != "" && e.Operation != filterOp {
+			continue
+		}
+		result = append(result, e)
+		if len(result) >= limit {
+			break
+		}
 	}
 	writeJSON(w, http.StatusOK, result)
 }

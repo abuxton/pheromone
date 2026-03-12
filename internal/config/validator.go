@@ -98,7 +98,7 @@ func ValidateUIConfig(cfg *UIConfig) error {
 		errs = append(errs, "ui.secret_key is required when ui is enabled")
 	}
 
-	validRoles := map[string]bool{"admin": true, "viewer": true}
+	validRoles := map[string]bool{"admin": true, "operator": true, "observer": true, "agent": true, "viewer": true}
 	usernames := make(map[string]int)
 	for i, u := range cfg.Users {
 		if u.Username == "" {
@@ -110,7 +110,7 @@ func ValidateUIConfig(cfg *UIConfig) error {
 		if u.Role == "" {
 			errs = append(errs, fmt.Sprintf("ui.users[%d]: role is required", i))
 		} else if !validRoles[strings.ToLower(u.Role)] {
-			errs = append(errs, fmt.Sprintf("ui.users[%d]: role %q is invalid; must be admin or viewer", i, u.Role))
+			errs = append(errs, fmt.Sprintf("ui.users[%d]: role %q is invalid; must be one of admin, operator, observer, agent", i, u.Role))
 		}
 		if _, seen := usernames[u.Username]; seen && u.Username != "" {
 			errs = append(errs, fmt.Sprintf("ui.users[%d]: duplicate username %q", i, u.Username))
