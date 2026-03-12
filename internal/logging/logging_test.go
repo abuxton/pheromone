@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"fmt"
 	"log/slog"
 	"testing"
 	"time"
@@ -169,4 +170,82 @@ func TestNATSHandler_RequestIDFromContext(t *testing.T) {
 // TestNATSHandler_ImplementsSlogHandler verifies the interface is satisfied at compile time.
 func TestNATSHandler_ImplementsSlogHandler(t *testing.T) {
 	var _ slog.Handler = (*NATSHandler)(nil)
+}
+
+// TestNewNATSHandler_EmptyAgentIDFallback verifies that an empty agentID is
+// replaced with "unknown" to avoid publishing to a bare "logs." subject.
+func TestNewNATSHandler_EmptyAgentIDFallback(t *testing.T) {
+	h := NewNATSHandler(nil, "", nil)
+	if h.agentID != "unknown" {
+		t.Errorf("expected agentID=unknown for empty input, got %q", h.agentID)
+	}
+}
+
+// TestNewNATSHandler_AgentIDPreserved verifies that a non-empty agentID is kept.
+func TestNewNATSHandler_AgentIDPreserved(t *testing.T) {
+	h := NewNATSHandler(nil, "agent-42", nil)
+	if h.agentID != "agent-42" {
+		t.Errorf("expected agentID=agent-42, got %q", h.agentID)
+	}
+}
+
+// TestValueToJSON_Kinds verifies that valueToJSON produces JSON-safe values for
+// the common slog.Value kinds.
+func TestValueToJSON_Kinds(t *testing.T) {
+	tests := []struct {
+		name string
+		val  slog.Value
+		want any
+	}{
+		{"bool true", slog.BoolValue(true), true},
+		{"bool false", slog.BoolValue(false), false},
+		{"int64", slog.Int64Value(42), int64(42)},
+		{"uint64", slog.Uint64Value(99), uint64(99)},
+		{"float64", slog.Float64Value(3.14), float64(3.14)},
+		{"string", slog.StringValue("hello"), "hello"},
+		{"duration", slog.DurationValue(time.Second), "1s"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := valueToJSON(tc.val)
+			if got != tc.want {
+				t.Errorf("valueToJSON(%v) = %v (%T), want %v (%T)", tc.val, got, got, tc.want, tc.want)
+			}
+		})
+	}
+}
+
+// TestValueToJSON_Error verifies that error values are serialized as strings.
+func TestValueToJSON_Error(t *testing.T) {
+	err := fmt.Errorf("something went wrong")
+	v := slog.AnyValue(err)
+	got := valueToJSON(v)
+	if got != "something went wrong" {
+		t.Errorf("expected error string, got %v", got)
+	}
+}
+
+// TestValueToJSON_Group verifies that KindGroup is serialized as map[string]any.
+func TestValueToJSON_Group(t *testing.T) {
+	attrs := []slog.Attr{slog.String("k", "v")}
+	v := slog.GroupValue(attrs...)
+	got := valueToJSON(v)
+	m, ok := got.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map[string]any for group, got %T", got)
+	}
+	if m["k"] != "v" {
+		t.Errorf("expected group[k]=v, got %v", m["k"])
+	}
+}
+
+// TestApplyAttr_ResolvesValue verifies that applyAttr resolves LogValuer values.
+func TestApplyAttr_ResolvesValue(t *testing.T) {
+	entry := make(map[string]any)
+	// slog.IntValue wraps an int64; valueToJSON should return int64.
+	a := slog.Attr{Key: "count", Value: slog.IntValue(7)}
+	applyAttr(entry, a, nil)
+	if entry["count"] != int64(7) {
+		t.Errorf("expected int64(7), got %v (%T)", entry["count"], entry["count"])
+	}
 }

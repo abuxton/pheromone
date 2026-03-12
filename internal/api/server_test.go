@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -1141,4 +1142,94 @@ func TestLogLevelVar_Accessor(t *testing.T) {
 	if lv == nil {
 		t.Fatal("LogLevelVar() returned nil")
 	}
+}
+
+/* ── isValidRequestID helper ── */
+
+func TestIsValidRequestID_Valid(t *testing.T) {
+validCases := []string{
+"abc123",
+"4b57843dda4b1fdf",
+"req-001",
+"A-Za-z0-9_-",
+}
+for _, c := range validCases {
+if !isValidRequestID(c) {
+t.Errorf("expected isValidRequestID(%q)=true", c)
+}
+}
+}
+
+func TestIsValidRequestID_Invalid(t *testing.T) {
+cases := []struct {
+name  string
+input string
+}{
+{"empty", ""},
+{"spaces", "req id"},
+{"tab", "req\tid"},
+{"newline", "req\nid"},
+{"too long", string(bytes.Repeat([]byte("a"), maxRequestIDLen+1))},
+}
+for _, tc := range cases {
+t.Run(tc.name, func(t *testing.T) {
+if isValidRequestID(tc.input) {
+t.Errorf("expected isValidRequestID(%q)=false", tc.input)
+}
+})
+}
+}
+
+// TestRequestIDMiddleware_InvalidIDIsReplaced verifies that an invalid
+// incoming X-Request-ID is replaced with a freshly generated one.
+func TestRequestIDMiddleware_InvalidIDIsReplaced(t *testing.T) {
+_, h := newTestHandler(t)
+
+req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+req.Header.Set("X-Request-ID", "bad id with spaces")
+rr := httptest.NewRecorder()
+h.ServeHTTP(rr, req)
+
+got := rr.Header().Get("X-Request-ID")
+if got == "bad id with spaces" {
+t.Error("invalid X-Request-ID should have been replaced")
+}
+if got == "" {
+t.Error("a generated X-Request-ID should be present")
+}
+}
+
+// TestCORSExposeRequestIDHeader verifies that X-Request-ID is in
+// Access-Control-Expose-Headers so browser clients can read it.
+func TestCORSExposeRequestIDHeader(t *testing.T) {
+_, h := newTestHandler(t)
+
+req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+req.Header.Set("Origin", "http://localhost:3000")
+rr := httptest.NewRecorder()
+h.ServeHTTP(rr, req)
+
+expose := rr.Header().Get("Access-Control-Expose-Headers")
+if expose == "" {
+t.Error("expected Access-Control-Expose-Headers to be set")
+}
+if !strings.Contains(expose, "X-Request-ID") {
+t.Errorf("expected X-Request-ID in Access-Control-Expose-Headers, got %q", expose)
+}
+}
+
+// TestCORSAllowRequestIDHeader verifies that X-Request-ID is in
+// Access-Control-Allow-Headers so browser clients can send it.
+func TestCORSAllowRequestIDHeader(t *testing.T) {
+_, h := newTestHandler(t)
+
+req := httptest.NewRequest(http.MethodOptions, "/healthz", nil)
+req.Header.Set("Origin", "http://localhost:3000")
+rr := httptest.NewRecorder()
+h.ServeHTTP(rr, req)
+
+allow := rr.Header().Get("Access-Control-Allow-Headers")
+if !strings.Contains(allow, "X-Request-ID") {
+t.Errorf("expected X-Request-ID in Access-Control-Allow-Headers, got %q", allow)
+}
 }

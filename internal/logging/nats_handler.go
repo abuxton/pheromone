@@ -16,6 +16,9 @@ import (
 //
 // If the NATS connection is nil or becomes disconnected, records are silently
 // discarded to avoid blocking the caller.
+//
+// Only the Level field of slog.HandlerOptions is honoured. AddSource and
+// ReplaceAttr are accepted for API compatibility but are not applied.
 type NATSHandler struct {
 	conn    *nats.Conn
 	agentID string
@@ -26,9 +29,14 @@ type NATSHandler struct {
 
 // NewNATSHandler returns a NATSHandler that publishes log records to NATS.
 // If conn is nil, all Handle calls are no-ops.
+// agentID is used as the subject suffix (logs.{agentID}); if empty, "unknown"
+// is used as a fallback so records are always routed to a valid subject.
 func NewNATSHandler(conn *nats.Conn, agentID string, opts *slog.HandlerOptions) *NATSHandler {
 	if opts == nil {
 		opts = &slog.HandlerOptions{}
+	}
+	if agentID == "" {
+		agentID = "unknown"
 	}
 	return &NATSHandler{
 		conn:    conn,
@@ -56,9 +64,7 @@ func (h *NATSHandler) Handle(ctx context.Context, r slog.Record) error {
 	entry["time"] = r.Time.UTC().Format(time.RFC3339Nano)
 	entry["level"] = r.Level.String()
 	entry["msg"] = r.Message
-	if h.agentID != "" {
-		entry["agent_id"] = h.agentID
-	}
+	entry["agent_id"] = h.agentID
 
 	// Add pre-set attributes.
 	for _, a := range h.attrs {
@@ -115,17 +121,60 @@ func (h *NATSHandler) clone() *NATSHandler {
 }
 
 // applyAttr inserts a slog.Attr into entry, prefixing with any active group names.
+// It resolves LogValuer values and converts slog.Value kinds to JSON-friendly types.
 func applyAttr(entry map[string]any, a slog.Attr, groups []string) {
+	// Resolve any LogValuer so we mirror slog's JSON/Text handler semantics.
+	a.Value = a.Value.Resolve()
+
 	key := a.Key
 	if len(groups) > 0 {
 		key = strings.Join(groups, ".") + "." + key
 	}
-	entry[key] = a.Value.Any()
+	entry[key] = valueToJSON(a.Value)
+}
+
+// valueToJSON converts a slog.Value into a JSON-friendly Go value, mirroring
+// the encoding choices of slog's built-in JSON handler.
+func valueToJSON(v slog.Value) any {
+	switch v.Kind() {
+	case slog.KindBool:
+		return v.Bool()
+	case slog.KindDuration:
+		return v.Duration().String()
+	case slog.KindTime:
+		return v.Time().UTC().Format(time.RFC3339Nano)
+	case slog.KindFloat64:
+		return v.Float64()
+	case slog.KindInt64:
+		return v.Int64()
+	case slog.KindUint64:
+		return v.Uint64()
+	case slog.KindString:
+		return v.String()
+	case slog.KindGroup:
+		groupAttrs := v.Group()
+		m := make(map[string]any, len(groupAttrs))
+		for _, ga := range groupAttrs {
+			// Each nested attribute is resolved independently so that LogValuer
+			// values inside the group are also expanded before JSON encoding.
+			m[ga.Key] = valueToJSON(ga.Value.Resolve())
+		}
+		return m
+	case slog.KindAny:
+		anyVal := v.Any()
+		// Special-case error so we serialize the message rather than "{}".
+		if err, ok := anyVal.(error); ok {
+			return err.Error()
+		}
+		return anyVal
+	default:
+		return v.Any()
+	}
 }
 
 // requestIDCtxKey is the context key type used by this package to propagate request IDs.
-// HTTP middleware in the api package uses the same unexported key pattern; if the
-// request ID must be visible here, callers should attach it using WithRequestID.
+// If a request ID set by the API HTTP middleware must be visible to NATSHandler,
+// callers should attach it to the context using WithRequestID before logging.
 type requestIDCtxKey struct{}
 
 // WithRequestID stores a request ID in ctx so NATSHandler can include it in records.

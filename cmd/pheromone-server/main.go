@@ -273,12 +273,15 @@ func runServe(args []string, globalConfigPath string) int {
 		return 1
 	}
 
-	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	// Bootstrap logger for messages emitted before the server is ready.
+	// The API server will create its own logger (wired to the runtime log-level
+	// var) when api.New is called with a nil logger below.
+	bootstrapLog := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	// Attempt to load config; fall back to defaults if not found.
 	cfg, err := config.LoadServerConfig(*configPath)
 	if err != nil {
-		log.Warn("could not load server config, using defaults", "path", *configPath, "error", err)
+		bootstrapLog.Warn("could not load server config, using defaults", "path", *configPath, "error", err)
 		cfg = &config.ServerConfig{}
 	}
 
@@ -291,11 +294,11 @@ func runServe(args []string, globalConfigPath string) int {
 		uiCfg.Port = 8081
 	}
 	if uiCfg.SecretKey == "" {
-		log.Warn("SECURITY WARNING: ui.secret_key is not set; using insecure default. " +
+		bootstrapLog.Warn("SECURITY WARNING: ui.secret_key is not set; using insecure default. " +
 			"Set a strong random secret in your configuration before deploying to production.")
 		uiCfg.SecretKey = "pheromone-default-secret-change-in-production"
 	} else if uiCfg.SecretKey == "change-me-in-production" {
-		log.Warn("SECURITY WARNING: ui.secret_key is set to the default placeholder. " +
+		bootstrapLog.Warn("SECURITY WARNING: ui.secret_key is set to the default placeholder. " +
 			"Replace it with a strong random secret before deploying to production.")
 	}
 	if len(uiCfg.Users) == 0 {
@@ -332,11 +335,13 @@ func runServe(args []string, globalConfigPath string) int {
 
 	// Warn if TLS is enabled but cert/key are missing.
 	if uiCfg.TLS.Enabled && (uiCfg.TLS.CertFile == "" || uiCfg.TLS.KeyFile == "") {
-		log.Error("TLS is enabled but ui.tls.cert_file and/or ui.tls.key_file are missing")
+		bootstrapLog.Error("TLS is enabled but ui.tls.cert_file and/or ui.tls.key_file are missing")
 		return 1
 	}
 
-	srv := api.New(uiCfg, log)
+	// Pass nil so api.New builds a JSON logger wired to the server's runtime
+	// slog.LevelVar — enabling POST /api/v1/admin/log-level to take effect.
+	srv := api.New(uiCfg, nil)
 	srv.Seed()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -350,13 +355,13 @@ func runServe(args []string, globalConfigPath string) int {
 	if uiCfg.Address == "" {
 		addr = "0.0.0.0:" + strconv.Itoa(uiCfg.Port)
 	}
-	log.Info("starting pheromone management UI", "addr", addr, "scheme", scheme)
+	bootstrapLog.Info("starting pheromone management UI", "addr", addr, "scheme", scheme)
 
 	if err := srv.ListenAndServe(ctx); err != nil {
-		log.Error("server error", "error", err)
+		bootstrapLog.Error("server error", "error", err)
 		return 1
 	}
-	log.Info("server stopped")
+	bootstrapLog.Info("server stopped")
 	return 0
 }
 

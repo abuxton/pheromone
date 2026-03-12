@@ -52,20 +52,24 @@ type Server struct {
 
 // New creates a new API Server with the given UIConfig and logger.
 // Call Seed to populate demo data and ListenAndServe to start accepting requests.
-// If log is nil, slog.Default() is used.
 //
-// The server creates a slog.LevelVar that can be retrieved via LogLevelVar() to
-// build a logger whose level can be changed at runtime via the admin log-level
-// endpoint. If you supply a pre-built logger it will be used as-is; the level var
-// is still available for use in other handlers.
+// If log is nil, the server builds a default JSON logger that writes to stderr
+// with its minimum level wired to the server's slog.LevelVar. This means that
+// POST /api/v1/admin/log-level will immediately affect what the server emits
+// without a restart.
+//
+// If a pre-built logger is supplied, it is used as-is and the caller is
+// responsible for wiring LogLevelVar() into that logger's handler options if
+// runtime level control is required.
 func New(cfg config.UIConfig, log *slog.Logger) *Server {
+	lv := new(slog.LevelVar) // default level is Info
 	if log == nil {
-		log = slog.Default()
+		log = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: lv}))
 	}
 	s := &Server{
 		cfg:          cfg,
 		log:          log,
-		logLevel:     new(slog.LevelVar),
+		logLevel:     lv,
 		startTime:    time.Now(),
 		users:        make(map[string]*config.UIUser),
 		agents:       make(map[string]*Agent),

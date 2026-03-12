@@ -93,7 +93,8 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Request-ID")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -122,18 +123,41 @@ func loggingMiddleware(log *slog.Logger, next http.Handler) http.Handler {
 
 // requestIDMiddleware generates a unique request ID for each HTTP request,
 // stores it in the request context, and echoes it back via the X-Request-ID
-// response header. If the incoming request carries an X-Request-ID header its
-// value is used as-is, enabling end-to-end correlation across services.
+// response header. If the incoming request carries a valid X-Request-ID header
+// (ASCII printable, max 128 chars) its value is used as-is, enabling end-to-end
+// correlation across services. Invalid or oversized header values are replaced
+// with a freshly generated ID to prevent log injection and unbounded cardinality.
 func requestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("X-Request-ID")
-		if id == "" {
+		if !isValidRequestID(id) {
 			id = newRequestID()
 		}
 		w.Header().Set("X-Request-ID", id)
 		ctx := context.WithValue(r.Context(), ctxRequestID, id)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// maxRequestIDLen is the maximum permitted length for an incoming X-Request-ID header.
+const maxRequestIDLen = 128
+
+// isValidRequestID returns true when id is non-empty, at most maxRequestIDLen bytes,
+// and every byte is an ASCII printable character (0x21–0x7E, i.e. no spaces,
+// control characters, or multi-byte UTF-8 sequences). The byte-level check is
+// intentional: it ensures IDs are safe for use in HTTP headers and log lines
+// without any encoding ambiguity.
+func isValidRequestID(id string) bool {
+	if id == "" || len(id) > maxRequestIDLen {
+		return false
+	}
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		if c < 0x21 || c > 0x7E {
+			return false
+		}
+	}
+	return true
 }
 
 // requestIDFromContext retrieves the request ID from ctx, or "" if not set.
