@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/abuxton/pheromone/internal/config"
+	"github.com/abuxton/pheromone/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	uiassets "github.com/abuxton/pheromone/ui"
 )
 
@@ -280,7 +282,27 @@ func (s *Server) Seed() {
 	for _, c := range connections {
 		s.connections[c.ID] = c
 	}
+
+	// Update Prometheus gauges to reflect seeded state.
+	s.syncMetrics()
+
 	s.ready.Store(true)
+}
+
+// syncMetrics updates the Prometheus gauges from the current in-memory state.
+// It must be called with at least a read lock held, or when no concurrent
+// mutations are occurring (e.g. during Seed before the server is live).
+func (s *Server) syncMetrics() {
+	// Reset all known status label values to zero before recomputing, so that
+	// statuses that are no longer present do not retain stale non-zero values.
+	for _, status := range []string{"online", "offline", "stale", "unknown"} {
+		metrics.AgentsTotal.WithLabelValues(status).Set(0)
+	}
+	// Count agents by current status and set the gauge.
+	for _, a := range s.agents {
+		metrics.AgentsTotal.WithLabelValues(a.Status).Add(1)
+	}
+	metrics.TwinsTotal.Set(float64(len(s.twins)))
 }
 
 // apiKeyRecord is the internal representation of an API key.
@@ -456,6 +478,10 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	// k8s-compatible health probes (no authentication required).
 	mux.HandleFunc("/healthz", s.handleHealthz)
 	mux.HandleFunc("/readyz", s.handleReadyz)
+
+	// Prometheus metrics scrape endpoint (no authentication required so that
+	// Prometheus can scrape without credentials; restrict via network policy).
+	mux.Handle("/metrics", promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{}))
 
 	// API routes
 	mux.HandleFunc("/api/v1/health", s.handleHealth)

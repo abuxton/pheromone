@@ -24,6 +24,7 @@
 | **015** | User Access Control & Identity Provider Integration | ⏳ Proposed | Phase 1–3 (Auth/IAM) | Local auth (bcrypt/etcd), four-role RBAC, RS256 JWT, gRPC interceptor chain, IdP plugin adapter (LDAP/SAML/OIDC) | ADR-002,003,006,007,014; spec-002 |
 | **016** | Stateless Server — Dataplane Selection | ⏳ Proposed | Phase 2 (Scalability) | PostgreSQL as primary dataplane; etcd retained for control plane; server becomes stateless | ADR-002,003,014 |
 | **017** | UI/API Gateway Design — SSE, OpenAPI, k8s Probes | ✅ Accepted | Phase 1 (MVP) | SSE endpoint `/api/v1/events`; k8s health probes `/healthz`/`/readyz`; OpenAPI 3.1 spec; rate limiting & request size middleware | ADR-002,011,014 |
+| **018** | Observability Stack — Prometheus, OpenTelemetry, Grafana | ✅ Accepted | Phase 1 (MVP) | `/metrics` endpoint; 6 key metrics; Prometheus + Grafana in docker-compose; isolated registry design | ADR-003,005,014,017 |
 
 ---
 
@@ -127,6 +128,11 @@ ADR-017 (UI/API Gateway Design — SSE, OpenAPI, k8s Probes)
    ├─→ ADR-002 (Server Architecture — extends existing HTTP listener and mux)
    ├─→ ADR-011 (Post-Action Hooks — events complement the notification hook system)
    └─→ ADR-014 (Security Architecture — rate limiting and size limits harden the API surface)
+ADR-018 (Observability Stack — Prometheus, OpenTelemetry, Grafana)
+   ├─→ ADR-003 (gRPC Contracts — RED metric labels align with service/method)
+   ├─→ ADR-005 (Message Queue — NATS telemetry backbone feeds pheromone_nats_messages_total)
+   ├─→ ADR-014 (Security Architecture — /metrics access control via network policy)
+   └─→ ADR-017 (UI/API Gateway — /metrics follows same unauthenticated probe pattern as /healthz)
 ```
 
 **Critical Path**: ADR-001 → ADR-007 → ADR-002 → ADR-003 → ADR-006 → ADR-014 → ADR-015 (auth layer sits atop all prior decisions)
@@ -256,6 +262,6 @@ All GitHub issues required to process ADR material and unblock development are t
 
 ---
 
-**Status**: ✅ **ADRs 001, 002, 003, 004, 007, 008, 009, 010, 011, 012, 014(Security), 017 ACCEPTED — ADRs 005, 006, 013, 014(Envoy), 015, 016 PROPOSED - READY FOR TEAM REVIEW**
-**Updated**: 2026-03-11 (ADR-017 accepted — UI/API Gateway Design: SSE, OpenAPI, k8s probes, rate limiting)
+**Status**: ✅ **ADRs 001, 002, 003, 004, 007, 008, 009, 010, 011, 012, 014(Security), 017, 018 ACCEPTED — ADRs 005, 006, 013, 014(Envoy), 015, 016 PROPOSED - READY FOR TEAM REVIEW**
+**Updated**: 2026-03-12 (ADR-018 accepted — Observability Stack: Prometheus `/metrics` endpoint, 6 key metrics, Grafana docker-compose services)
 
