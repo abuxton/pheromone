@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -328,15 +329,21 @@ func captureStdout(t *testing.T, fn func()) string {
 	}
 	os.Stdout = w
 
+	// Drain stdout concurrently to avoid deadlocks and truncation.
+	outCh := make(chan []byte, 1)
+	go func() {
+		defer r.Close()
+		b, _ := io.ReadAll(r)
+		outCh <- b
+	}()
+
 	fn()
 
 	w.Close()
 	os.Stdout = old
 
-	var buf [4096]byte
-	n, _ := r.Read(buf[:])
-	r.Close()
-	return string(buf[:n])
+	out := <-outCh
+	return string(out)
 }
 
 // -------------------------------------------------------------------------
