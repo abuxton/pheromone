@@ -389,17 +389,14 @@ func runAgentsGet(c *client, args []string, output string) int {
 	}
 	id := fs.Arg(0)
 
-	var agent json.RawMessage
+	var agent agentRow
 	if err := c.get("/api/v1/agents/"+id, &agent); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 
-	var a agentRow
-	_ = json.Unmarshal(agent, &a)
-
 	printOutput(agent, *outputFlag, func(v interface{}) {
-		printAgentsTable([]agentRow{a})
+		printAgentsTable([]agentRow{agent})
 	})
 	return 0
 }
