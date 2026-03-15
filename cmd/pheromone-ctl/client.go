@@ -80,8 +80,6 @@ func (c *client) do(method, path string, body interface{}, out interface{}) erro
 	switch {
 	case c.token != "":
 		req.Header.Set("Authorization", "Bearer "+c.token)
-	case c.apiKey != "":
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}
 
 	resp, err := c.httpClient.Do(req)
