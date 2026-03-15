@@ -28,8 +28,21 @@ func newClient(serverURL, token, apiKey string, insecure bool) *client {
 	transport := http.DefaultTransport
 	if insecure {
 		fmt.Fprintln(os.Stderr, "warning: TLS certificate verification is disabled (--insecure)")
-		transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // operator-controlled flag
+
+		// Clone the default transport to preserve proxy, dialer, keep-alive, and other defaults,
+		// and only override TLS verification behavior.
+		if base, ok := http.DefaultTransport.(*http.Transport); ok {
+			cloned := base.Clone()
+			if cloned.TLSClientConfig == nil {
+				cloned.TLSClientConfig = &tls.Config{}
+			}
+			cloned.TLSClientConfig.InsecureSkipVerify = true //nolint:gosec // operator-controlled flag
+			transport = cloned
+		} else {
+			// Fallback (highly unlikely): retain previous behavior with a minimal transport.
+			transport = &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // operator-controlled flag
+			}
 		}
 	}
 	return &client{
