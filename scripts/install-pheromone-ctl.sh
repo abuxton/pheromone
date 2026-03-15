@@ -24,11 +24,21 @@ VERIFY=true
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --version)
-      VERSION="${2:-}"
+      if [[ $# -lt 2 || "$2" == -* ]]; then
+        echo "Error: --version requires a value." >&2
+        echo "Usage: install-pheromone-ctl.sh [--version <v>] [--install-dir <dir>] [--no-verify]" >&2
+        exit 1
+      fi
+      VERSION="$2"
       shift 2
       ;;
     --install-dir)
-      INSTALL_DIR="${2:-}"
+      if [[ $# -lt 2 || "$2" == -* ]]; then
+        echo "Error: --install-dir requires a value." >&2
+        echo "Usage: install-pheromone-ctl.sh [--version <v>] [--install-dir <dir>] [--no-verify]" >&2
+        exit 1
+      fi
+      INSTALL_DIR="$2"
       shift 2
       ;;
     --no-verify)
