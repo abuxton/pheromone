@@ -364,6 +364,18 @@ func TestRunHelp(t *testing.T) {
 	}
 }
 
+func TestVersionCommand(t *testing.T) {
+	out := captureStdout(t, func() {
+		code := run([]string{"version"})
+		if code != 0 {
+			t.Errorf("expected exit code 0, got %d", code)
+		}
+	})
+	if !containsStr(out, "pheromone-ctl") {
+		t.Errorf("expected pheromone-ctl in output, got: %s", out)
+	}
+}
+
 func TestLogin(t *testing.T) {
 	srv := newTestServer(t)
 	defer srv.Close()

@@ -31,6 +31,9 @@ import (
 	"time"
 )
 
+// version is set at build time via -ldflags "-X main.version=<v>".
+var version = "dev"
+
 const usageText = `pheromone-ctl — Pheromone server CLI client
 
 Usage:
@@ -65,6 +68,7 @@ Commands:
   users api-keys create  Create an API key for a user (admin only)
   users api-keys delete  Delete an API key for a user (admin only)
   audit            View the audit log (admin only)
+  version          Print the pheromone-ctl version
 
 Global Flags:
   --server   <url>    Pheromone server URL
@@ -156,6 +160,9 @@ func run(args []string) int {
 		return runUsers(c, remaining[1:], *output)
 	case "audit":
 		return runAudit(c, remaining[1:], *output)
+	case "version":
+		fmt.Printf("pheromone-ctl %s\n", version)
+		return 0
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", remaining[0], usageText)
 		return 1

@@ -1,0 +1,204 @@
+name: Release pheromone-ctl
+
+# Trigger on version tags: pheromone-ctl/v1.2.3
+on:
+  push:
+    tags:
+      - 'pheromone-ctl/v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write  # required to create GitHub releases and upload assets
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            # Strip the "pheromone-ctl/" prefix from the tag
+            echo "version=${GITHUB_REF_NAME#pheromone-ctl/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          LDFLAGS="-s -w -X main.version=${VERSION}"
+          mkdir -p dist
+          go build -trimpath -ldflags "${LDFLAGS}" \
+            -o "dist/pheromone-ctl" \
+            ./cmd/pheromone-ctl/
+
+      - name: Package as tar.gz
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ARCHIVE="pheromone-ctl_${VERSION}_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz"
+          tar -C dist -czf "${ARCHIVE}" pheromone-ctl
+          sha256sum "${ARCHIVE}" > "${ARCHIVE}.sha256"
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pheromone-ctl-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            pheromone-ctl_*.tar.gz
+            pheromone-ctl_*.tar.gz.sha256
+          retention-days: 1
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#pheromone-ctl/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: pheromone-ctl-*
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Combine checksums
+        run: |
+          cd release-artifacts
+          cat pheromone-ctl_*.tar.gz.sha256 > checksums.txt
+          echo "=== checksums.txt ==="
+          cat checksums.txt
+
+      - name: Generate Homebrew formula
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          REPO="${{ github.repository }}"
+          BASE_URL="https://github.com/${REPO}/releases/download/pheromone-ctl/${VERSION}"
+
+          # Read SHA256 values from individual checksum files
+          SHA_DARWIN_ARM64=$(grep "darwin_arm64" release-artifacts/checksums.txt | awk '{print $1}')
+          SHA_DARWIN_AMD64=$(grep "darwin_amd64" release-artifacts/checksums.txt | awk '{print $1}')
+          SHA_LINUX_ARM64=$(grep "linux_arm64" release-artifacts/checksums.txt | awk '{print $1}')
+          SHA_LINUX_AMD64=$(grep "linux_amd64" release-artifacts/checksums.txt | awk '{print $1}')
+
+          # Validate that all four checksums were extracted
+          for var_name in SHA_DARWIN_ARM64 SHA_DARWIN_AMD64 SHA_LINUX_ARM64 SHA_LINUX_AMD64; do
+            eval val=\$$var_name
+            if [[ -z "$val" ]]; then
+              echo "Error: missing checksum for ${var_name}" >&2
+              exit 1
+            fi
+          done
+
+          sed \
+            -e "s|{{VERSION}}|${VERSION}|g" \
+            -e "s|{{BASE_URL}}|${BASE_URL}|g" \
+            -e "s|{{SHA_DARWIN_ARM64}}|${SHA_DARWIN_ARM64}|g" \
+            -e "s|{{SHA_DARWIN_AMD64}}|${SHA_DARWIN_AMD64}|g" \
+            -e "s|{{SHA_LINUX_ARM64}}|${SHA_LINUX_ARM64}|g" \
+            -e "s|{{SHA_LINUX_AMD64}}|${SHA_LINUX_AMD64}|g" \
+            scripts/homebrew/pheromone-ctl.rb.tmpl \
+            > release-artifacts/pheromone-ctl.rb
+
+          echo "=== Generated formula ==="
+          cat release-artifacts/pheromone-ctl.rb
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.3.2
+        with:
+          tag_name: pheromone-ctl/${{ steps.version.outputs.version }}
+          name: pheromone-ctl ${{ steps.version.outputs.version }}
+          body: |
+            ## pheromone-ctl ${{ steps.version.outputs.version }}
+
+            CLI client for the Pheromone management server REST API.
+
+            ### Install
+
+            **Linux / macOS (curl)**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/pheromone-ctl/${{ steps.version.outputs.version }}/scripts/install-pheromone-ctl.sh | bash
+            ```
+
+            **macOS (Homebrew)**
+            ```bash
+            brew tap abuxton/tap
+            brew install pheromone-ctl
+            ```
+
+            **Manual (Linux amd64)**
+            ```bash
+            VERSION="${{ steps.version.outputs.version }}"
+            curl -Lo pheromone-ctl.tar.gz \
+              "https://github.com/${{ github.repository }}/releases/download/pheromone-ctl/${VERSION}/pheromone-ctl_${VERSION}_linux_amd64.tar.gz"
+            tar -xzf pheromone-ctl.tar.gz
+            chmod +x pheromone-ctl
+            sudo mv pheromone-ctl /usr/local/bin/
+            ```
+
+            ### Verify integrity
+            ```bash
+            sha256sum -c checksums.txt
+            ```
+
+            ### Platforms
+            | Platform | Arch | File |
+            |----------|------|------|
+            | Linux    | amd64 | `pheromone-ctl_${{ steps.version.outputs.version }}_linux_amd64.tar.gz` |
+            | Linux    | arm64 | `pheromone-ctl_${{ steps.version.outputs.version }}_linux_arm64.tar.gz` |
+            | macOS    | amd64 (Intel) | `pheromone-ctl_${{ steps.version.outputs.version }}_darwin_amd64.tar.gz` |
+            | macOS    | arm64 (Apple Silicon) | `pheromone-ctl_${{ steps.version.outputs.version }}_darwin_arm64.tar.gz` |
+          files: |
+            release-artifacts/pheromone-ctl_*.tar.gz
+            release-artifacts/checksums.txt
+            release-artifacts/pheromone-ctl.rb
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          fail_on_unmatched_files: true
