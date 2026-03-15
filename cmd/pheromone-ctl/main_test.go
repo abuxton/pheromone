@@ -964,8 +964,14 @@ func TestFmtTime(t *testing.T) {
 }
 
 func TestServerFromEnv(t *testing.T) {
-	old := os.Getenv("PHEROMONE_CTL_SERVER")
-	defer os.Setenv("PHEROMONE_CTL_SERVER", old)
+	old, ok := os.LookupEnv("PHEROMONE_CTL_SERVER")
+	defer func() {
+		if ok {
+			_ = os.Setenv("PHEROMONE_CTL_SERVER", old)
+		} else {
+			_ = os.Unsetenv("PHEROMONE_CTL_SERVER")
+		}
+	}()
 
 	os.Setenv("PHEROMONE_CTL_SERVER", "http://custom:9000")
 	got := serverFromEnv()
