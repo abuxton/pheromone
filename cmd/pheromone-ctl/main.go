@@ -75,8 +75,6 @@ Global Flags:
                       (default: http://localhost:8081, env: PHEROMONE_CTL_SERVER)
   --token    <token>  Bearer token for authentication
                       (env: PHEROMONE_CTL_TOKEN)
-  --api-key  <key>    API key for authentication (alternative to --token)
-                      (env: PHEROMONE_CTL_API_KEY)
   --output   <fmt>    Output format: json, yaml, or table (default: table)
   --insecure          Skip TLS certificate verification
 
@@ -114,7 +112,6 @@ func run(args []string) int {
 	globalFlags := flag.NewFlagSet("pheromone-ctl", flag.ContinueOnError)
 	server := globalFlags.String("server", serverFromEnv(), "Pheromone server URL")
 	token := globalFlags.String("token", os.Getenv("PHEROMONE_CTL_TOKEN"), "bearer token for authentication")
-	apiKey := globalFlags.String("api-key", os.Getenv("PHEROMONE_CTL_API_KEY"), "API key for authentication")
 	output := globalFlags.String("output", "table", "output format: json, yaml, or table")
 	insecure := globalFlags.Bool("insecure", false, "skip TLS certificate verification")
 
@@ -131,7 +128,7 @@ func run(args []string) int {
 		return 1
 	}
 
-	c := newClient(*server, *token, *apiKey, *insecure)
+	c := newClient(*server, *token, *insecure)
 
 	switch remaining[0] {
 	case "login":
@@ -631,7 +628,6 @@ func runGroupsCreate(c *client, args []string) int {
 	groupType := fs.String("type", "", "group type: agents, twins, infrastructure (required)")
 	description := fs.String("description", "", "group description")
 	members := fs.String("members", "", "comma-separated list of member IDs")
-	namespace := fs.String("twin-namespace", "", "twin namespace for the group")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -649,9 +645,6 @@ func runGroupsCreate(c *client, args []string) int {
 		"description": *description,
 		"members":     splitCSV(*members),
 	}
-	if *namespace != "" {
-		req["twin_namespace"] = *namespace
-	}
 
 	var g groupRow
 	if err := c.post("/api/v1/groups", req, &g); err != nil {
@@ -668,7 +661,6 @@ func runGroupsUpdate(c *client, args []string) int {
 	name := fs.String("name", "", "new name")
 	description := fs.String("description", "", "new description")
 	members := fs.String("members", "", "comma-separated list of member IDs")
-	namespace := fs.String("twin-namespace", "", "twin namespace")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -690,9 +682,6 @@ func runGroupsUpdate(c *client, args []string) int {
 	}
 	if *members != "" {
 		req["members"] = splitCSV(*members)
-	}
-	if *namespace != "" {
-		req["twin_namespace"] = *namespace
 	}
 
 	var g groupRow

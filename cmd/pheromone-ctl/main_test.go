@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
-	"io"
 	"os"
 	"strings"
 	"testing"

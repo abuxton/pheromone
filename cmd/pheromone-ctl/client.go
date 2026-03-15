@@ -19,12 +19,11 @@ import (
 type client struct {
 	serverURL  string
 	token      string
-	apiKey     string
 	httpClient *http.Client
 }
 
 // newClient creates a new API client.
-func newClient(serverURL, token, apiKey string, insecure bool) *client {
+func newClient(serverURL, token string, insecure bool) *client {
 	transport := http.DefaultTransport
 	if insecure {
 		fmt.Fprintln(os.Stderr, "warning: TLS certificate verification is disabled (--insecure)")
@@ -48,7 +47,6 @@ func newClient(serverURL, token, apiKey string, insecure bool) *client {
 	return &client{
 		serverURL: strings.TrimRight(serverURL, "/"),
 		token:     token,
-		apiKey:    apiKey,
 		httpClient: &http.Client{
 			Timeout:   30 * time.Second,
 			Transport: transport,
@@ -77,8 +75,7 @@ func (c *client) do(method, path string, body interface{}, out interface{}) erro
 	}
 	req.Header.Set("Accept", "application/json")
 
-	switch {
-	case c.token != "":
+	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
 
@@ -144,6 +141,11 @@ func printOutput(v interface{}, format string, tableFn func(interface{})) {
 	case "yaml":
 		enc := yaml.NewEncoder(os.Stdout)
 		enc.SetIndent(2)
+		defer func() {
+			if err := enc.Close(); err != nil {
+				fmt.Fprintf(os.Stderr, "error: yaml close: %v\n", err)
+			}
+		}()
 		if err := enc.Encode(v); err != nil {
 			fmt.Fprintf(os.Stderr, "error: yaml encode: %v\n", err)
 		}

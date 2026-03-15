@@ -188,7 +188,7 @@ main() {
   local base_url="https://github.com/${REPO}/releases/download/pheromone-ctl/${VERSION}"
   local archive="${BINARY}_${VERSION}_${platform}.tar.gz"
   local tmpdir
-  tmpdir="$(mktemp -d)"
+  tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/pheromone-ctl.XXXXXXXXXX")"
   trap 'rm -rf "$tmpdir"' EXIT
 
   echo "Downloading ${archive}..."
