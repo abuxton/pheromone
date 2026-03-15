@@ -134,7 +134,7 @@ verify_checksum() {
   archive_basename="$(basename "$archive")"
 
   local expected
-  expected=$(grep "${archive_basename}" "$checksums_file" | awk '{print $1}')
+  expected=$(grep -F -- "${archive_basename}" "$checksums_file" | awk '{print $1}' || true)
 
   if [[ -z "$expected" ]]; then
     echo "Error: checksum not found for ${archive_basename}" >&2
