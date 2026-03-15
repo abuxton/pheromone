@@ -463,14 +463,22 @@ func runTwinsGet(c *client, args []string, output string) int {
 	}
 	id := fs.Arg(0)
 
-	var twin json.RawMessage
+	var twin interface{}
 	if err := c.get("/api/v1/twins/"+id, &twin); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 
 	var t twinRow
-	_ = json.Unmarshal(twin, &t)
+	data, err := json.Marshal(twin)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	if err := json.Unmarshal(data, &t); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
 
 	printOutput(twin, *outputFlag, func(v interface{}) {
 		printTwinsTable([]twinRow{t})
