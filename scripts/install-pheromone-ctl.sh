@@ -87,13 +87,13 @@ latest_version() {
       | grep '"tag_name"' \
       | grep '"pheromone-ctl/' \
       | head -1 \
-      | sed 's/.*"pheromone-ctl\/\(v[^"]*\)".*/\1/')
+      | sed 's/.*"pheromone-ctl\/\(v[^"]*\)".*/\1/' || true)
   elif command -v wget &>/dev/null; then
     version=$(wget -qO- "${url}" \
       | grep '"tag_name"' \
       | grep '"pheromone-ctl/' \
       | head -1 \
-      | sed 's/.*"pheromone-ctl\/\(v[^"]*\)".*/\1/')
+      | sed 's/.*"pheromone-ctl\/\(v[^"]*\)".*/\1/' || true)
   else
     echo "Error: curl or wget is required" >&2
     exit 1
