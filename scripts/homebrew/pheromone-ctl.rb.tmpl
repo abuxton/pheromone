@@ -1,0 +1,53 @@
+# pheromone-ctl.rb.tmpl — Homebrew formula template for pheromone-ctl
+#
+# This template is rendered by the GitHub Actions release workflow.
+# Placeholders replaced at release time:
+#   {{VERSION}}         — version string, e.g. v1.0.0
+#   {{BASE_URL}}        — base download URL for this release
+#   {{SHA_DARWIN_AMD64}} / {{SHA_DARWIN_ARM64}}
+#   {{SHA_LINUX_AMD64}}  / {{SHA_LINUX_ARM64}}
+#
+# To publish via your own tap:
+#   1. Create a repo named `homebrew-tap` under your GitHub organisation.
+#   2. Copy the rendered `pheromone-ctl.rb` from the GitHub Release assets
+#      into `Formula/pheromone-ctl.rb` in that repo.
+#   3. Users can then install with:
+#        brew tap abuxton/tap
+#        brew install pheromone-ctl
+
+class PheromoneCtl < Formula
+  desc "CLI client for the Pheromone management server REST API"
+  homepage "https://github.com/abuxton/pheromone"
+  version "{{VERSION}}"
+  license "Apache-2.0"
+
+  on_macos do
+    on_arm do
+      url "{{BASE_URL}}/pheromone-ctl_{{VERSION}}_darwin_arm64.tar.gz"
+      sha256 "{{SHA_DARWIN_ARM64}}"
+    end
+    on_intel do
+      url "{{BASE_URL}}/pheromone-ctl_{{VERSION}}_darwin_amd64.tar.gz"
+      sha256 "{{SHA_DARWIN_AMD64}}"
+    end
+  end
+
+  on_linux do
+    on_arm do
+      url "{{BASE_URL}}/pheromone-ctl_{{VERSION}}_linux_arm64.tar.gz"
+      sha256 "{{SHA_LINUX_ARM64}}"
+    end
+    on_intel do
+      url "{{BASE_URL}}/pheromone-ctl_{{VERSION}}_linux_amd64.tar.gz"
+      sha256 "{{SHA_LINUX_AMD64}}"
+    end
+  end
+
+  def install
+    bin.install "pheromone-ctl"
+  end
+
+  test do
+    assert_match "pheromone-ctl", shell_output("#{bin}/pheromone-ctl 2>&1", 1)
+  end
+end

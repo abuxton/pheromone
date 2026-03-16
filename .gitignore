@@ -225,6 +225,9 @@ Cargo.lock
 # Re-include Vagrant provisioning scripts (overrides [Ss]cripts above)
 !vagrant/scripts/
 !vagrant/scripts/*.sh
+# Re-include pheromone-ctl install scripts (overrides [Ss]cripts above)
+!scripts/
+!scripts/**
 pyvenv.cfg
 .venv
 pip-selfcheck.json
