@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Port assignments (ADR-011):
 #   4426 - gRPC Control Plane (AgentRegistry + TwinControl)
 #   4427 - gRPC Telemetry Plane (TelemetryStream)
@@ -7,9 +5,15 @@ version: '3.8'
 #   80   - HTTP REST API (redirect to 443 in production)
 #   2379 - etcd client
 #   2380 - etcd peer
+#   5432 - PostgreSQL (profile: postgres, ADR-016)
 #   8081 - Pheromone management server (HTTP)
 #   9090 - Prometheus
 #   3000 - Grafana
+#
+# Profiles:
+#   (default) - etcd, NATS, server, agents, Prometheus, Grafana
+#   postgres  - adds PostgreSQL dataplane (ADR-016)
+#   testing   - adds pheromone-ctl for interactive testing
 
 services:
   etcd:
@@ -31,7 +35,12 @@ services:
       - etcd-data:/etcd-data
     networks:
       - pheromone-network
-    command: 
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command:
       - /usr/local/bin/etcd
       - --data-dir=/etcd-data
       - --name=etcd0
@@ -52,11 +61,41 @@ services:
     networks:
       - pheromone-network
 
+  # PostgreSQL dataplane (ADR-016) — activated with: --profile postgres
+  # Credentials MUST be supplied via environment variables or a .env file.
+  # Copy .env.example to .env and set POSTGRES_PASSWORD before starting.
+  postgres:
+    image: postgres:16
+    container_name: pheromone-postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-pheromone}
+      - POSTGRES_USER=${POSTGRES_USER:-pheromone}
+      # postgres:16 enforces a non-empty POSTGRES_PASSWORD at startup — the
+      # container will refuse to initialise if this variable is unset or empty.
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (see .env.example)}
+    ports:
+      # Bind to loopback only — not exposed to the wider network
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - pheromone-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pheromone}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - postgres
+
   pheromone-server:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: pheromone-server
+    environment:
+      - PHEROMONE_SERVER_CONFIG_PATH=/etc/pheromone/server
     ports:
       - "8081:8081"
     networks:
@@ -64,6 +103,69 @@ services:
     depends_on:
       - etcd
       - pheromone-nats
+
+  # Agent 1 — mirrors vagrant agent-ubuntu topology (ADR-012)
+  # NOTE: pheromone-agent daemon mode is not yet implemented; the container
+  # runs `config generate` to provision its configuration and exits (restart: no).
+  # Update the command to the agent run subcommand once daemon support is added.
+  # A tmpfs mount provides a writable /etc/pheromone/agent for the distroless
+  # nonroot user (UID 65532) — config is intentionally ephemeral for this one-shot.
+  pheromone-agent-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: pheromone-agent-1
+    environment:
+      - PHEROMONE_AGENT_CONFIG_PATH=/etc/pheromone/agent
+    command: ["config", "generate", "--config-path", "/etc/pheromone/agent", "--format", "yaml"]
+    volumes:
+      - type: tmpfs
+        target: /etc/pheromone/agent
+    networks:
+      - pheromone-network
+    depends_on:
+      - pheromone-server
+    restart: "no"
+
+  # Agent 2 — mirrors vagrant agent-debian topology (ADR-012)
+  # NOTE: see pheromone-agent-1 comment above — same one-shot config pattern.
+  # A tmpfs mount provides a writable /etc/pheromone/agent for the distroless
+  # nonroot user (UID 65532).
+  pheromone-agent-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: pheromone-agent-2
+    environment:
+      - PHEROMONE_AGENT_CONFIG_PATH=/etc/pheromone/agent
+    command: ["config", "generate", "--config-path", "/etc/pheromone/agent", "--format", "yaml"]
+    volumes:
+      - type: tmpfs
+        target: /etc/pheromone/agent
+    networks:
+      - pheromone-network
+    depends_on:
+      - pheromone-server
+    restart: "no"
+
+  # pheromone-ctl testing container — activated with: --profile testing
+  # Run ad-hoc commands: docker compose run --rm pheromone-ctl <command>
+  # Example: docker compose run --rm pheromone-ctl health
+  pheromone-ctl:
+    build:
+      context: .
+      dockerfile: Dockerfile.ctl
+    container_name: pheromone-ctl
+    environment:
+      - PHEROMONE_CTL_SERVER=http://pheromone-server:8081
+    command: ["health"]
+    networks:
+      - pheromone-network
+    depends_on:
+      - pheromone-server
+    profiles:
+      - testing
+    restart: "no"
 
   prometheus:
     image: prom/prometheus:v3.4.0
@@ -100,6 +202,7 @@ services:
 volumes:
   etcd-data:
   grafana-data:
+  postgres-data:
 
 networks:
   pheromone-network:
