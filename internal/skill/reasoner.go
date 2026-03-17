@@ -3,6 +3,7 @@ package skill
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 // GoalState represents the desired operational objectives for one or more managed twins.
@@ -40,7 +41,16 @@ type AIReasoner interface {
 // an empty slice.
 //
 // This is always available as a fallback even on resource-constrained edge devices.
-type RuleBasedReasoner struct{}
+//
+// If Emitter is non-nil, a ReasonerTrace is published after every Plan() call (ADR-019).
+type RuleBasedReasoner struct {
+	// AgentID is included in emitted traces so the trace can be attributed to
+	// a specific agent. Optional: if empty, traces omit the agent identifier.
+	AgentID string
+	// Emitter receives a ReasonerTrace after each Plan() call (ADR-019).
+	// If nil, trace emission is skipped.
+	Emitter TraceEmitter
+}
 
 // NewRuleBasedReasoner constructs a RuleBasedReasoner ready for use.
 func NewRuleBasedReasoner() *RuleBasedReasoner {
@@ -54,28 +64,63 @@ func NewRuleBasedReasoner() *RuleBasedReasoner {
 //  2. Otherwise → plan one "config-enforce / apply-config" action for the drifted twin,
 //     including the desired version from GoalState and a structured rationale listing
 //     every drifted field.
+//
+// If r.Emitter is non-nil a ReasonerTrace is published after the decision is
+// made (ADR-019).
 func (r *RuleBasedReasoner) Plan(_ context.Context, _ *Observations, goal GoalState, drift DriftReport) ([]Action, error) {
+	start := time.Now()
+
+	var actions []Action
+	var outcome string
+
 	if !drift.HasDrift {
-		return nil, nil
+		outcome = "no-drift"
+	} else {
+		version := ""
+		if desired, ok := goal.Twins[drift.TwinID]; ok {
+			version = desired.Version
+		}
+
+		rationale := fmt.Sprintf(
+			"rule-based: drift detected on %d field(s) in twin %q",
+			len(drift.DriftedFields), drift.TwinID,
+		)
+
+		actions = []Action{
+			{
+				SkillName:  "config-enforce",
+				ActionType: "apply-config",
+				TwinID:     drift.TwinID,
+				Params:     map[string]string{"version": version},
+				Rationale:  rationale,
+			},
+		}
+		outcome = "actions-planned"
 	}
 
-	version := ""
-	if desired, ok := goal.Twins[drift.TwinID]; ok {
-		version = desired.Version
+	if r.Emitter != nil {
+		driftedFields := make([]string, 0, len(drift.DriftedFields))
+		for _, f := range drift.DriftedFields {
+			driftedFields = append(driftedFields, f.Field)
+		}
+		actionTypes := make([]string, 0, len(actions))
+		for _, a := range actions {
+			actionTypes = append(actionTypes, a.ActionType)
+		}
+		r.Emitter.Emit(ReasonerTrace{
+			Timestamp: start.UTC(),
+			AgentID:   r.AgentID,
+			Reasoner:  "rule-based",
+			Input: TraceInput{
+				TwinID:        drift.TwinID,
+				HasDrift:      drift.HasDrift,
+				DriftedFields: driftedFields,
+			},
+			Actions:    actionTypes,
+			Outcome:    outcome,
+			DurationMs: time.Since(start).Milliseconds(),
+		})
 	}
 
-	rationale := fmt.Sprintf(
-		"rule-based: drift detected on %d field(s) in twin %q",
-		len(drift.DriftedFields), drift.TwinID,
-	)
-
-	return []Action{
-		{
-			SkillName:  "config-enforce",
-			ActionType: "apply-config",
-			TwinID:     drift.TwinID,
-			Params:     map[string]string{"version": version},
-			Rationale:  rationale,
-		},
-	}, nil
+	return actions, nil
 }

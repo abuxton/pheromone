@@ -812,6 +812,10 @@ function statusBadge(s) {
 function typeBadge(t) {
   return `<span class="badge ${t==='os'?'badge-os':'badge-workload'}">${esc(t)}</span>`;
 }
+function outcomeBadge(o) {
+  const cls = {'actions-planned':'badge-warning','no-drift':'badge-active','error':'badge-failed'}[o]||'badge-inactive';
+  return `<span class="badge ${cls}"><span class="badge-dot"></span>${esc(o||'unknown')}</span>`;
+}
 
 /* ── API ────────────────────────────────────────────────────────────────── */
 async function api(path, opts={}) {
@@ -1010,7 +1014,10 @@ function showAgentList() {
 
 async function showAgentDetail(id) {
   try {
-    const a = await api('/agents/'+id);
+    const [a, traces] = await Promise.all([
+      api('/agents/'+id),
+      api('/agents/'+id+'/traces?limit=10').catch(()=>[]),
+    ]);
     if (!a) return;
     const detailEl = document.getElementById('agent-detail-view');
     detailEl.innerHTML = `
@@ -1052,7 +1059,7 @@ async function showAgentDetail(id) {
         </div>
       </div>
       ${Object.keys(a.metadata||{}).length?`
-      <div class="card">
+      <div class="card" style="margin-bottom:20px">
         <div class="card-header"><span class="card-title">Metadata</span></div>
         <div class="card-body">
           ${Object.entries(a.metadata).map(([k,v])=>`
@@ -1060,6 +1067,29 @@ async function showAgentDetail(id) {
           `).join('')}
         </div>
       </div>`:''}
+      <div class="card">
+        <div class="card-header"><span class="card-title">Recent Reasoning Traces</span><span class="muted" style="font-size:12px">last 10 decisions</span></div>
+        <div class="card-body">
+          ${(!traces||!traces.length)?'<p class="muted">No reasoning traces recorded yet.</p>':traces.slice().reverse().map(tr=>`
+            <div style="display:flex;justify-content:space-between;align-items:start;padding:10px 0;border-bottom:1px solid var(--color-border)">
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                  <span class="mono muted" style="font-size:11px">${esc(tr.twin_id||'—')}</span>
+                  ${tr.has_drift?`<span class="badge badge-warning" style="font-size:10px">drift</span>`:'<span class="badge badge-active" style="font-size:10px">ok</span>'}
+                  <span class="mono muted" style="font-size:11px">${esc(tr.reasoner||'—')}</span>
+                </div>
+                ${(tr.drifted_fields||[]).length?`<div class="tags" style="margin-bottom:4px">${(tr.drifted_fields||[]).map(f=>`<span class="tag">${esc(f)}</span>`).join('')}</div>`:''}
+                ${(tr.actions||[]).length?`<div style="font-size:12px;color:var(--color-accent)">→ ${(tr.actions||[]).join(', ')}</div>`:''}
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:12px">
+                ${outcomeBadge(tr.outcome)}
+                <span class="muted" style="font-size:11px">${ago(tr.timestamp)}</span>
+                ${tr.duration_ms>0?`<span class="muted" style="font-size:10px">${tr.duration_ms}ms</span>`:''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
     `;
     document.getElementById('agent-list-view').classList.add('hidden');
     detailEl.classList.remove('hidden');

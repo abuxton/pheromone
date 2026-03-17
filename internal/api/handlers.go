@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/abuxton/pheromone/internal/config"
+	"github.com/abuxton/pheromone/internal/skill"
 )
 
 // handleHealthz serves GET /healthz (Kubernetes liveness probe).
@@ -186,14 +187,22 @@ func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
-// handleAgent serves GET /api/v1/agents/{id}
+// handleAgent serves GET /api/v1/agents/{id} and dispatches
+// GET /api/v1/agents/{id}/traces (ADR-019).
 func (s *Server) handleAgent(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/api/v1/agents/")
-	if id == "" {
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/agents/")
+	if path == "" {
 		writeError(w, http.StatusBadRequest, "agent id required")
 		return
 	}
 
+	// Dispatch sub-resource routes before treating the whole path as an ID.
+	if strings.HasSuffix(path, "/traces") {
+		s.handleAgentTraces(w, r)
+		return
+	}
+
+	id := path
 	switch r.Method {
 	case http.MethodGet:
 		s.mu.RLock()
@@ -953,4 +962,137 @@ func (s *Server) handleLogLevel(w http.ResponseWriter, r *http.Request) {
 		"request_id", requestIDFromContext(r.Context()),
 	)
 	writeJSON(w, http.StatusOK, LogLevelResponse{Level: level.String()})
+}
+
+// --- Agent Traces (ADR-019) ---
+
+// handleAgentTraces serves GET /api/v1/agents/{id}/traces.
+//
+// Query param: limit (optional, default 10, max 100) — number of most-recent
+// traces to return.
+func (s *Server) handleAgentTraces(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	// path: /api/v1/agents/{id}/traces
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/agents/")
+	parts := strings.SplitN(path, "/", 2)
+	agentID := parts[0]
+	if agentID == "" {
+		writeError(w, http.StatusBadRequest, "agent id required")
+		return
+	}
+
+	s.mu.RLock()
+	_, ok := s.agents[agentID]
+	s.mu.RUnlock()
+	if !ok {
+		writeError(w, http.StatusNotFound, fmt.Sprintf("agent %q not found", agentID))
+		return
+	}
+
+	limit := 10
+	if lv := r.URL.Query().Get("limit"); lv != "" {
+		if n, err := strconv.Atoi(lv); err == nil && n > 0 {
+			if n > 100 {
+				n = 100
+			}
+			limit = n
+		}
+	}
+
+	raw := s.traceStore.Get(agentID, limit)
+	result := make([]AgentTrace, 0, len(raw))
+	for _, tr := range raw {
+		result = append(result, traceToAPI(tr))
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// traceToAPI converts a skill.ReasonerTrace to the API wire type.
+func traceToAPI(tr skill.ReasonerTrace) AgentTrace {
+	return AgentTrace{
+		Timestamp:     tr.Timestamp,
+		AgentID:       tr.AgentID,
+		Reasoner:      tr.Reasoner,
+		TwinID:        tr.Input.TwinID,
+		HasDrift:      tr.Input.HasDrift,
+		DriftedFields: tr.Input.DriftedFields,
+		Actions:       tr.Actions,
+		Outcome:       tr.Outcome,
+		DurationMs:    tr.DurationMs,
+		FallbackUsed:  tr.FallbackUsed,
+	}
+}
+
+// --- Twin Diff (ADR-019) ---
+
+// handleTwinDiff serves GET /api/v1/twins/{id}/diff.
+//
+// Returns the field-by-field delta between the twin's desired and actual state.
+func (s *Server) handleTwinDiff(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	// path: /api/v1/twins/{id}/diff
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/twins/")
+	parts := strings.SplitN(path, "/", 2)
+	twinID := parts[0]
+	if twinID == "" {
+		writeError(w, http.StatusBadRequest, "twin id required")
+		return
+	}
+
+	s.mu.RLock()
+	t, ok := s.twins[twinID]
+	s.mu.RUnlock()
+	if !ok {
+		writeError(w, http.StatusNotFound, fmt.Sprintf("twin %q not found", twinID))
+		return
+	}
+
+	actual := t.ActualState
+	desired := t.DesiredState
+	if actual == nil {
+		actual = map[string]interface{}{}
+	}
+	if desired == nil {
+		desired = map[string]interface{}{}
+	}
+
+	// Collect the union of all keys from both states.
+	keySet := make(map[string]struct{}, len(actual)+len(desired))
+	for k := range actual {
+		keySet[k] = struct{}{}
+	}
+	for k := range desired {
+		keySet[k] = struct{}{}
+	}
+
+	fields := make([]DiffField, 0, len(keySet))
+	hasDrift := false
+	for k := range keySet {
+		a := fmt.Sprintf("%v", actual[k])
+		d := fmt.Sprintf("%v", desired[k])
+		drifted := a != d
+		if drifted {
+			hasDrift = true
+		}
+		fields = append(fields, DiffField{
+			Field:   k,
+			Actual:  a,
+			Desired: d,
+			Drifted: drifted,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, TwinDiff{
+		TwinID:   twinID,
+		HasDrift: hasDrift,
+		Fields:   fields,
+	})
 }

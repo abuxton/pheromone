@@ -239,3 +239,34 @@ type LogLevelRequest struct {
 type LogLevelResponse struct {
 	Level string `json:"level"`
 }
+
+// AgentTrace is the API representation of a single reasoning-cycle trace
+// for GET /api/v1/agents/{id}/traces (ADR-019).
+type AgentTrace struct {
+	Timestamp     time.Time `json:"timestamp"`
+	AgentID       string    `json:"agent_id"`
+	Reasoner      string    `json:"reasoner"`
+	TwinID        string    `json:"twin_id"`
+	HasDrift      bool      `json:"has_drift"`
+	DriftedFields []string  `json:"drifted_fields,omitempty"`
+	Actions       []string  `json:"actions"`
+	Outcome       string    `json:"outcome"`
+	DurationMs    int64     `json:"duration_ms"`
+	FallbackUsed  bool      `json:"fallback_used"`
+}
+
+// TwinDiff is returned by GET /api/v1/twins/{id}/diff (ADR-019).
+// It provides the field-by-field delta between desired and actual twin state.
+type TwinDiff struct {
+	TwinID   string      `json:"twin_id"`
+	HasDrift bool        `json:"has_drift"`
+	Fields   []DiffField `json:"fields"`
+}
+
+// DiffField is a single field comparison within a TwinDiff.
+type DiffField struct {
+	Field   string `json:"field"`
+	Desired string `json:"desired"`
+	Actual  string `json:"actual"`
+	Drifted bool   `json:"drifted"`
+}
