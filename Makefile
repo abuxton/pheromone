@@ -125,6 +125,59 @@ vagrant-provision: ## Re-run provisioning scripts on all VMs (no destroy)
 vagrant-reload: ## Restart all Vagrant VMs
 	cd vagrant && vagrant reload
 
+.PHONY: compose-build
+compose-build: ## Build all Docker Compose images (server, agent, ctl)
+	docker compose build
+
+.PHONY: compose-up
+compose-up: ## Start core services (etcd, NATS, server, agents, Prometheus, Grafana)
+	docker compose up -d
+	@echo "Waiting for services to be ready..."
+	@sleep 5
+	@docker compose ps
+
+.PHONY: compose-up-postgres
+compose-up-postgres: ## Start core services + PostgreSQL dataplane (ADR-016)
+	docker compose --profile postgres up -d
+	@echo "Waiting for services to be ready..."
+	@sleep 5
+	@docker compose ps
+
+.PHONY: compose-up-full
+compose-up-full: ## Start all services including PostgreSQL and pheromone-ctl testing container
+	docker compose --profile postgres --profile testing up -d
+	@echo "Waiting for services to be ready..."
+	@sleep 5
+	@docker compose ps
+
+.PHONY: compose-down
+compose-down: ## Stop all Docker Compose services
+	docker compose --profile postgres --profile testing down
+
+.PHONY: compose-clean
+compose-clean: ## Stop all services and remove volumes
+	docker compose --profile postgres --profile testing down -v
+
+.PHONY: compose-ps
+compose-ps: ## Show status of all Docker Compose services
+	docker compose ps
+
+.PHONY: compose-logs
+compose-logs: ## Follow logs from all running Docker Compose services
+	docker compose logs -f
+
+.PHONY: compose-logs-server
+compose-logs-server: ## Follow pheromone-server logs
+	docker compose logs -f pheromone-server
+
+.PHONY: compose-logs-agents
+compose-logs-agents: ## Follow pheromone-agent logs
+	docker compose logs -f pheromone-agent-1 pheromone-agent-2
+
+.PHONY: compose-validate
+compose-validate: ## Validate the docker-compose.yml configuration
+	docker compose --profile postgres --profile testing config --quiet
+
 .PHONY: proto-lint
 proto-lint: ## Lint proto files with buf
 	buf lint
