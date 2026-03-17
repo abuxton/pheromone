@@ -68,7 +68,7 @@ func NewRuleBasedReasoner() *RuleBasedReasoner {
 // If r.Emitter is non-nil a ReasonerTrace is published after the decision is
 // made (ADR-019).
 func (r *RuleBasedReasoner) Plan(_ context.Context, _ *Observations, goal GoalState, drift DriftReport) ([]Action, error) {
-	start := time.Now().UTC()
+	start := time.Now()
 
 	var actions []Action
 	var outcome string
