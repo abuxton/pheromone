@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1073,9 +1074,16 @@ func (s *Server) handleTwinDiff(w http.ResponseWriter, r *http.Request) {
 		keySet[k] = struct{}{}
 	}
 
-	fields := make([]DiffField, 0, len(keySet))
-	hasDrift := false
+	// Extract and sort keys to ensure deterministic ordering of diff fields.
+	keys := make([]string, 0, len(keySet))
 	for k := range keySet {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	fields := make([]DiffField, 0, len(keys))
+	hasDrift := false
+	for _, k := range keys {
 		a := stateValueToString(actual[k])
 		d := stateValueToString(desired[k])
 		drifted := a != d
