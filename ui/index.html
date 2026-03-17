@@ -1079,7 +1079,7 @@ async function showAgentDetail(id) {
                   <span class="mono muted" style="font-size:11px">${esc(tr.reasoner||'—')}</span>
                 </div>
                 ${(tr.drifted_fields||[]).length?`<div class="tags" style="margin-bottom:4px">${(tr.drifted_fields||[]).map(f=>`<span class="tag">${esc(f)}</span>`).join('')}</div>`:''}
-                ${(tr.actions||[]).length?`<div style="font-size:12px;color:var(--color-accent)">→ ${(tr.actions||[]).join(', ')}</div>`:''}
+                ${(tr.actions||[]).length?`<div style="font-size:12px;color:var(--color-accent)">→ ${(tr.actions||[]).map(a=>esc(a)).join(', ')}</div>`:''}
               </div>
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-left:12px">
                 ${outcomeBadge(tr.outcome)}
