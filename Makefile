@@ -131,24 +131,15 @@ compose-build: ## Build all Docker Compose images (server, agent, ctl)
 
 .PHONY: compose-up
 compose-up: ## Start core services (etcd, NATS, server, agents, Prometheus, Grafana)
-	docker compose up -d
-	@echo "Waiting for services to be ready..."
-	@sleep 5
-	@docker compose ps
+	docker compose up -d --wait
 
 .PHONY: compose-up-postgres
 compose-up-postgres: ## Start core services + PostgreSQL dataplane (ADR-016)
-	docker compose --profile postgres up -d
-	@echo "Waiting for services to be ready..."
-	@sleep 5
-	@docker compose ps
+	docker compose --profile postgres up -d --wait
 
 .PHONY: compose-up-full
 compose-up-full: ## Start all services including PostgreSQL and pheromone-ctl testing container
-	docker compose --profile postgres --profile testing up -d
-	@echo "Waiting for services to be ready..."
-	@sleep 5
-	@docker compose ps
+	docker compose --profile postgres --profile testing up -d --wait
 
 .PHONY: compose-down
 compose-down: ## Stop all Docker Compose services
