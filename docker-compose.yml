@@ -72,7 +72,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-pheromone}
       # postgres:16 enforces a non-empty POSTGRES_PASSWORD at startup — the
       # container will refuse to initialise if this variable is unset or empty.
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (see .env.example)}
     ports:
       # Bind to loopback only — not exposed to the wider network
       - "127.0.0.1:5432:5432"
