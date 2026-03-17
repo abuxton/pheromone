@@ -1076,8 +1076,8 @@ func (s *Server) handleTwinDiff(w http.ResponseWriter, r *http.Request) {
 	fields := make([]DiffField, 0, len(keySet))
 	hasDrift := false
 	for k := range keySet {
-		a := fmt.Sprintf("%v", actual[k])
-		d := fmt.Sprintf("%v", desired[k])
+		a := stateValueToString(actual[k])
+		d := stateValueToString(desired[k])
 		drifted := a != d
 		if drifted {
 			hasDrift = true
@@ -1095,4 +1095,13 @@ func (s *Server) handleTwinDiff(w http.ResponseWriter, r *http.Request) {
 		HasDrift: hasDrift,
 		Fields:   fields,
 	})
+}
+
+// stateValueToString converts a twin state value to a comparable string.
+// nil is represented as the empty string to avoid "<nil>" output from %v.
+func stateValueToString(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", v)
 }
