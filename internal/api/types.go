@@ -76,14 +76,14 @@ type FieldChange struct {
 
 // Group is a named collection of agents, twins, or infrastructure nodes.
 type Group struct {
-	ID             string    `json:"id"`
-	Name           string    `json:"name"`
-	Type           string    `json:"type"`
-	Description    string    `json:"description,omitempty"`
-	Members        []string  `json:"members"`
-	TwinNamespace  string    `json:"twin_namespace,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Type          string    `json:"type"`
+	Description   string    `json:"description,omitempty"`
+	Members       []string  `json:"members"`
+	TwinNamespace string    `json:"twin_namespace,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // Connection represents an active link between an agent and a twin.
@@ -208,13 +208,13 @@ type AuditEntry struct {
 
 // APIKey represents an API key associated with a user for automated access.
 type APIKey struct {
-	ID          string    `json:"id"`
-	Username    string    `json:"username"`
-	Name        string    `json:"name"`
-	KeyPrefix   string    `json:"key_prefix"`
-	CreatedAt   time.Time `json:"created_at"`
-	LastUsedAt  *time.Time `json:"last_used_at,omitempty"`
-	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+	ID         string     `json:"id"`
+	Username   string     `json:"username"`
+	Name       string     `json:"name"`
+	KeyPrefix  string     `json:"key_prefix"`
+	CreatedAt  time.Time  `json:"created_at"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
 }
 
 // CreateAPIKeyRequest is the payload for POST /api/v1/users/{username}/api-keys.

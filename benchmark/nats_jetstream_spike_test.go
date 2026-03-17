@@ -35,7 +35,7 @@ import (
 
 const (
 	natsURL         = "nats://localhost:4222"
-	natsStreamName  = "TELEMETRY" // canonical stream name (supersedes metricsStream — see ADR-005 H1)
+	natsStreamName  = "TELEMETRY"    // canonical stream name (supersedes metricsStream — see ADR-005 H1)
 	natsSubject     = "metrics.test" // spike-only; production uses metrics.{agent_id}.{metric_type} (ADR-005 H3)
 	natsPayloadSize = 256
 
@@ -99,9 +99,9 @@ func TestNATSThroughputRamp(t *testing.T) {
 	rng := rand.New(rand.NewSource(42))
 
 	stages := []struct {
-		label   string
-		target  int // msgs/sec
-		isGoal  bool
+		label  string
+		target int // msgs/sec
+		isGoal bool
 	}{
 		{"1K", 1_000, false},
 		{"10K", 10_000, false},
