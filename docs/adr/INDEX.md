@@ -1,6 +1,6 @@
 # Pheromone ADR Index & Decision Status
 
-**Updated**: 2026-03-10 (ADR-004 accepted — Twin Model Schema Format ratified; ADR-010 accepted — Signal Protocol evaluation ratified; gRPC+mTLS confirmed; ADR-014 accepted — Security Architecture; ADR-016 proposed — Stateless Server Dataplane Selection)
+**Updated**: 2026-03-17 (ADR-019 accepted — Agent & AI Observability; reasoning traces, twin diff endpoint, action audit log)
 
 ## Decision Timeline & Status
 
@@ -25,6 +25,7 @@
 | **016** | Stateless Server — Dataplane Selection | ⏳ Proposed | Phase 2 (Scalability) | PostgreSQL as primary dataplane; etcd retained for control plane; server becomes stateless | ADR-002,003,014 |
 | **017** | UI/API Gateway Design — SSE, OpenAPI, k8s Probes | ✅ Accepted | Phase 1 (MVP) | SSE endpoint `/api/v1/events`; k8s health probes `/healthz`/`/readyz`; OpenAPI 3.1 spec; rate limiting & request size middleware | ADR-002,011,014 |
 | **018** | Observability Stack — Prometheus, OpenTelemetry, Grafana | ✅ Accepted | Phase 1 (MVP) | `/metrics` endpoint; 6 key metrics; Prometheus + Grafana in docker-compose; isolated registry design | ADR-003,005,014,017 |
+| **019** | Agent & AI Observability — Reasoning Traces, Twin Diff, Action Audit | ✅ Accepted | Phase 1 (MVP) | `ReasonerTrace` struct; `TraceStore` ring buffer; `/agents/{id}/traces` + `/twins/{id}/diff` REST endpoints; UI trace viewer panel | ADR-007,008,017,018 |
 
 ---
 

@@ -17,6 +17,7 @@ import (
 
 	"github.com/abuxton/pheromone/internal/config"
 	"github.com/abuxton/pheromone/internal/metrics"
+	"github.com/abuxton/pheromone/internal/skill"
 	uiassets "github.com/abuxton/pheromone/ui"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -45,6 +46,9 @@ type Server struct {
 	connections map[string]*Connection
 	apiKeys     map[string]*apiKeyRecord // keyed by key ID
 	auditLog    []*AuditEntry
+
+	// traceStore holds the per-agent reasoning trace ring buffer (ADR-019).
+	traceStore *skill.TraceStore
 
 	// SSE subscribers: each connected /api/v1/events client has a buffered channel.
 	eventMu      sync.RWMutex
@@ -84,6 +88,7 @@ func New(cfg config.UIConfig, log *slog.Logger) *Server {
 		connections:  make(map[string]*Connection),
 		apiKeys:      make(map[string]*apiKeyRecord),
 		eventClients: make(map[chan []byte]struct{}),
+		traceStore:   skill.NewTraceStore(100),
 	}
 
 	// Index configured users by lowercase username.
@@ -281,6 +286,79 @@ func (s *Server) Seed() {
 	}
 	for _, c := range connections {
 		s.connections[c.ID] = c
+	}
+
+	// Seed demo reasoning traces for ADR-019 observability.
+	seedTraces := []skill.ReasonerTrace{
+		{
+			Timestamp:  now.Add(-4 * time.Minute),
+			AgentID:    "agent-os-01",
+			Reasoner:   "rule-based",
+			Input:      skill.TraceInput{TwinID: "twin-os-01", HasDrift: false},
+			Actions:    []string{},
+			Outcome:    "no-drift",
+			DurationMs: 0,
+		},
+		{
+			Timestamp:  now.Add(-3 * time.Minute),
+			AgentID:    "agent-os-01",
+			Reasoner:   "rule-based",
+			Input:      skill.TraceInput{TwinID: "twin-os-01", HasDrift: false},
+			Actions:    []string{},
+			Outcome:    "no-drift",
+			DurationMs: 0,
+		},
+		{
+			Timestamp:  now.Add(-2 * time.Minute),
+			AgentID:    "agent-os-01",
+			Reasoner:   "rule-based",
+			Input:      skill.TraceInput{TwinID: "twin-os-01", HasDrift: false},
+			Actions:    []string{},
+			Outcome:    "no-drift",
+			DurationMs: 0,
+		},
+		{
+			Timestamp: now.Add(-10 * time.Minute),
+			AgentID:   "agent-os-02",
+			Reasoner:  "rule-based",
+			Input: skill.TraceInput{
+				TwinID:        "twin-os-02",
+				HasDrift:      true,
+				DriftedFields: []string{"kernel"},
+			},
+			Actions:    []string{"apply-config"},
+			Outcome:    "actions-planned",
+			DurationMs: 0,
+		},
+		{
+			Timestamp: now.Add(-5 * time.Minute),
+			AgentID:   "agent-os-02",
+			Reasoner:  "rule-based",
+			Input: skill.TraceInput{
+				TwinID:        "twin-os-02",
+				HasDrift:      true,
+				DriftedFields: []string{"kernel"},
+			},
+			Actions:    []string{"apply-config"},
+			Outcome:    "actions-planned",
+			DurationMs: 0,
+		},
+		{
+			Timestamp: now.Add(-4 * time.Minute),
+			AgentID:   "agent-wl-02",
+			Reasoner:  "rule-based",
+			Input: skill.TraceInput{
+				TwinID:        "twin-wl-02",
+				HasDrift:      true,
+				DriftedFields: []string{"status", "max_connections"},
+			},
+			Actions:    []string{"apply-config"},
+			Outcome:    "actions-planned",
+			DurationMs: 0,
+		},
+	}
+	for _, tr := range seedTraces {
+		s.traceStore.Emit(tr)
 	}
 
 	// Update Prometheus gauges to reflect seeded state.
@@ -509,11 +587,16 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.Handle("/", http.FileServer(http.FS(uiassets.FS)))
 }
 
-// routeTwin dispatches /api/v1/twins/{id} and /api/v1/twins/{id}/changesets.
+// routeTwin dispatches /api/v1/twins/{id} and /api/v1/twins/{id}/changesets
+// and /api/v1/twins/{id}/diff (ADR-019).
 func (s *Server) routeTwin(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/v1/twins/")
 	if strings.HasSuffix(path, "/changesets") {
 		s.handleTwinChangesets(w, r)
+		return
+	}
+	if strings.HasSuffix(path, "/diff") {
+		s.handleTwinDiff(w, r)
 		return
 	}
 	s.handleTwin(w, r)
