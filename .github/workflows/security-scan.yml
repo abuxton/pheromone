@@ -69,7 +69,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Run gosec
-        uses: securego/gosec@efe7343bd2dc861f9b56328903d02f870644fedd # v2.24.7
+        uses: securego/gosec@bb17e422fc34bf4c0a2e5cab9d07dc45a68c040c # v2.24.7
         with:
           args: '-fmt sarif -out gosec-results.sarif -exclude-dir=benchmark ./...'
 
