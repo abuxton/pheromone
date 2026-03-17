@@ -21,7 +21,7 @@ Agent operating guide for `pheromone`. Keep this file concise, executable, and p
 | Core Go code | `internal/` | Main implementation |
 | Entrypoints | `cmd/` | Binaries (`pheromone-agent`, `pheromone-server`) |
 | Speckit agents | `.github/agents/` | Feature lifecycle agent prompts |
-| Local skills | `.agents/skills/` | Reusable implementation guidance |
+| Local skills | `skills/` | Reusable implementation guidance |
 | Temp workspace | `tmp/` | Required scratch/output location |
 
 ## Speckit Agent Routing (`.github/agents`)
@@ -47,7 +47,7 @@ Preferred lifecycle:
 5. `speckit.analyze`
 6. `speckit.implement`
 
-## Skill Routing (`.agents/skills`)
+## Skill Routing (`skills/`)
 
 | Category | Skills |
 |----------|--------|
