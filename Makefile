@@ -13,8 +13,10 @@ deps: ## Install Go dependencies
 .PHONY: build
 build: ## Build all packages and CLI binaries
 	go build ./internal/...
+	mkdir -p dist
 	go build -o dist/pheromone-server ./cmd/pheromone-server
 	go build -o dist/pheromone-agent  ./cmd/pheromone-agent
+	go build -o dist/pheromone-ctl    ./cmd/pheromone-ctl
 
 .PHONY: test
 test: ## Run all tests (without etcd)

@@ -17,8 +17,8 @@ import (
 
 	"github.com/abuxton/pheromone/internal/config"
 	"github.com/abuxton/pheromone/internal/metrics"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	uiassets "github.com/abuxton/pheromone/ui"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Server is the Pheromone HTTP management UI and REST API server.
@@ -248,24 +248,24 @@ func (s *Server) Seed() {
 	groups := []*Group{
 		{
 			ID: "grp-001", Name: "Production Servers", Type: "infrastructure",
-			Description: "All production infrastructure nodes",
-			Members:     []string{"web-server-01.internal", "db-server-01.internal"},
+			Description:   "All production infrastructure nodes",
+			Members:       []string{"web-server-01.internal", "db-server-01.internal"},
 			TwinNamespace: "prod",
-			CreatedAt: now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
+			CreatedAt:     now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
 		},
 		{
 			ID: "grp-002", Name: "OS Agents", Type: "agents",
-			Description: "All OS-level agents",
-			Members:     []string{"agent-os-01", "agent-os-02"},
+			Description:   "All OS-level agents",
+			Members:       []string{"agent-os-01", "agent-os-02"},
 			TwinNamespace: "prod",
-			CreatedAt: now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
+			CreatedAt:     now.Add(-72 * time.Hour), UpdatedAt: now.Add(-72 * time.Hour),
 		},
 		{
 			ID: "grp-003", Name: "Workload Twins", Type: "twins",
-			Description: "All workload-level digital twins",
-			Members:     []string{"twin-wl-01", "twin-wl-02"},
+			Description:   "All workload-level digital twins",
+			Members:       []string{"twin-wl-01", "twin-wl-02"},
 			TwinNamespace: "prod",
-			CreatedAt: now.Add(-48 * time.Hour), UpdatedAt: now.Add(-48 * time.Hour),
+			CreatedAt:     now.Add(-48 * time.Hour), UpdatedAt: now.Add(-48 * time.Hour),
 		},
 	}
 	for _, g := range groups {

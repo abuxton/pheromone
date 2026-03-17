@@ -31,18 +31,18 @@ import (
 // ── success-criteria constants ───────────────────────────────────────────────
 
 const (
-	spikeNumAgents       = 1000
-	spikeMsgsPerAgent    = 100
-	spikeP99Threshold    = 100 * time.Millisecond // SC-REG
-	spikePushThreshold   = 5 * time.Second        // SC-002
-	spikeThroughputGoal  = 100_000                // SC-008: msgs/sec
+	spikeNumAgents      = 1000
+	spikeMsgsPerAgent   = 100
+	spikeP99Threshold   = 100 * time.Millisecond // SC-REG
+	spikePushThreshold  = 5 * time.Second        // SC-002
+	spikeThroughputGoal = 100_000                // SC-008: msgs/sec
 )
 
 // ── mock AgentRegistry ───────────────────────────────────────────────────────
 
 type mockRegistryServer struct {
 	pbv1.UnimplementedAgentRegistryServer
-	mu    sync.RWMutex
+	mu     sync.RWMutex
 	agents map[string]bool
 }
 
