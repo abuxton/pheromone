@@ -87,24 +87,26 @@ linters:
         - "(io.ReadCloser).Close"
         - "(io.Closer).Close"
 
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - wrapcheck
+          - funlen
+          - gocognit
+          - gocyclo
+          - gocritic
+      - path: benchmark/
+        linters:
+          - gosec
+          - wrapcheck
+          - errcheck
+          - errorlint
+          - gocognit
+          - unparam
+
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-        - wrapcheck
-        - funlen
-        - gocognit
-        - gocyclo
-        - gocritic
-    - path: benchmark/
-      linters:
-        - gosec
-        - wrapcheck
-        - errcheck
-        - errorlint
-        - gocognit
-        - unparam
   max-issues-per-linter: 50
   max-same-issues: 10
