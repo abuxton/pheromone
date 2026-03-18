@@ -26,6 +26,7 @@
 | **017** | UI/API Gateway Design — SSE, OpenAPI, k8s Probes | ✅ Accepted | Phase 1 (MVP) | SSE endpoint `/api/v1/events`; k8s health probes `/healthz`/`/readyz`; OpenAPI 3.1 spec; rate limiting & request size middleware | ADR-002,011,014 |
 | **018** | Observability Stack — Prometheus, OpenTelemetry, Grafana | ✅ Accepted | Phase 1 (MVP) | `/metrics` endpoint; 6 key metrics; Prometheus + Grafana in docker-compose; isolated registry design | ADR-003,005,014,017 |
 | **019** | Agent & AI Observability — Reasoning Traces, Twin Diff, Action Audit | ✅ Accepted | Phase 1 (MVP) | `ReasonerTrace` struct; `TraceStore` ring buffer; `/agents/{id}/traces` + `/twins/{id}/diff` REST endpoints; UI trace viewer panel | ADR-007,008,017,018 |
+| **020** | OpenSWE Pattern Evaluation — SWE/DevOps Expert Agent Skills | ✅ Accepted | Phase 2 (AI Reasoning) | OpenSWE patterns adopted (sandbox isolation, tool curation, context engineering, subagent orchestration, GitOps PR, middleware safety nets); Python/LangGraph runtime not adopted; 6 new Go skills + middleware enhancements | ADR-007,006,011,017,018,019 |
 
 ---
 
@@ -40,6 +41,7 @@
 - ✅ Choose AI reasoning engine: Ollama (local), llamafile (edge), remote API (ADR-008)
 - ✅ Evaluate OpenClaw as server/agent candidate — not adopted as core infra (ADR-009)
 - ⏳ Evaluate Swamp (System Initiative) — not adopted; YAML/CEL model noted as ADR-004 reference (ADR-013)
+- ✅ Evaluate OpenSWE patterns — adopted for Phase 2 SWE/DevOps Agent Skills; Python/LangGraph runtime not adopted (ADR-020)
 
 ### Layer 2: Control Plane (ADR-002, 003, 004, 010)
 - ✅ ADR-002: How to structure server state (in-mem + etcd)
@@ -77,6 +79,7 @@
 - **ADR-014**: Envoy Proxy evaluation — server-side ingress recommended (Phase 1); per-agent sidecar and xDS control plane deferred to Phase 2
 - **ADR-015**: User Access Control — local auth + RBAC + JWT + gRPC interceptor chain; IdP adapter pattern (Phase 2)
 - **ADR-016**: Stateless server dataplane — PostgreSQL selected as primary durable store; etcd retained for control-plane coordination; server becomes crash-recoverable
+- **ADR-020**: OpenSWE Pattern Evaluation — architectural patterns adopted for Phase 2 SWE/DevOps Agent Skills; 5 tech spikes required before Phase 2 implementation begins ✅ **Accepted**
 
 
 ### Should Review (Implementation Strategy)
@@ -135,6 +138,13 @@ ADR-018 (Observability Stack — Prometheus, OpenTelemetry, Grafana)
    ├─→ ADR-014 (Security Architecture — /metrics access control via network policy)
    └─→ ADR-017 (UI/API Gateway — /metrics follows same unauthenticated probe pattern as /healthz)
 ```
+ADR-020 (OpenSWE Pattern Evaluation — SWE/DevOps Expert Agent Skills)
+   ├─→ ADR-007 (Agentic AI Agent Model — Phase 2 skill extensions build on Phase 1 reasoning loop)
+   ├─→ ADR-006 (Agent Lifecycle — new skills register via existing skill framework)
+   ├─→ ADR-011 (Post-Action Hooks — middleware safety nets extend hook service)
+   ├─→ ADR-018 (Observability — new skills emit Prometheus metrics per ADR-018 pattern)
+   └─→ ADR-019 (AI Observability — new skills emit reasoning traces per ADR-019 pattern)
+```
 
 **Critical Path**: ADR-001 → ADR-007 → ADR-002 → ADR-003 → ADR-006 → ADR-014 → ADR-015 (auth layer sits atop all prior decisions)
 
@@ -163,11 +173,16 @@ Before ADR Acceptance, run these validation spikes:
 | ADR-015 | JWT RS256 interceptor hot-path benchmark | Measure per-RPC overhead of RSA public-key JWT validation under 1000 concurrent agents | 4 hours |
 | ADR-015 | LDAP adapter integration spike | Bind + group search against containerised OpenLDAP; validate group→role mapping | 6 hours |
 
-**Total Spike Effort**: ~94 hours (can run in parallel; +12 hours added for ADR-015 auth spikes)
 | ADR-016 | PostgreSQL throughput at 1 000 agents | Measure pgxpool read/write p99 with 1 000 twin blobs (≤64 KB each) | 6–8 hours |
 | ADR-016 | Server cold-start rehydration benchmark | Measure time to load 10 000 twin records from PostgreSQL into in-memory cache | 4 hours |
 
-**Total Spike Effort**: ~92 hours (can run in parallel; +10 hours added for ADR-016 PostgreSQL spikes)
+| ADR-020 | OCI sandbox lifecycle benchmark | Measure container create/exec/destroy P95 latency on Ubuntu 24.04; validate < 30 s | 6 hours |
+| ADR-020 | testcontainers-go SandboxedExecution prototype | Prototype `SandboxedExecutionSkill`; validate OCI runtime availability on managed instances | 6 hours |
+| ADR-020 | go-git OpenPR prototype | Prototype GitHub/GitLab PR creation from Go agent; validate auth flow | 4 hours |
+| ADR-020 | SubagentSkill goroutine lifecycle | Prototype `SubagentSkill` goroutines + channels; measure leak risk and context propagation | 4 hours |
+| ADR-020 | ContextBundle assembly benchmark | Measure full context bundle assembly P95 from live twin state + drift report; validate < 500 ms | 4 hours |
+
+**Total Spike Effort**: ~116 hours (can run in parallel; +24 hours added for ADR-020 OpenSWE spikes)
 
 ---
 
@@ -248,6 +263,18 @@ All GitHub issues required to process ADR material and unblock development are t
 | Write backup and recovery runbook (pg_basebackup + WAL archiving) | Documentation | ADR-016 | 4h |
 | Add Prometheus metrics for PostgreSQL health, connection pool, query latency | Implementation | ADR-016 | 4h |
 | Spike: PostgreSQL throughput at 1 000 agents with pgxpool | Tech Spike | ADR-016 | 6–8h |
+| Review and Accept ADR-020 | ADR Review | ADR-020 | — |
+| ADR-020 Spike: OCI sandbox lifecycle benchmark | Tech Spike | ADR-020 | 6h |
+| ADR-020 Spike: testcontainers-go SandboxedExecution prototype | Tech Spike | ADR-020 | 6h |
+| ADR-020 Spike: go-git OpenPR prototype | Tech Spike | ADR-020 | 4h |
+| ADR-020 Spike: SubagentSkill goroutine lifecycle | Tech Spike | ADR-020 | 4h |
+| ADR-020 Spike: ContextBundle assembly benchmark | Tech Spike | ADR-020 | 4h |
+| feat(skill): Implement SandboxedExecutionSkill (Phase 2a) | Implementation | ADR-020 | 16–20h |
+| feat(skill): Implement DevOpsToolSkill curated tool set (Phase 2a) | Implementation | ADR-020 | 12–16h |
+| feat(skill): Implement ContextAssemblySkill + middleware (Phase 2b) | Implementation | ADR-020 | 12h |
+| feat(skill): Implement SubagentSkill coordination (Phase 2c) | Implementation | ADR-020 | 16–20h |
+| feat(skill): Implement GitOpsSkill + IaC PR workflow (Phase 2d) | Implementation | ADR-020 | 12–16h |
+| feat(skill): Implement IaCPRSafetyNet + ActionRollbackMiddleware (Phase 2d) | Implementation | ADR-020 | 8h |
 
 ---
 
@@ -255,6 +282,8 @@ All GitHub issues required to process ADR material and unblock development are t
 
 - **Specification**: `.specify/memory/spec-001-digital-twin-platform.md`
 - **Specification (ADR-016)**: `.specify/memory/spec-002-stateless-server-dataplane.md`
+- **Specification (ADR-020)**: `.specify/memory/spec-003-swe-devops-agent-skills.md`
+- **Plan (ADR-020)**: `.specify/memory/plan-003-swe-devops-agent-skills.md`
 - **Status**: `.specify/memory/PHASE1-STATUS.md`
 - **Quality Checklist**: `.specify/memory/checklists/spec-001-quality.md`
 - **Constitution**: `.specify/memory/constitution.md` (v2.0.0)
@@ -263,6 +292,6 @@ All GitHub issues required to process ADR material and unblock development are t
 
 ---
 
-**Status**: ✅ **ADRs 001, 002, 003, 004, 007, 008, 009, 010, 011, 012, 014(Security), 017, 018 ACCEPTED — ADRs 005, 006, 013, 014(Envoy), 015, 016 PROPOSED - READY FOR TEAM REVIEW**
-**Updated**: 2026-03-12 (ADR-018 accepted — Observability Stack: Prometheus `/metrics` endpoint, 6 key metrics, Grafana docker-compose services)
+**Status**: ✅ **ADRs 001, 002, 003, 004, 007, 008, 009, 010, 011, 012, 014(Security), 017, 018, 019, 020 ACCEPTED — ADRs 005, 006, 013, 014(Envoy), 015, 016 PROPOSED - READY FOR TEAM REVIEW**
+**Updated**: 2026-03-18 (ADR-020 accepted — OpenSWE Pattern Evaluation: SWE/DevOps Expert Agent Skills; 6 new Phase 2 skills + middleware enhancements adopted)
 
