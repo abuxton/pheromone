@@ -3,6 +3,7 @@ package subagent_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -190,6 +191,33 @@ func TestSubagentSkill_TaskError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Panic recovery
+// ---------------------------------------------------------------------------
+
+func TestSubagentSkill_PanicRecovery(t *testing.T) {
+	s := newSkill()
+	ctx := context.Background()
+
+	panicTask := func(_ context.Context) ([]string, error) {
+		panic("deliberate panic for testing")
+	}
+	id, err := s.SpawnSubagent(ctx, "panicking task", []string{"twin-1"}, panicTask)
+	if err != nil {
+		t.Fatalf("SpawnSubagent: %v", err)
+	}
+	result, err := s.WaitForSubagent(ctx, id)
+	if err != nil {
+		t.Fatalf("WaitForSubagent: %v", err)
+	}
+	if result.Status != subagent.SubagentStatusFailed {
+		t.Errorf("expected failed status after panic, got %s", result.Status)
+	}
+	if result.Error == "" {
+		t.Error("expected non-empty Error after panic")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Orphan reaper
 // ---------------------------------------------------------------------------
 
@@ -224,6 +252,25 @@ func TestSubagentSkill_Execute_Spawn(t *testing.T) {
 	}
 	if result.StateDelta.UpdatedFields["subagent_id"] == "" {
 		t.Error("expected subagent_id in StateDelta")
+	}
+}
+
+func TestSubagentSkill_Execute_Spawn_MultiTwinIDs(t *testing.T) {
+	s := newSkill()
+	result, err := s.Execute(context.Background(), &skill.Observations{}, &skill.Action{
+		ActionType: "spawn",
+		TwinID:     "twin-1",
+		Params: map[string]string{
+			"task_spec": "multi-twin task",
+			"twin_ids":  "twin-1, twin-2, twin-3",
+		},
+	})
+	if err != nil || !result.Success {
+		t.Fatalf("execute spawn with twin_ids: err=%v result=%v", err, result)
+	}
+	// Detail should mention 3 twins.
+	if !strings.Contains(result.Detail, "3 twin(s)") {
+		t.Errorf("expected detail to mention 3 twins, got %q", result.Detail)
 	}
 }
 

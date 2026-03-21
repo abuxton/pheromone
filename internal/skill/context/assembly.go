@@ -211,10 +211,11 @@ func (s *ContextAssemblySkill) assemble(ctx context.Context, twinID string, obs 
 	// Check context expiry.
 	select {
 	case <-ctx.Done():
-		// Assembly timed out. Return prior bundle as stale fallback.
+		// Assembly timed out. Return a copy of the prior bundle as stale fallback.
 		if prior != nil {
-			prior.Stale = true
-			return prior, true
+			priorCopy := *prior
+			priorCopy.Stale = true
+			return &priorCopy, true
 		}
 		b.Stale = true
 		return b, true

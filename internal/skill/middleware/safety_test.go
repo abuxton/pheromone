@@ -59,7 +59,7 @@ func failedExecution() middleware.ActionExecution {
 
 func TestIaCPRSafetyNet_OpensWhenSignificantNoExistingPR(t *testing.T) {
 	opener := &stubPROpener{}
-	sn := middleware.NewIaCPRSafetyNet(opener, "/tmp/ws")
+	sn := middleware.NewIaCPRSafetyNet(opener, t.TempDir())
 
 	executed := []middleware.ActionExecution{
 		significantExecution("apply-config"),
@@ -78,7 +78,7 @@ func TestIaCPRSafetyNet_OpensWhenSignificantNoExistingPR(t *testing.T) {
 
 func TestIaCPRSafetyNet_DoesNotOpenWhenPRAlreadyPresent(t *testing.T) {
 	opener := &stubPROpener{}
-	sn := middleware.NewIaCPRSafetyNet(opener, "/tmp/ws")
+	sn := middleware.NewIaCPRSafetyNet(opener, t.TempDir())
 
 	executed := []middleware.ActionExecution{
 		significantExecution("apply-config"),
@@ -103,7 +103,7 @@ func TestIaCPRSafetyNet_DoesNotOpenWhenPRAlreadyPresent(t *testing.T) {
 
 func TestIaCPRSafetyNet_DoesNotOpenWhenNoSignificantActions(t *testing.T) {
 	opener := &stubPROpener{}
-	sn := middleware.NewIaCPRSafetyNet(opener, "/tmp/ws")
+	sn := middleware.NewIaCPRSafetyNet(opener, t.TempDir())
 
 	executed := []middleware.ActionExecution{
 		significantExecution("collect-metrics"), // not significant
@@ -122,7 +122,7 @@ func TestIaCPRSafetyNet_DoesNotOpenWhenNoSignificantActions(t *testing.T) {
 
 func TestIaCPRSafetyNet_RequiresApprovalTriggersNet(t *testing.T) {
 	opener := &stubPROpener{}
-	sn := middleware.NewIaCPRSafetyNet(opener, "/tmp/ws")
+	sn := middleware.NewIaCPRSafetyNet(opener, t.TempDir())
 
 	executed := []middleware.ActionExecution{
 		{
@@ -147,7 +147,7 @@ func TestIaCPRSafetyNet_RequiresApprovalTriggersNet(t *testing.T) {
 
 func TestIaCPRSafetyNet_EmptyExecutions_NoOp(t *testing.T) {
 	opener := &stubPROpener{}
-	sn := middleware.NewIaCPRSafetyNet(opener, "/tmp/ws")
+	sn := middleware.NewIaCPRSafetyNet(opener, t.TempDir())
 	prURL, err := sn.CheckAndEnsurePR(context.Background(), "twin-1", nil)
 	if err != nil || prURL != "" || opener.called {
 		t.Errorf("expected no-op for empty executions: prURL=%q err=%v called=%v", prURL, err, opener.called)
@@ -156,7 +156,7 @@ func TestIaCPRSafetyNet_EmptyExecutions_NoOp(t *testing.T) {
 
 func TestIaCPRSafetyNet_OpenerError_Propagated(t *testing.T) {
 	opener := &stubPROpener{returnError: true}
-	sn := middleware.NewIaCPRSafetyNet(opener, "/tmp/ws")
+	sn := middleware.NewIaCPRSafetyNet(opener, t.TempDir())
 	_, err := sn.CheckAndEnsurePR(context.Background(), "twin-1", []middleware.ActionExecution{
 		significantExecution("apply-config"),
 	})
@@ -249,6 +249,35 @@ func TestActionRollbackMiddleware_WrapExecute_Success(t *testing.T) {
 	}
 	if exec.Outcome != middleware.ActionOutcomeSuccess {
 		t.Errorf("expected ActionOutcomeSuccess, got %s", exec.Outcome)
+	}
+}
+
+// nilResultSkill returns nil result without an error.
+type nilResultSkill struct{}
+
+func (s *nilResultSkill) Name() string                  { return "nil-skill" }
+func (s *nilResultSkill) Version() string               { return "1.0.0" }
+func (s *nilResultSkill) MinTwinLevel() skill.TwinLevel { return skill.TwinLevelOS }
+func (s *nilResultSkill) Execute(_ context.Context, _ *skill.Observations, _ *skill.Action) (*skill.SkillResult, error) {
+	return nil, nil
+}
+
+func TestActionRollbackMiddleware_WrapExecute_NilResult(t *testing.T) {
+	rollbackCalled := false
+	m := middleware.NewActionRollbackMiddleware(func(_ context.Context, _ middleware.ActionExecution) error {
+		rollbackCalled = true
+		return nil
+	})
+
+	_, exec := m.WrapExecute(context.Background(), &nilResultSkill{}, &skill.Observations{}, &skill.Action{
+		ActionType: "apply-config",
+		TwinID:     "twin-1",
+	})
+	if !rollbackCalled {
+		t.Error("expected rollback to be called when skill returns nil result")
+	}
+	if exec.Outcome != middleware.ActionOutcomeRolledBack {
+		t.Errorf("expected ActionOutcomeRolledBack for nil result, got %s", exec.Outcome)
 	}
 }
 

@@ -17,6 +17,7 @@ package sandbox
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -193,11 +194,24 @@ func (s *SandboxedExecutionSkill) execInSandbox(ctx context.Context, action *ski
 	if sandboxID == "" {
 		return nil, errors.New("sandboxed-execution: exec-in-sandbox requires sandbox_id param")
 	}
-	rawCmd := action.Params["command"]
-	if rawCmd == "" {
-		return nil, errors.New("sandboxed-execution: exec-in-sandbox requires command param")
+
+	// Accept either a JSON array ("command_args") or a plain string ("command").
+	// JSON array is preferred as it correctly handles arguments containing spaces.
+	// Example: command_args: ["apt-get","install","-y","nginx with spaces"]
+	var command []string
+	if rawArgs := action.Params["command_args"]; rawArgs != "" {
+		if err := json.Unmarshal([]byte(rawArgs), &command); err != nil {
+			return nil, fmt.Errorf("sandboxed-execution: exec-in-sandbox: invalid command_args JSON: %w", err)
+		}
+	} else if rawCmd := action.Params["command"]; rawCmd != "" {
+		// Legacy: split on whitespace. Quoted arguments are not supported.
+		command = strings.Fields(rawCmd)
+	} else {
+		return nil, errors.New("sandboxed-execution: exec-in-sandbox requires 'command_args' (JSON array) or 'command' param")
 	}
-	command := strings.Fields(rawCmd)
+	if len(command) == 0 {
+		return nil, errors.New("sandboxed-execution: exec-in-sandbox: empty command")
+	}
 
 	start := time.Now()
 	result, err := s.backend.ExecInSandbox(ctx, sandboxID, command)
@@ -369,9 +383,20 @@ func detectOciRuntime() (string, error) {
 }
 
 // Available returns true when an OCI runtime is found on PATH.
+// It also reconciles b.runtime with the currently-available runtime so that
+// subsequent sandbox operations use a valid runtime even if the host's
+// container runtime setup has changed since backend construction.
 func (b *OciSandboxBackend) Available() bool {
-	_, err := detectOciRuntime()
-	return err == nil
+	rt, err := detectOciRuntime()
+	if err != nil {
+		return false
+	}
+	b.mu.Lock()
+	if rt != b.runtime {
+		b.runtime = rt
+	}
+	b.mu.Unlock()
+	return true
 }
 
 // CreateSandbox launches a detached ephemeral container with the twin's profile
@@ -438,6 +463,7 @@ func (b *OciSandboxBackend) ExecInSandbox(ctx context.Context, sandboxID string,
 
 // CommitToInstance stops the sandbox and returns a synthetic changeset.
 // Real implementation would inspect the container diff and persist it.
+// The sandbox is discarded (stopped and removed) after a successful commit.
 func (b *OciSandboxBackend) CommitToInstance(ctx context.Context, sandboxID string) (*CommitResult, error) {
 	b.mu.RLock()
 	_, ok := b.running[sandboxID]
@@ -447,10 +473,17 @@ func (b *OciSandboxBackend) CommitToInstance(ctx context.Context, sandboxID stri
 	}
 
 	changesetID := fmt.Sprintf("changeset-%d", time.Now().UnixNano())
-	return &CommitResult{
+	result := &CommitResult{
 		ChangesetID: changesetID,
 		Detail:      fmt.Sprintf("sandbox %q committed as changeset %q", sandboxID, changesetID),
-	}, nil
+	}
+
+	// Discard the sandbox after commit to free resources and avoid container leaks.
+	if err := b.DiscardSandbox(ctx, sandboxID); err != nil {
+		return nil, fmt.Errorf("oci: commit sandbox %q (discard after commit): %w", sandboxID, err)
+	}
+
+	return result, nil
 }
 
 // DiscardSandbox stops and removes the container.

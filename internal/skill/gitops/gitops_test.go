@@ -101,11 +101,12 @@ func TestGitOpsSkill_CloneRepo_MissingURL(t *testing.T) {
 func TestGitOpsSkill_ApplyTwinModel(t *testing.T) {
 	s := noopSkill()
 	obs := obsFor("twin-1")
+	ws := t.TempDir()
 
 	result, err := s.Execute(context.Background(), obs, &skill.Action{
 		ActionType: "apply-twin-model",
 		TwinID:     "twin-1",
-		Params:     map[string]string{"workspace_path": "/tmp/ws"},
+		Params:     map[string]string{"workspace_path": ws},
 	})
 	if err != nil || !result.Success {
 		t.Fatalf("apply-twin-model: err=%v result=%v", err, result)
@@ -129,10 +130,11 @@ func TestGitOpsSkill_ApplyTwinModel_MissingWorkspace(t *testing.T) {
 
 func TestGitOpsSkill_ApplyTwinModel_MissingDesiredState(t *testing.T) {
 	s := noopSkill()
+	ws := t.TempDir()
 	_, err := s.Execute(context.Background(), &skill.Observations{}, &skill.Action{
 		ActionType: "apply-twin-model",
 		TwinID:     "twin-1",
-		Params:     map[string]string{"workspace_path": "/tmp/ws"},
+		Params:     map[string]string{"workspace_path": ws},
 	})
 	if err == nil {
 		t.Error("expected error when desired twin state not in observations")
@@ -145,11 +147,12 @@ func TestGitOpsSkill_ApplyTwinModel_MissingDesiredState(t *testing.T) {
 
 func TestGitOpsSkill_CommitAndOpenPR(t *testing.T) {
 	s := noopSkill()
+	ws := t.TempDir()
 	result, err := s.Execute(context.Background(), &skill.Observations{}, &skill.Action{
 		ActionType: "commit-and-open-pr",
 		TwinID:     "twin-1",
 		Params: map[string]string{
-			"workspace_path": "/tmp/ws",
+			"workspace_path": ws,
 			"description":    "Update nginx to 1.24 for twin-1",
 		},
 	})
@@ -175,10 +178,11 @@ func TestGitOpsSkill_CommitAndOpenPR_MissingWorkspace(t *testing.T) {
 
 func TestGitOpsSkill_CommitAndOpenPR_DefaultDescription(t *testing.T) {
 	s := noopSkill()
+	ws := t.TempDir()
 	result, err := s.Execute(context.Background(), &skill.Observations{}, &skill.Action{
 		ActionType: "commit-and-open-pr",
 		TwinID:     "twin-1",
-		Params:     map[string]string{"workspace_path": "/tmp/ws"},
+		Params:     map[string]string{"workspace_path": ws},
 	})
 	if err != nil || !result.Success {
 		t.Fatalf("commit-and-open-pr with default description: err=%v result=%v", err, result)

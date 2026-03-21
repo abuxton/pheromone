@@ -120,8 +120,10 @@ func TestDevOpsToolSkill_FileWrite_And_Read(t *testing.T) {
 
 func TestDevOpsToolSkill_FileRead_NotFound(t *testing.T) {
 	s := newSkill()
+	// Use a path under t.TempDir() that we deliberately do not create.
+	nonExistentPath := filepath.Join(t.TempDir(), "pheromone-does-not-exist.txt")
 	res, err := s.Execute(context.Background(), &skill.Observations{}, execAction("file-read", map[string]string{
-		"path": "/tmp/pheromone-does-not-exist-xyz",
+		"path": nonExistentPath,
 	}))
 	if err != nil {
 		t.Fatalf("unexpected Go error: %v", err)

@@ -84,7 +84,12 @@ type IaCPRSafetyNet struct {
 }
 
 // NewIaCPRSafetyNet creates an IaCPRSafetyNet with default significant action types.
+// opener must be non-nil; passing nil will cause a panic at construction time rather
+// than silently at check time.
 func NewIaCPRSafetyNet(opener PROpener, workspacePath string) *IaCPRSafetyNet {
+	if opener == nil {
+		panic("IaCPRSafetyNet: opener must not be nil")
+	}
 	return &IaCPRSafetyNet{
 		Opener:        opener,
 		WorkspacePath: workspacePath,
@@ -262,8 +267,10 @@ func (m *ActionRollbackMiddleware) WrapExecute(
 	}
 
 	result, err := s.Execute(ctx, obs, action)
-	if err != nil || (result != nil && !result.Success) {
-		if err == nil {
+	if err != nil || result == nil || !result.Success {
+		if err == nil && result == nil {
+			err = fmt.Errorf("skill returned nil result")
+		} else if err == nil {
 			err = fmt.Errorf("skill reported failure: %s", result.Detail)
 		}
 		exec.Outcome = ActionOutcomeFailure

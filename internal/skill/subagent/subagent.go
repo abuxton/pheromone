@@ -12,8 +12,10 @@
 //	spawned subagents are tracked by a unique ID; callers can wait for, cancel,
 //	or list all active subagents.
 //
-//	An orphan-reaper goroutine fires when the parent context is cancelled,
-//	cancelling all still-running child contexts to prevent goroutine leaks.
+//	An orphan-reaper helper is provided (ReapOrphans) to cancel all
+//	still-running child contexts when the parent context is cancelled; it is
+//	the caller's responsibility to invoke this as part of their shutdown
+//	handling to prevent goroutine leaks.
 //
 // Observability: active subagent count emitted as structured log entries.
 package subagent
@@ -23,6 +25,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -80,6 +83,8 @@ type record struct {
 	info      SubagentInfo
 	cancel    context.CancelFunc
 	resultCh  chan SubagentResult
+	result    *SubagentResult // stored after completion so Wait is idempotent
+	done      chan struct{}    // closed when the subagent finishes
 	spawnedAt time.Time
 }
 
@@ -131,21 +136,27 @@ func (s *SubagentSkill) Execute(ctx context.Context, _ *skill.Observations, acti
 // SpawnSubagent creates a new subagent goroutine that executes taskFn.
 // Returns the unique subagent ID.
 func (s *SubagentSkill) SpawnSubagent(parentCtx context.Context, taskSpec string, twinIDs []string, taskFn TaskFunc) (string, error) {
+	// Copy the caller's slice so mutations after Spawn don't affect stored metadata.
+	twinIDsCopy := make([]string, len(twinIDs))
+	copy(twinIDsCopy, twinIDs)
+
 	s.mu.Lock()
 	s.seq++
 	id := fmt.Sprintf("subagent-%d", s.seq)
 	childCtx, cancel := context.WithCancel(parentCtx)
 	resultCh := make(chan SubagentResult, 1)
+	doneCh := make(chan struct{})
 	r := &record{
 		info: SubagentInfo{
 			ID:        id,
-			TwinIDs:   twinIDs,
+			TwinIDs:   twinIDsCopy,
 			TaskSpec:  taskSpec,
 			Status:    SubagentStatusRunning,
 			SpawnedAt: time.Now().UTC(),
 		},
 		cancel:    cancel,
 		resultCh:  resultCh,
+		done:      doneCh,
 		spawnedAt: time.Now(),
 	}
 	s.agents[id] = r
@@ -154,17 +165,31 @@ func (s *SubagentSkill) SpawnSubagent(parentCtx context.Context, taskSpec string
 	s.log.Info("subagent spawned",
 		slog.String("subagent_id", id),
 		slog.String("task_spec", taskSpec),
-		slog.Int("twin_count", len(twinIDs)),
+		slog.Int("twin_count", len(twinIDsCopy)),
 	)
 
-	go s.run(id, childCtx, taskFn, resultCh)
+	go s.run(id, childCtx, taskFn, resultCh, doneCh)
 	return id, nil
 }
 
 // run is the goroutine that executes a subagent task.
-func (s *SubagentSkill) run(id string, ctx context.Context, taskFn TaskFunc, resultCh chan<- SubagentResult) {
+func (s *SubagentSkill) run(id string, ctx context.Context, taskFn TaskFunc, resultCh chan<- SubagentResult, doneCh chan struct{}) {
 	start := time.Now()
-	actions, err := taskFn(ctx)
+
+	var actions []string
+	var err error
+
+	// Recover from panics so a crashing task marks the subagent failed rather than
+	// bringing down the entire process.
+	func() {
+		defer func() {
+			if p := recover(); p != nil {
+				err = fmt.Errorf("subagent panic: %v", p)
+			}
+		}()
+		actions, err = taskFn(ctx)
+	}()
+
 	dur := time.Since(start).Milliseconds()
 
 	result := SubagentResult{
@@ -184,10 +209,13 @@ func (s *SubagentSkill) run(id string, ctx context.Context, taskFn TaskFunc, res
 	s.mu.Lock()
 	if r, ok := s.agents[id]; ok {
 		r.info.Status = status
+		resultCopy := result
+		r.result = &resultCopy
 	}
 	s.mu.Unlock()
 
 	resultCh <- result
+	close(doneCh)
 
 	s.log.Info("subagent finished",
 		slog.String("subagent_id", id),
@@ -197,7 +225,8 @@ func (s *SubagentSkill) run(id string, ctx context.Context, taskFn TaskFunc, res
 }
 
 // WaitForSubagent blocks until the subagent identified by id completes or
-// ctx is cancelled.
+// ctx is cancelled. The call is idempotent: subsequent calls return the cached
+// result without blocking. The subagent record is removed after a successful wait.
 func (s *SubagentSkill) WaitForSubagent(ctx context.Context, id string) (*SubagentResult, error) {
 	s.mu.RLock()
 	r, ok := s.agents[id]
@@ -206,12 +235,22 @@ func (s *SubagentSkill) WaitForSubagent(ctx context.Context, id string) (*Subage
 		return nil, fmt.Errorf("subagent: %q not found", id)
 	}
 
+	// If the subagent already finished, return the cached result immediately.
+	s.mu.RLock()
+	cached := r.result
+	s.mu.RUnlock()
+	if cached != nil {
+		s.mu.Lock()
+		delete(s.agents, id)
+		s.mu.Unlock()
+		return cached, nil
+	}
+
 	select {
 	case result := <-r.resultCh:
 		s.mu.Lock()
-		if ra, ok := s.agents[id]; ok {
-			ra.info.Status = result.Status
-		}
+		// Remove the record now that the caller has collected the result.
+		delete(s.agents, id)
 		s.mu.Unlock()
 		return &result, nil
 	case <-ctx.Done():
@@ -268,7 +307,20 @@ func (s *SubagentSkill) execSpawn(ctx context.Context, action *skill.Action) (*s
 	if taskSpec == "" {
 		taskSpec = action.Rationale
 	}
-	twinIDs := []string{action.TwinID}
+
+	// Build the twin ID list: prefer the "twin_ids" param (comma-separated),
+	// fall back to a single-element list containing action.TwinID.
+	var twinIDs []string
+	if raw := action.Params["twin_ids"]; raw != "" {
+		for _, id := range strings.Split(raw, ",") {
+			if trimmed := strings.TrimSpace(id); trimmed != "" {
+				twinIDs = append(twinIDs, trimmed)
+			}
+		}
+	}
+	if len(twinIDs) == 0 {
+		twinIDs = []string{action.TwinID}
+	}
 
 	// Default task: no-op placeholder (real tasks are provided via SpawnSubagent directly).
 	id, err := s.SpawnSubagent(ctx, taskSpec, twinIDs, func(_ context.Context) ([]string, error) {
@@ -282,7 +334,7 @@ func (s *SubagentSkill) execSpawn(ctx context.Context, action *skill.Action) (*s
 		StateDelta: &skill.TwinDelta{
 			UpdatedFields: map[string]string{"subagent_id": id},
 		},
-		Detail: fmt.Sprintf("subagent %q spawned for twin %q", id, action.TwinID),
+		Detail: fmt.Sprintf("subagent %q spawned for %d twin(s)", id, len(twinIDs)),
 	}, nil
 }
 

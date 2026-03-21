@@ -238,7 +238,7 @@ func (b *NoopGitOpsBackend) Available() bool { return true }
 
 // CloneIaCRepo returns a synthetic workspace without touching the filesystem.
 func (b *NoopGitOpsBackend) CloneIaCRepo(_ context.Context, repoURL string) (*Workspace, error) {
-	return &Workspace{Path: "/tmp/pheromone-noop-workspace", RepoURL: repoURL}, nil
+	return &Workspace{Path: "./tmp/pheromone-noop-workspace", RepoURL: repoURL}, nil
 }
 
 // ApplyTwinModelToIaC returns the twin model's state keys as "applied" fields.
@@ -314,9 +314,13 @@ func (b *GitBackend) Available() bool {
 
 // CloneIaCRepo clones the repository into a temp directory.
 func (b *GitBackend) CloneIaCRepo(ctx context.Context, repoURL string) (*Workspace, error) {
-	dest, err := os.MkdirTemp("", "pheromone-iac-*")
+	dest, err := os.MkdirTemp("./tmp", "pheromone-iac-*")
 	if err != nil {
-		return nil, fmt.Errorf("git-backend: create temp dir: %w", err)
+		// Fall back to os temp dir if ./tmp does not exist in this environment.
+		dest, err = os.MkdirTemp("", "pheromone-iac-*")
+		if err != nil {
+			return nil, fmt.Errorf("git-backend: create temp dir: %w", err)
+		}
 	}
 	out, err := exec.CommandContext(ctx, "git", "clone", repoURL, dest).CombinedOutput()
 	if err != nil {
@@ -432,6 +436,10 @@ func (b *GitBackend) CheckPRStatus(ctx context.Context, prURL string) (*PRStatus
 		return nil, fmt.Errorf("git-backend: check-pr HTTP: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("git-backend: check-pr: HTTP %d from %s", resp.StatusCode, apiURL)
+	}
 
 	var pr struct {
 		Title     string `json:"title"`

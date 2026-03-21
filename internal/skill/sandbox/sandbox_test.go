@@ -72,13 +72,13 @@ func TestSandboxedExecutionSkill_ExecInSandbox(t *testing.T) {
 	}
 	sandboxID := create.StateDelta.UpdatedFields["sandbox_id"]
 
-	// Execute a command inside the sandbox.
+	// Execute a command inside the sandbox using JSON array args.
 	result, err := s.Execute(ctx, &skill.Observations{}, &skill.Action{
 		ActionType: "exec-in-sandbox",
 		TwinID:     "twin-1",
 		Params: map[string]string{
-			"sandbox_id": sandboxID,
-			"command":    "echo hello",
+			"sandbox_id":   sandboxID,
+			"command_args": `["echo","hello"]`,
 		},
 	})
 	if err != nil {

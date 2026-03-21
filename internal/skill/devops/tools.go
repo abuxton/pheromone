@@ -137,7 +137,6 @@ func (t *DevOpsToolSkill) shellExec(ctx context.Context, action *skill.Action) (
 
 	t.log.Info("shell-exec",
 		slog.String("twin_id", action.TwinID),
-		slog.String("command", command),
 		slog.Int64("duration_ms", dur),
 		slog.Bool("success", err == nil),
 	)
@@ -190,7 +189,6 @@ func (t *DevOpsToolSkill) fileRead(action *skill.Action) (*skill.SkillResult, er
 // it does not exist and truncating if it does.
 //
 // Required params: "path", "content".
-// Optional params: "mode" (octal string, e.g. "0644").
 func (t *DevOpsToolSkill) fileWrite(action *skill.Action) (*skill.SkillResult, error) {
 	path := action.Params["path"]
 	content := action.Params["content"]
@@ -274,9 +272,13 @@ func (t *DevOpsToolSkill) gitClone(ctx context.Context, action *skill.Action) (*
 	dest := action.Params["dest"]
 	if dest == "" {
 		var err error
-		dest, err = os.MkdirTemp("", "pheromone-gitclone-*")
+		dest, err = os.MkdirTemp("./tmp", "pheromone-gitclone-*")
 		if err != nil {
-			return nil, fmt.Errorf("devops-tools: git-clone temp dir: %w", err)
+			// Fall back to os temp dir if ./tmp does not exist in this environment.
+			dest, err = os.MkdirTemp("", "pheromone-gitclone-*")
+			if err != nil {
+				return nil, fmt.Errorf("devops-tools: git-clone temp dir: %w", err)
+			}
 		}
 	}
 
@@ -443,7 +445,18 @@ func (t *DevOpsToolSkill) openPR(ctx context.Context, action *skill.Action) (*sk
 		HTMLURL string `json:"html_url"`
 		Number  int    `json:"number"`
 	}
-	_ = json.NewDecoder(resp.Body).Decode(&prResp)
+	if err := json.NewDecoder(resp.Body).Decode(&prResp); err != nil {
+		return &skill.SkillResult{
+			Success: false,
+			Detail:  fmt.Sprintf("open-pr: failed to decode PR response: %v", err),
+		}, nil
+	}
+	if prResp.HTMLURL == "" {
+		return &skill.SkillResult{
+			Success: false,
+			Detail:  "open-pr: PR URL missing from API response",
+		}, nil
+	}
 
 	return &skill.SkillResult{
 		Success: true,
