@@ -8,7 +8,7 @@ require (
 	github.com/prometheus/client_model v0.6.2
 	go.etcd.io/etcd/client/v3 v3.6.8
 	golang.org/x/crypto v0.49.0
-	google.golang.org/grpc v1.79.2
+	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 )
