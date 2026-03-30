@@ -35,10 +35,77 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/abuxton/pheromone/internal/skill"
+)
+
+// redactCommandForLog replaces the values of common secret-bearing flags and
+// environment variable assignments with "[REDACTED]" so the command structure
+// is visible in logs without leaking credentials.
+//
+// Patterns that are redacted:
+//   - Long-form flag values:  --token=VALUE, --password VALUE, --secret=VALUE,
+//     --api-key VALUE, --auth VALUE, --key=VALUE, --credential=VALUE
+//   - Short-form flag values: -p VALUE, -t VALUE (standalone flags only)
+//   - URL credentials:        scheme://user:password@host → scheme://[REDACTED]@host
+//   - ENV=VALUE assignments:  TOKEN=VALUE, PASSWORD=VALUE, SECRET=VALUE,
+//     KEY=VALUE, API_KEY=VALUE, AUTH=VALUE (case-insensitive suffix match)
+//   - Authorization headers:  Authorization: Bearer VALUE, Authorization: Basic VALUE
+func redactCommandForLog(cmd string) string {
+	// 1. Long-form flags with = (--flag=VALUE)
+	cmd = reLongFlagEq.ReplaceAllStringFunc(cmd, func(s string) string {
+		parts := strings.SplitN(s, "=", 2)
+		return parts[0] + "=[REDACTED]"
+	})
+
+	// 2. Long-form flags with space (--flag VALUE)
+	cmd = reLongFlagSpace.ReplaceAllString(cmd, `$1 [REDACTED]`)
+
+	// 3. Short-form flags with space (-p VALUE, -t VALUE)
+	cmd = reShortFlag.ReplaceAllString(cmd, `$1 [REDACTED]`)
+
+	// 4. URL credentials (scheme://user:password@host)
+	cmd = reURLCreds.ReplaceAllString(cmd, `$1://[REDACTED]@`)
+
+	// 5. ENV=VALUE assignments (TOKEN=, PASSWORD=, SECRET=, KEY=, AUTH=, API_KEY=)
+	cmd = reEnvAssign.ReplaceAllStringFunc(cmd, func(s string) string {
+		if idx := strings.Index(s, "="); idx != -1 {
+			return s[:idx+1] + "[REDACTED]"
+		}
+		return s
+	})
+
+	// 6. Authorization header values (Authorization: Bearer/Basic VALUE)
+	cmd = reAuthHeader.ReplaceAllString(cmd, `$1 [REDACTED]`)
+
+	return cmd
+}
+
+var (
+	// --token=VALUE, --password=VALUE, --secret=VALUE, --api-key=VALUE, --auth=VALUE, --key=VALUE, --credential=VALUE
+	reLongFlagEq = regexp.MustCompile(
+		`(?i)--(?:token|password|secret|api-key|apikey|auth|key|credential|access-token|private-key)=[^\s'"]+`)
+
+	// --token VALUE, --password VALUE, etc. (value follows as next whitespace-separated word)
+	reLongFlagSpace = regexp.MustCompile(
+		`(?i)(--(?:token|password|secret|api-key|apikey|auth|key|credential|access-token|private-key))\s+[^\s'"]+`)
+
+	// -p VALUE, -t VALUE (only known short secret flags)
+	reShortFlag = regexp.MustCompile(`(?:^|\s)(-[pt])\s+[^\s'"]+`)
+
+	// scheme://user:password@host
+	reURLCreds = regexp.MustCompile(`(\w+)://[^@\s]+:[^@\s]+@`)
+
+	// TOKEN=value, PASSWORD=value, SECRET=value, KEY=value, API_KEY=value, AUTH=value
+	// Matches an all-uppercase word ending in one of the secret suffixes followed by = and a value.
+	reEnvAssign = regexp.MustCompile(
+		`(?i)(?:^|\s)(?:[A-Z0-9_]*(?:TOKEN|PASSWORD|SECRET|API_KEY|AUTH|CREDENTIAL))=[^\s'"]+`)
+
+	// Authorization: Bearer TOKEN or Authorization: Basic TOKEN
+	reAuthHeader = regexp.MustCompile(`(?i)(Authorization:\s*(?:Bearer|Basic|Token))\s+[^\s'"]+`)
 )
 
 // DevOpsToolSkill is the curated DevOps tool set (ADR-020 Tool Curation pattern).
@@ -137,6 +204,7 @@ func (t *DevOpsToolSkill) shellExec(ctx context.Context, action *skill.Action) (
 
 	t.log.Info("shell-exec",
 		slog.String("twin_id", action.TwinID),
+		slog.String("command_template", redactCommandForLog(command)),
 		slog.Int64("duration_ms", dur),
 		slog.Bool("success", err == nil),
 	)
