@@ -56,22 +56,22 @@ bench-hybrid: ## Run hybrid store benchmarks (requires running etcd)
 
 .PHONY: etcd-up
 etcd-up: ## Start etcd using Docker Compose
-	docker-compose up -d
+	docker compose up -d etcd
 	@echo "Waiting for etcd to be ready..."
 	@sleep 3
 	@curl -s http://localhost:2379/health || echo "etcd not ready yet"
 
 .PHONY: etcd-down
 etcd-down: ## Stop etcd
-	docker-compose down
+	docker compose stop etcd
 
 .PHONY: etcd-clean
 etcd-clean: ## Stop etcd and remove volumes
-	docker-compose down -v
+	docker compose down -v
 
 .PHONY: etcd-logs
 etcd-logs: ## Show etcd logs
-	docker-compose logs -f etcd
+	docker compose logs -f etcd
 
 .PHONY: validate
 validate: etcd-up ## Run full validation suite (starts etcd, runs all tests)
